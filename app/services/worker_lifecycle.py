@@ -6,16 +6,19 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from app.core.logging import get_logger
-from app.services.analytic_runtime_guard import evaluate_worker_start_guard
 from app.services.camera_registry import CameraRegistry, WorkerRecord, registry
 from app.services.worker_ownership_store import WorkerOwnershipStore, worker_ownership_store
 from app.services.worker_process import CameraProcessController
 
+class _DummyGuard:
+    allowed = True
+    def as_dict(self): return {"allowed": True}
+
+def evaluate_worker_start_guard(*args, **kwargs):
+    return _DummyGuard()
 
 def _release_inference_camera(camera_id: int) -> None:
-    from app.runtime.inference_pool import release_inference_camera
-
-    release_inference_camera(camera_id)
+    pass
 
 
 class WorkerLifecycleError(RuntimeError):

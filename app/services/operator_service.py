@@ -15,7 +15,6 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.models import Camera
 from app.db.query_helpers import get_active_cameras_query
-from app.services.onedrive_client import onedrive_client
 from app.services.runtime_client import get_runtime_health_snapshot
 from app.services.webrtc_gateway_client import (
     build_webrtc_player_url,
@@ -154,16 +153,7 @@ def store_operator_performance(
 
     remote: dict[str, Any] | None = None
     remote_error: str | None = None
-    archive_enabled = onedrive_client.enabled()
-    if archive_enabled:
-        try:
-            remote = onedrive_client.upload_operator_performance_log(
-                filename=filename,
-                payload=stored_payload,
-            )
-        except Exception as exc:
-            remote_error = str(exc)
-            logger.warning("Falha ao enviar log de performance do operador para OneDrive: %s", exc)
+    archive_enabled = False
 
     return {
         "ok": True,

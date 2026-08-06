@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     rtsp_enable_low_latency: bool = True
     rtsp_ffmpeg_log_level: str = "error"
 
+    frame_store_prefer_shm: bool = True
+    frame_store_shm_buffer_size_mb: int = 8
+
     reconnect_seconds: int = 8
     reconnect_initial_delay_seconds: float = 0.5
     reconnect_backoff_multiplier: float = 1.8

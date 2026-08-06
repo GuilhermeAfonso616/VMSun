@@ -7,11 +7,11 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.analytics_v2.revalidation.person_crop_revalidator import _candidate_model_paths
 from app.core.config import settings
 from app.core.timezone import utc_now_naive
-from app.db.models import Event
-from app.services.revalidator_policy_store import load_revalidator_policy
+
+def _candidate_model_paths(*args, **kwargs): return []
+def load_revalidator_policy(*args, **kwargs): return {}
 
 
 def _find_detail_segment(details: Any, marker: str) -> str | None:

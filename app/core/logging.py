@@ -409,8 +409,5 @@ def log_environment_summary() -> None:
     logger = get_logger("app.startup")
     logger.info("Logs directory: %s", os.fspath(ensure_logs_dir()))
     logger.info("Log level: %s", settings.log_level)
-    # Nunca registrar a URL crua: ela carrega a senha do Postgres.
     logger.info("Database URL: %s", mask_url_credentials(settings.database_url))
-    logger.info("Detector model path: %s", settings.detector_model_path)
-    logger.info("Detector engine path: %s", settings.detector_engine_path or "-")
-    logger.info("Detector engine auto-build: %s", settings.detector_engine_auto_build_enabled)
+    logger.info("Product mode: %s", settings.product_mode)

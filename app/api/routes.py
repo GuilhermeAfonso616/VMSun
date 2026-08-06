@@ -9,7 +9,6 @@ from app.api.routers.camera_configuration_routes import router as camera_configu
 from app.api.routers.camera_routes import router as camera_router
 from app.api.routers.camera_runtime_routes import router as camera_runtime_router
 from app.api.routers.hierarchy_routes import router as hierarchy_router
-from app.api.routers.notification_routes import router as notification_router
 from app.api.routers.nvr_routes import router as nvr_router
 from app.api.routers.operator_routes import router as operator_router
 from app.api.routers.system_routes import router as system_router
@@ -27,7 +26,6 @@ for domain_router in (
     camera_configuration_router,
     camera_runtime_router,
     nvr_router,
-    notification_router,
     view_router,
     backup_router,
     system_router,

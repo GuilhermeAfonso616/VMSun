@@ -8,14 +8,7 @@ from typing import Literal, cast
 
 from sqlalchemy.orm import Session
 
-from app.db.models import (
-    Camera,
-    ConfigVersionHistory,
-    Event,
-    EventFeedback,
-    LockdownDelivery,
-    TuningSuggestion,
-)
+from app.db.models import Camera
 from app.core.timezone import utc_now_naive as _shared_utc_now_naive
 from app.services.camera_runtime_service import start_camera_worker, stop_camera_runtime
 from app.services.camera_gateway_client import remove_camera_frame_buffer
@@ -266,30 +259,6 @@ def purge_camera(db: Session, camera_id: int) -> str:
         raise CameraOperationError(404, "Câmera não encontrada")
     try:
         stop_camera_runtime(camera_id)
-        event_ids = [
-            event_id
-            for (event_id,) in db.query(Event.id).filter(Event.camera_id == camera_id).all()
-        ]
-        if event_ids:
-            db.query(LockdownDelivery).filter(
-                LockdownDelivery.event_id.in_(event_ids)
-            ).delete(synchronize_session=False)
-            db.query(EventFeedback).filter(
-                EventFeedback.event_id.in_(event_ids)
-            ).delete(synchronize_session=False)
-        db.query(EventFeedback).filter(EventFeedback.camera_id == camera_id).delete(
-            synchronize_session=False
-        )
-        db.query(TuningSuggestion).filter(TuningSuggestion.camera_id == camera_id).delete(
-            synchronize_session=False
-        )
-        db.query(ConfigVersionHistory).filter(
-            ConfigVersionHistory.camera_id == camera_id
-        ).delete(synchronize_session=False)
-        db.query(LockdownDelivery).filter(LockdownDelivery.camera_id == camera_id).delete(
-            synchronize_session=False
-        )
-        db.query(Event).filter(Event.camera_id == camera_id).delete(synchronize_session=False)
         camera_name = camera.name
         db.delete(camera)
         db.commit()

@@ -271,3 +271,37 @@ class TemporalSequence(Base):
     steps = Column(String, nullable=False)  # JSON string: '[{"viewId": "view_123", "duration": 8}]'
     is_shared = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# Stubs de compatibilidade para imports legado
+class Event(Base):
+    __tablename__ = "events_legacy_stub"
+    id = Column(Integer, primary_key=True)
+
+class EventFeedback(Base):
+    __tablename__ = "event_feedbacks_legacy_stub"
+    id = Column(Integer, primary_key=True)
+
+class TuningSuggestion(Base):
+    __tablename__ = "tuning_suggestions_legacy_stub"
+    id = Column(Integer, primary_key=True)
+
+class ConfigVersionHistory(Base):
+    __tablename__ = "config_version_history_stub"
+    id = Column(Integer, primary_key=True)
+
+class NotificationChannel(Base):
+    __tablename__ = "notification_channels_stub"
+    id = Column(Integer, primary_key=True)
+
+class NotificationDelivery(Base):
+    __tablename__ = "notification_deliveries_stub"
+    id = Column(Integer, primary_key=True)
+
+class Incident(Base):
+    __tablename__ = "incidents_stub"
+    id = Column(Integer, primary_key=True)
+
+class LockdownDelivery(Base):
+    __tablename__ = "lockdown_deliveries_stub"
+    id = Column(Integer, primary_key=True)

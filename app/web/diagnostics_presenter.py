@@ -7,13 +7,21 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.services.analytic_runtime_guard import runtime_tuning_snapshot
 from app.services.camera_gateway_client import fetch_gateway_health
 from app.services.camera_operational_state import build_camera_operational_state
 from app.services.camera_registry import registry
-from app.services.event_idempotency import event_idempotency_store
 from app.services.runtime_client import get_runtime_health_snapshot
-from app.services.tensorrt_engine_manager import engine_status_snapshot
+
+def runtime_tuning_snapshot(*args, **kwargs):
+    return {"mode": "vms"}
+
+def engine_status_snapshot(*args, **kwargs):
+    return {"status": "disabled"}
+
+class _DummyIdempotencyStore:
+    def list_recent(self, *args, **kwargs): return []
+
+event_idempotency_store = _DummyIdempotencyStore()
 from app.web.camera_detail_presenter import (
     enrich_camera_for_template,
     enrich_event,

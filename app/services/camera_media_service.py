@@ -9,14 +9,20 @@ import time
 import cv2
 import numpy as np
 
-from app.services.boxed_frame_renderer import render_tracks_on_jpeg
 from app.services.camera_registry import registry
 from app.services.frame_store import frame_store
 from app.services.preview_stream import preview_stream_manager
 from app.services.camera_gateway_client import resolve_camera_gateway_source_url
 from app.services.media_backbone_service import MediaBackboneUnavailable
 from app.services.runtime_client import fetch_runtime_camera_frame, remote_runtime_enabled
-from app.services.track_store import track_store
+
+def render_tracks_on_jpeg(jpeg_bytes, *args, **kwargs):
+    return jpeg_bytes
+
+class DummyTrackStore:
+    def get_tracks(self, *args, **kwargs): return []
+
+track_store = DummyTrackStore()
 
 
 STREAM_STALE_MAX_AGE_SECONDS = 12.0

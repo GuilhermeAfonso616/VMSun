@@ -18,9 +18,7 @@ from app.core.logging import get_logger
 from app.db.base import SessionLocal
 from app.db.models import Camera
 from app.services.camera_registry import registry
-from app.services.analytic_runtime_guard import runtime_tuning_snapshot
 from app.services.frame_store import frame_store
-from app.services.gpu_snapshot import read_gpu_snapshot
 from app.core.timezone import utc_now_naive as _shared_utc_now_naive
 from app.services.metrics_store import metrics_store
 from app.services.operational_history_store import operational_history_store
@@ -39,7 +37,6 @@ from app.services.reconnect_policy import (
     REASON_UNKNOWN_ERROR,
     normalize_reason,
 )
-from app.services.tensorrt_engine_manager import engine_status_snapshot
 from app.services.worker_lifecycle import WorkerLifecycleError, WorkerStartBlocked, worker_lifecycle_manager
 
 
@@ -219,9 +216,9 @@ class CameraHealthMonitor:
                 "offline_count": sum(1 for item in items if item["health_status"] == "offline"),
                 "stopped_count": sum(1 for item in items if item["health_status"] == "stopped"),
                 "cameras": items,
-                "gpu": gpu,
-                "runtime_tuning": runtime_tuning_snapshot(active_workers=len(registry.list_workers()), gpu=gpu),
-                "detector_engine": engine_status_snapshot(),
+                "gpu": {"available": False},
+                "runtime_tuning": {"mode": "vms"},
+                "detector_engine": {"status": "disabled"},
             }
             self._record_operational_history(snapshot)
             self._record_resource_history(snapshot)
@@ -230,7 +227,7 @@ class CameraHealthMonitor:
             db.close()
 
     def _snapshot_from_items(self, items: list[dict], now_utc: datetime) -> dict:
-        gpu = read_gpu_snapshot()
+        gpu = {"available": False}
         return {
             "generated_at": now_utc.isoformat(),
             "camera_count": len(items),
@@ -242,8 +239,8 @@ class CameraHealthMonitor:
             "stopped_count": sum(1 for item in items if item["health_status"] == HEALTH_STOPPED),
             "cameras": items,
             "gpu": gpu,
-            "runtime_tuning": runtime_tuning_snapshot(active_workers=len(registry.list_workers()), gpu=gpu),
-            "detector_engine": engine_status_snapshot(),
+            "runtime_tuning": {"mode": "vms"},
+            "detector_engine": {"status": "disabled"},
         }
 
     def _record_operational_history(self, snapshot: dict) -> None:

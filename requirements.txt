@@ -10,3 +10,4 @@ jinja2
 tzdata
 requests
 cryptography
+psutil
