@@ -205,7 +205,6 @@ class CameraHealthMonitor:
         try:
             cameras = _query_watchdog_cameras(db).all()
             items = [self._collect_camera_snapshot(camera, now_utc) for camera in cameras]
-            gpu = read_gpu_snapshot()
             snapshot = {
                 "generated_at": now_utc.isoformat(),
                 "camera_count": len(items),
