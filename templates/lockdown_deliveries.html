@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .lockdown-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 20px 22px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 48%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+        margin-bottom: 18px;
+    }
+
+    .lockdown-hero h1,
+    .lockdown-hero p { color: inherit; }
+    .lockdown-hero h1 { margin-bottom: 8px; font-size: 1.9rem; }
+    .lockdown-meta { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .lockdown-chip {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:7px 12px; border-radius:999px;
+        background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.12);
+        font-size:13px; font-weight:600;
+    }
+    .lockdown-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+    .lockdown-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 18px; }
+    .lockdown-kpi .metric { font-size: 30px; line-height: 1; }
+    .lockdown-kpi .label { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+    .lockdown-kpi .compact { margin-top: 8px; }
+    .lockdown-table-wrap { overflow-x: auto; }
+    .lockdown-top-scroll {
+        overflow-x: auto;
+        overflow-y: hidden;
+        height: 18px;
+        margin-bottom: 8px;
+    }
+    .lockdown-top-scroll-inner {
+        height: 1px;
+    }
+    .lockdown-table-scroll {
+        max-height: 62vh;
+        overflow: auto;
+    }
+    .lockdown-table {
+        width: 100%;
+        min-width: 1120px;
+        table-layout: fixed;
+    }
+    .lockdown-table th {
+        white-space: nowrap;
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+    .lockdown-table td {
+        vertical-align: top;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+    .lockdown-empty {
+        padding: 18px;
+        text-align: center;
+        color: var(--text-secondary);
+    }
+    .lockdown-details summary {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.2;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 11px;
+        color: var(--brand-700);
+    }
+    .lockdown-details pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        margin: 8px 0 0;
+        padding: 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-size: 12px;
+        max-width: 100%;
+        max-height: 180px;
+        overflow: auto;
+    }
+    .lockdown-column-payload,
+    .lockdown-column-response {
+        width: 180px;
+        min-width: 180px;
+        max-width: 180px;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        overflow: hidden;
+    }
+    .lockdown-column-status {
+        width: 82px;
+        min-width: 82px;
+        max-width: 82px;
+    }
+    .lockdown-column-small {
+        width: 92px;
+        min-width: 92px;
+        max-width: 92px;
+    }
+    .lockdown-column-medium {
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
+    }
+    .lockdown-column-event {
+        width: 170px;
+        min-width: 170px;
+        max-width: 170px;
+    }
+    .lockdown-row.status-error { background: #fff7f7; }
+    .lockdown-row.status-pending { background: #f8fbff; }
+    .lockdown-row.status-sent { background: #f8fff8; }
+    .lockdown-table td.lockdown-actions-cell {
+        min-width: 180px;
+    }
+    .lockdown-note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        margin-bottom: 18px;
+    }
+    .lockdown-policy-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+    }
+    .lockdown-policy-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: #f8fbff;
+    }
+    .lockdown-policy-item input[type="checkbox"] {
+        margin-top: 4px;
+        transform: scale(1.15);
+    }
+    .lockdown-policy-label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .lockdown-policy-label strong {
+        font-size: 15px;
+    }
+    @media (max-width: 720px) {
+        .lockdown-hero { padding: 18px; }
+        .lockdown-hero h1 { font-size: 1.55rem; }
+    }
+</style>
+
+<div class="lockdown-hero">
+    <div>
+        <h1>Envios Lockdown</h1>
+        <p class="muted" style="color: rgba(255,255,255,0.88);">
+            Histórico operacional das tentativas de envio externo geradas por eventos de invasão.
+        </p>
+        <div class="lockdown-meta">
+            <span class="lockdown-chip">Total: <strong>{{ summary.total }}</strong></span>
+            <span class="lockdown-chip">Sucesso: <strong>{{ summary.sent }}</strong></span>
+            <span class="lockdown-chip">Erro: <strong>{{ summary.error }}</strong></span>
+            <span class="lockdown-chip">Pendentes: <strong>{{ summary.pending }}</strong></span>
+        </div>
+    </div>
+    <div class="lockdown-actions">
+        <a class="btn btn-primary" href="/events">Central de eventos</a>
+        <a class="btn btn-secondary" href="/diagnostics">Diagnóstico</a>
+    </div>
+</div>
+
+<div class="card">
+    <form method="get" action="/lockdown-deliveries">
+        <div class="grid">
+            <div>
+                <label>Câmera</label>
+                <select name="camera_id">
+                    <option value="">Todas</option>
+                    {% for camera in cameras %}
+                    <option value="{{ camera.id }}" {% if selected_camera_id == camera.id %}selected{% endif %}>{{ camera.id }} - {{ camera.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Status</label>
+                <select name="status">
+                    <option value="">Todos</option>
+                    {% for value in ['pending', 'sent', 'error'] %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Tipo de evento</label>
+                <select name="event_type">
+                    <option value="">Todos</option>
+                    {% for value in event_types %}
+                    <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Event ID</label>
+                <input type="number" name="event_id" value="{{ selected_event_id }}" placeholder="Opcional">
+            </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Filtrar</button>
+        <a class="btn btn-secondary" href="/lockdown-deliveries">Limpar filtros</a>
+    </form>
+</div>
+
+<div class="card lockdown-note">
+    A listagem é atualizada automaticamente a cada 6 segundos. Reenvios manuais reutilizam o mesmo serviço central usado pelo pipeline de eventos.
+</div>
+
+<div class="card">
+    <h2>Eventos que acionam Lockdown</h2>
+    <p class="muted">Escolha quais eventos automáticos devem gerar envio externo. Aqui entram presença, ROI, permanência prolongada e as duas direções de linha cruzada. Se nada estiver marcado, não haverá disparo automático.</p>
+    <form method="post" action="/lockdown-deliveries/policy">
+        <div class="lockdown-policy-grid">
+            {% for event_type in lockdown_trigger_event_choices %}
+            <label class="lockdown-policy-item">
+                <input type="checkbox" name="trigger_event_types" value="{{ event_type }}" {% if event_type in selected_trigger_event_types %}checked{% endif %}>
+                <span class="lockdown-policy-label">
+                    <strong>{{ lockdown_trigger_event_labels.get(event_type, event_type) }}</strong>
+                    <span class="muted">{{ event_type }}</span>
+                </span>
+            </label>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 14px;">
+            <button class="btn btn-primary" type="submit">Salvar regra do Lockdown</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="lockdown-top-scroll" id="lockdown-top-scroll">
+        <div class="lockdown-top-scroll-inner" id="lockdown-top-scroll-inner"></div>
+    </div>
+    <div class="lockdown-table-scroll lockdown-table-wrap" id="lockdown-table-scroll">
+        <table class="lockdown-table" id="lockdown-deliveries-table">
+            <thead>
+                <tr>
+                    <th class="lockdown-column-small">ID envio</th>
+                    <th class="lockdown-column-small">Event ID</th>
+                    <th class="lockdown-column-small">Camera ID</th>
+                    <th class="lockdown-column-event">Tipo de evento</th>
+                    <th class="lockdown-column-medium">Criado em</th>
+                    <th class="lockdown-column-status">Status</th>
+                    <th class="lockdown-column-small">Tentativas</th>
+                    <th class="lockdown-column-small">HTTP</th>
+                    <th class="lockdown-column-medium">Últ. tentativa</th>
+                    <th class="lockdown-column-medium">Enviado em</th>
+                    <th class="lockdown-column-payload">Payload</th>
+                    <th class="lockdown-column-response">Resposta / erro</th>
+                    <th class="lockdown-column-small">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if deliveries %}
+                    {% for delivery in deliveries %}
+                    <tr class="lockdown-row status-{{ delivery.status }}">
+                        <td>{{ delivery.id }}</td>
+                        <td>{{ delivery.event_id }}</td>
+                        <td>{{ delivery.camera_id }}</td>
+                        <td>
+                            <div><strong>{{ delivery.event_type }}</strong></div>
+                            <div class="compact muted">{{ delivery.camera_name }}</div>
+                        </td>
+                        <td>{{ delivery.created_at_label or '-' }}</td>
+                        <td><span class="status status-{{ delivery.status }}">{{ delivery.status }}</span></td>
+                        <td>{{ delivery.attempt_count }}</td>
+                        <td>{{ delivery.http_status if delivery.http_status is not none else '-' }}</td>
+                        <td>{{ delivery.last_attempt_at_label or '-' }}</td>
+                        <td>{{ delivery.sent_at_label or '-' }}</td>
+                        <td class="lockdown-column-payload" title="{{ delivery.request_body_preview }}">
+                            <details class="lockdown-details">
+                                <summary>{{ delivery.request_body_preview }}</summary>
+                                <pre>{% if delivery.request_body is not none %}{{ delivery.request_body }}{% else %}-{% endif %}</pre>
+                            </details>
+                        </td>
+                        <td class="lockdown-column-response" title="{{ delivery.response_body_preview if delivery.status == 'sent' else delivery.error_message_preview }}">
+                            <details class="lockdown-details">
+                                <summary>{{ delivery.response_body_preview if delivery.response_body_preview and delivery.status == 'sent' else (delivery.error_message_preview or '-') }}</summary>
+                                {% if delivery.status == 'sent' %}
+                                <pre>{% if delivery.response_body is not none %}{{ delivery.response_body }}{% else %}-{% endif %}</pre>
+                                {% else %}
+                                <pre>{% if delivery.error_message is not none %}{{ delivery.error_message }}{% else %}-{% endif %}</pre>
+                                {% endif %}
+                            </details>
+                        </td>
+                        <td class="lockdown-actions-cell">
+                            <div class="event-actions">
+                                {% if delivery.status in ['pending', 'error'] %}
+                                <form method="post" action="/lockdown-deliveries/{{ delivery.id }}/resend">
+                                    <button class="btn btn-warning btn-small" type="submit">Reenviar</button>
+                                </form>
+                                {% else %}
+                                <span class="muted compact">Sem ação</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="13" class="lockdown-empty">Nenhum envio encontrado com os filtros atuais.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+(function () {
+    const topScroll = document.getElementById("lockdown-top-scroll");
+    const topScrollInner = document.getElementById("lockdown-top-scroll-inner");
+    const tableScroll = document.getElementById("lockdown-table-scroll");
+    const table = document.getElementById("lockdown-deliveries-table");
+
+    if (topScroll && topScrollInner && tableScroll && table) {
+        const syncWidth = () => {
+            topScrollInner.style.width = `${table.scrollWidth}px`;
+        };
+
+        const syncFromTop = () => {
+            tableScroll.scrollLeft = topScroll.scrollLeft;
+        };
+
+        const syncFromTable = () => {
+            topScroll.scrollLeft = tableScroll.scrollLeft;
+        };
+
+        topScroll.addEventListener("scroll", syncFromTop, { passive: true });
+        tableScroll.addEventListener("scroll", syncFromTable, { passive: true });
+        window.addEventListener("resize", syncWidth, { passive: true });
+        syncWidth();
+    }
+
+    setInterval(() => window.location.reload(), 6000);
+})();
+</script>
+{% endblock %}

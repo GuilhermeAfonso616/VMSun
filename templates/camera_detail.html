@@ -1,0 +1,2375 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Detalhes da câmera</h1>
+
+{% if camera %}
+<style>
+.detail-layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+.detail-sidebar {
+    position: sticky;
+    top: 84px;
+    margin: 0;
+    padding: 18px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+.detail-sidebar h2 { font-size: 18px; margin: 0 0 10px; line-height: 1.2; }
+.detail-kv { display: grid; gap: 8px; margin-bottom: 14px; }
+.detail-kv-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+.detail-kv-row:last-child { border-bottom: 0; }
+.detail-side-actions { display: grid; gap: 8px; margin: 14px 0 0; }
+.detail-side-actions .btn { width: 100%; text-align: center; }
+.detail-top-menu {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+.detail-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    text-align: center;
+    cursor: pointer;
+    color: #1e293b;
+    background: #f8fafc;
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+.detail-nav-btn:hover { background: #eef4ff; border-color: #93c5fd; transform: translateY(-1px); }
+.detail-nav-btn.is-active {
+    background: #dbeafe;
+    border-color: #60a5fa;
+    color: #1e3a8a;
+}
+/* Acao destrutiva separada das abas de navegacao (empurrada para a direita). */
+.detail-nav-btn--danger {
+    margin-left: auto;
+    color: #dc2626;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+.detail-nav-btn--danger:hover,
+.detail-nav-btn--danger.is-active {
+    background: #dc2626;
+    color: #fff;
+    border-color: #dc2626;
+}
+.detail-main .card {
+    margin-bottom: 16px;
+    border-radius: 18px;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+.detail-main .card h2 {
+    margin-top: 0;
+    font-size: 18px;
+}
+.detail-main #sec-overview .two-col {
+    gap: 4px 28px;
+}
+/* Lista de especificacoes: rotulo discreto a esquerda, valor forte a direita,
+   com separadores e respiro (antes era rotulo em negrito + valor solto, grudado). */
+.detail-main #sec-overview .two-col p {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 14px;
+    margin: 0;
+    padding: 9px 2px;
+    border-bottom: 1px solid #eef2f7;
+    color: #0f172a;
+    font-weight: 600;
+}
+.detail-main #sec-overview .two-col > div > p:last-child { border-bottom: 0; }
+.detail-main #sec-overview .two-col p strong {
+    font-weight: 500;
+    color: #64748b;
+    white-space: nowrap;
+}
+.overview-live-card {
+    display: grid;
+    grid-template-columns: minmax(320px, 1.25fr) minmax(220px, 0.75fr);
+    gap: 16px;
+    align-items: stretch;
+    margin-bottom: 18px;
+}
+.overview-live-frame {
+    position: relative;
+    min-height: 260px;
+    border: 1px solid #dbe3ec;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0f172a;
+}
+.overview-live-frame img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 260px;
+    max-height: 520px;
+    object-fit: contain;
+    background: #0f172a;
+}
+.overview-overlay-layer,
+.overview-box-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+.overview-box-layer {
+    z-index: 3;
+}
+.overview-overlay-svg,
+.overview-box-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.overview-overlay-roi {
+    fill: rgba(14, 165, 233, 0.12);
+    stroke: #38bdf8;
+    vector-effect: non-scaling-stroke;
+}
+.overview-overlay-line {
+    stroke: #f97316;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+.overview-overlay-line-end {
+    fill: rgba(249, 115, 22, 0.35);
+    stroke: #fed7aa;
+    vector-effect: non-scaling-stroke;
+}
+.overview-overlay-label {
+    fill: #e0f2fe;
+    stroke: rgba(15, 23, 42, 0.65);
+    paint-order: stroke;
+    font-weight: 800;
+    font-family: inherit;
+}
+.overview-detection-box {
+    fill: rgba(37, 99, 235, 0.10);
+    stroke: #2563eb;
+    vector-effect: non-scaling-stroke;
+}
+.overview-detection-label-bg {
+    fill: rgba(30, 64, 175, 0.92);
+    stroke: rgba(147, 197, 253, 0.85);
+    vector-effect: non-scaling-stroke;
+}
+.overview-detection-label {
+    fill: #eff6ff;
+    font-family: inherit;
+    font-weight: 800;
+}
+.overview-live-badge {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 4;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.78);
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 700;
+}
+.overview-live-info {
+    display: grid;
+    align-content: space-between;
+    gap: 14px;
+    min-width: 0;
+}
+.overview-live-info h2 {
+    margin-bottom: 6px;
+}
+.overview-live-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.overview-live-actions .btn {
+    text-align: center;
+}
+#sec-overview p {
+    margin: 0 0 10px;
+}
+#sec-overview .pill {
+    margin: 6px 8px 0 0;
+}
+#form-ops > .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+#form-ops > .grid > div {
+    padding: 12px;
+    border: 1px solid #dbe3ec;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+#form-ops label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+#form-ops input[type="text"],
+#form-ops input[type="number"],
+#form-ops select {
+    margin-top: 6px;
+}
+#form-ops .toggle-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+#form-ops .toggle-row label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    white-space: nowrap;
+    padding: 10px 12px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #fff;
+    font-weight: 500;
+}
+#form-ops .toggle-row input[type="checkbox"] {
+    margin: 0;
+}
+#form-ops .noise-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+#form-ops .noise-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #fff;
+}
+#form-ops .noise-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+.section-intro {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.section-intro h2 {
+    margin: 0;
+    font-size: 18px;
+}
+.section-intro .muted {
+    font-size: 13px;
+    margin-top: 4px;
+}
+.ops-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 14px;
+}
+.ops-card {
+    border: 1px solid #dbe3ec;
+    border-radius: 16px;
+    background: #f8fafc;
+    padding: 14px;
+}
+.ops-card h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #0f172a;
+}
+.field-grid-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.detail-panel[hidden] { display: none !important; }
+.detail-legacy-hidden { display: none !important; }
+.detail-stream-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin:12px 0 10px; }
+.detail-stream-toggle { display:flex; gap:8px; flex-wrap:wrap; }
+.detail-stream-status { font-size:12px; color:#475569; }
+.detail-stream-status strong { color:#0f172a; }
+.detail-stream-status .muted { font-size:12px; }
+.event-groups { display: grid; gap: 12px; margin-top: 14px; }
+.event-group {
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px 14px 10px;
+}
+.logs-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0 14px;
+}
+.logs-toolbar .muted { font-size: 12px; }
+.logs-notice {
+    padding: 12px 14px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+}
+.suggestions-table td,
+.suggestions-table th {
+    vertical-align: middle;
+}
+.suggestion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.suggestion-manual {
+    display: grid;
+    gap: 6px;
+    color: #475569;
+    font-size: 12px;
+}
+.suggestion-manual .btn {
+    width: fit-content;
+}
+.camera-toast {
+    position: fixed;
+    right: 20px;
+    bottom: 22px;
+    z-index: 50;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.camera-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.log-list { display: grid; gap: 10px; }
+.log-entry {
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px 14px;
+}
+.log-entry-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.log-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e3a8a;
+    font-size: 12px;
+    font-weight: 700;
+}
+.log-line {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #0f172a;
+}
+.event-group h3 {
+    font-size: 14px;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #1e293b;
+}
+.event-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 16px; }
+.legacy-action-row { display: none; }
+/* Mantem oculto apenas o card legado de comparacao. */
+#sec-stream-compare { display: none !important; }
+/* Empilha video+info antes de o painel direito apertar e cortar os valores
+   (zona morta de larguras intermediarias entre laptop e desktop largo). */
+@media (max-width: 1340px) {
+    .overview-live-card { grid-template-columns: 1fr; }
+}
+@media (max-width: 1100px) {
+    .detail-layout { grid-template-columns: 1fr; }
+    .detail-sidebar { position: static; }
+    .detail-top-menu { gap: 6px; }
+    .detail-nav-btn { flex: 1 1 calc(50% - 6px); }
+    .overview-live-card {
+        grid-template-columns: 1fr;
+    }
+    .ops-grid {
+        grid-template-columns: 1fr;
+    }
+    #form-ops > .grid,
+    #form-ops .noise-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+{% set detail_status_class = 'status-idle' %}
+{% set detail_status_label = camera.health_status_display or camera.status or 'idle' %}
+{% if detail_status_label in ['running', 'running_motion_test'] %}
+    {% set detail_status_class = 'status-running' %}
+{% elif detail_status_label == 'degraded' %}
+    {% set detail_status_class = 'status-degraded' %}
+{% elif detail_status_label == 'reconnecting' %}
+    {% set detail_status_class = 'status-reconnecting' %}
+{% elif detail_status_label == 'offline' %}
+    {% set detail_status_class = 'status-offline' %}
+{% elif detail_status_label == 'stopped' %}
+    {% set detail_status_class = 'status-stopped' %}
+{% elif detail_status_label and detail_status_label.startswith('error:') %}
+    {% set detail_status_class = 'status-error' %}
+{% endif %}
+
+{% set detail_default_stream_mode = 'raw' %}
+{% set detail_gateway_public_base = request.url.scheme ~ '://' ~ request.url.hostname ~ ':8090' %}
+{% set detail_raw_stream_url = detail_gateway_public_base ~ '/cameras/' ~ camera.id ~ '/stream/live' %}
+{% set detail_processed_stream_url = '/cameras/' ~ camera.id ~ '/stream/processed' %}
+
+<div class="detail-layout">
+    <aside class="card detail-sidebar">
+        <h2>{{ camera.name }}</h2>
+        <div class="detail-kv">
+            <div class="detail-kv-row"><span>ID</span><strong>#{{ camera.id }}</strong></div>
+            <div class="detail-kv-row"><span>Status</span><span class="status {{ detail_status_class }}">{{ detail_status_label }}</span></div>
+            <div class="detail-kv-row"><span>Modo</span><strong>{{ camera.worker_mode or "stopped" }}</strong></div>
+            <div class="detail-kv-row"><span>IP</span><strong>{{ camera.ip }}</strong></div>
+            <div class="detail-kv-row"><span>Marca</span><strong>{{ camera.manufacturer or '-' }}</strong></div>
+            <div class="detail-kv-row"><span>Modelo</span><strong>{{ camera.model or '-' }}</strong></div>
+            <div class="detail-kv-row"><span>Local</span><strong>{{ camera.site_name or "-" }}</strong></div>
+            <div class="detail-kv-row"><span>Grupo</span><strong>{{ camera.group_name or "-" }}</strong></div>
+        </div>
+
+        <div class="detail-side-actions">
+            <form method="post" action="/cameras/{{ camera.id }}/start"><button class="btn btn-primary" type="submit">Iniciar</button></form>
+            <form method="post" action="/cameras/{{ camera.id }}/stop"><button class="btn btn-danger" type="submit">Parar</button></form>
+            <a class="btn btn-secondary" href="/cameras/{{ camera.id }}/metrics/view">Ver metricas</a>
+            <a class="btn btn-secondary" href="/monitor">Voltar ao monitor</a>
+        </div>
+    </aside>
+
+    <div class="detail-main">
+<div class="detail-top-menu">
+    <button type="button" class="detail-nav-btn" data-panel="sec-overview">Resumo</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-camera-edit">Dados da camera</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-ops">Perfil operacional</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-analytics">Analiticos e ROI</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-motion">Ajuste de movimento</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-suggestions">Sugestoes</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-events">Ultimos eventos</button>
+    <button type="button" class="detail-nav-btn" data-panel="sec-logs">Logs</button>
+    <button type="button" class="detail-nav-btn detail-nav-btn--danger" data-panel="sec-delete">Excluir camera</button>
+</div>
+<div class="card detail-panel" id="sec-overview">
+    <div class="overview-live-card">
+        <div class="overview-live-frame" id="overviewLiveFrame">
+            <img
+                id="overviewSnapshot"
+                src="{{ detail_raw_stream_url }}"
+                data-raw-url="{{ detail_raw_stream_url }}"
+                data-processed-url="{{ detail_processed_stream_url }}"
+                alt="Stream em tempo real da câmera {{ camera.name }}"
+            >
+            <div class="overview-overlay-layer" id="overviewOverlayLayer"></div>
+            <div class="overview-box-layer" id="overviewBoxLayer"></div>
+        </div>
+        <div class="overview-live-info">
+            <div>
+                <h2>{{ camera.name }}</h2>
+            </div>
+            <div class="detail-kv">
+                <div class="detail-kv-row"><span>Status</span><span class="status {{ detail_status_class }}">{{ detail_status_label }}</span></div>
+                <div class="detail-kv-row"><span>Stream</span><strong>tempo real</strong></div>
+            </div>
+            <div class="overview-live-actions">
+                <button class="btn btn-secondary btn-small" type="button" data-panel-jump="sec-analytics">Ver analítico</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <div>
+            <p><strong>ID:</strong> {{ camera.id }}</p>
+            <p><strong>Nome:</strong> {{ camera.name }}</p>
+            <p><strong>IP:</strong> {{ camera.ip }}</p>
+            <p><strong>Marca:</strong> {{ camera.manufacturer or '-' }}</p>
+            <p><strong>Modelo:</strong> {{ camera.model or '-' }}</p>
+            <p>
+                <strong>Status:</strong>
+                <span class="status {{ detail_status_class }}">{{ detail_status_label }}</span>
+            </p>
+            <p><strong>Modo do worker:</strong> {{ camera.worker_mode or "stopped" }}</p>
+            <p><strong>Família da câmera:</strong> {{ camera.analytics_profile.camera_family if camera.analytics_profile else 'dome' }}</p>
+            <p><strong>Categoria da cena:</strong> {{ camera.analytics_profile.scene_category if camera.analytics_profile else 'interno' }}</p>
+            <p><strong>Foco do alvo:</strong> {{ camera.analytics_profile.target_focus if camera.analytics_profile else 'pessoa' }}</p>
+            <p><strong>RTSP:</strong> {{ camera.masked_rtsp_url }}</p>
+        </div>
+        <div>
+            <p><strong>Local:</strong> {{ camera.site_name or '-' }}</p>
+            <p><strong>Grupo:</strong> {{ camera.group_name or '-' }}</p>
+            <p>
+                <strong>Prioridade:</strong>
+                <span class="status priority-{{ camera.camera_priority or 'medium' }}">
+                    {{ camera.camera_priority or 'medium' }}
+                </span>
+            </p>
+            <p><strong>Iniciar com servidor:</strong> {{ 'Ligado' if camera.auto_start_enabled else 'Desligado' }}</p>
+            <p><strong>Som de alarme:</strong> {{ 'Ligado' if camera.alarm_sound_enabled else 'Desligado' }}</p>
+            <p><strong>Popup visual:</strong> {{ 'Ligado' if camera.alarm_popup_enabled else 'Desligado' }}</p>
+        </div>
+    </div>
+
+    <p>
+        <strong>Analíticos ativos:</strong>
+
+        {% if camera.analytics_summary.roi_enabled %}
+            <span class="pill pill-roi">ROI {{ camera.analytics_summary.roi_name }}</span>
+        {% endif %}
+
+        {% if camera.analytics_summary.line_enabled %}
+            {% if (camera.analytics_summary.line_direction or 'any') == 'a_to_b' %}
+                <span class="pill pill-line-a">Linha A → B</span>
+            {% elif (camera.analytics_summary.line_direction or 'any') == 'b_to_a' %}
+                <span class="pill pill-line-b">Linha B → A</span>
+            {% else %}
+                <span class="pill pill-line-any">Linha qualquer direção</span>
+            {% endif %}
+        {% endif %}
+
+        {% if camera.analytics_summary.human_event_modes_label %}
+            <span class="pill pill-human">Eventos humanos: {{ camera.analytics_summary.human_event_modes_label }}</span>
+        {% endif %}
+
+        {% if camera.analytics_summary.human_event_groups %}
+            <span class="pill pill-human">Grupos: {{ camera.analytics_summary.human_event_groups | join(', ') }}</span>
+        {% endif %}
+
+        {% if camera.analytics_summary.human_detection_sensitivity_label %}
+            <span class="pill pill-human">Sensibilidade: {{ camera.analytics_summary.human_detection_sensitivity_label }}</span>
+        {% endif %}
+
+        {% if not camera.analytics_summary.roi_enabled and not camera.analytics_summary.line_enabled %}
+            -
+        {% endif %}
+    </p>
+
+    {% if camera_error %}
+        <div class="error">{{ camera_error }}</div>
+    {% endif %}
+
+    <div class="legacy-action-row" style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+        <form class="inline" method="post" action="/cameras/{{ camera.id }}/start">
+            <button class="btn btn-primary" type="submit">Iniciar</button>
+        </form>
+
+        <form class="inline" method="post" action="/cameras/{{ camera.id }}/stop">
+            <button class="btn btn-danger" type="submit">Parar</button>
+        </form>
+
+        <a class="btn btn-secondary" href="/cameras/{{ camera.id }}/metrics/view">Ver métricas</a>
+        <a class="btn btn-secondary" href="/monitor">Monitoramento</a>
+    </div>
+</div>
+
+<div class="card detail-panel" id="sec-camera-edit">
+    <h2>Editar câmera</h2>
+
+    {% if camera_error %}
+        <div class="error">{{ camera_error }}</div>
+    {% endif %}
+
+    <form
+        id="form-camera-edit"
+        method="post"
+        action="/cameras/{{ camera.id }}/edit"
+        data-loading-title="Redescobrindo RTSP..."
+        data-loading-message="Estamos validando a camera e buscando os canais disponiveis."
+        data-loading-checkbox="rediscover_rtsp"
+    >
+        <div class="grid">
+            <div>
+                <label>Nome</label>
+                <input type="text" name="name" value="{{ camera.name }}" required>
+            </div>
+            <div>
+                <label>IP</label>
+                <input type="text" name="ip" value="{{ camera.ip }}" required>
+            </div>
+            <div>
+                <label for="camera-manufacturer">Fabricante</label>
+                {% set current_manufacturer = (camera.manufacturer or '')|lower %}
+                <select id="camera-manufacturer" name="manufacturer" required>
+                    <option value="Hikvision" {% if current_manufacturer == 'hikvision' %}selected{% endif %}>Hikvision</option>
+                    <option value="Dahua" {% if current_manufacturer == 'dahua' %}selected{% endif %}>Dahua</option>
+                    <option value="Intelbras" {% if current_manufacturer == 'intelbras' %}selected{% endif %}>Intelbras</option>
+                    <option value="Generico" {% if current_manufacturer not in ['hikvision', 'dahua', 'intelbras'] %}selected{% endif %}>Genérico (ONVIF)</option>
+                </select>
+                <button id="detect-camera-manufacturer" class="btn btn-secondary" type="button" style="margin-top:8px; width:100%;">
+                    Descobrir automaticamente
+                </button>
+                <div id="manufacturer-detection-status" class="muted" style="margin-top:6px;" aria-live="polite"></div>
+            </div>
+            <div>
+                <label>Modelo <span class="muted">(opcional)</span></label>
+                <input type="text" name="model" value="{{ camera.model or '' }}" maxlength="120">
+            </div>
+            <div>
+                <label>Porta ONVIF</label>
+                <input type="number" name="onvif_port" value="{{ camera.onvif_port or '' }}" placeholder="Deixe em branco para auto detectar">
+            </div>
+            <div>
+                <label>Usuário</label>
+                <input type="text" name="username" value="{{ camera.username }}" required>
+            </div>
+            <div>
+                <label>Senha</label>
+                <input type="password" name="password" value="" placeholder="Deixe em branco para manter a atual">
+            </div>
+            <div>
+                <label>RTSP manual opcional</label>
+                <input type="text" name="rtsp_url" value="" placeholder="rtsp://usuario:senha@10.10.1.194:554/Streaming/Channels/101">
+                <div class="muted" style="margin-top:4px;">Se preencher, substitui a descoberta ONVIF.</div>
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0; white-space:nowrap;">
+                    <input type="checkbox" name="rediscover_rtsp" value="true" style="flex:0 0 auto;">
+                    Redescobrir RTSP ao salvar
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <button class="btn btn-primary" type="submit">Salvar dados da câmera</button>
+            <button class="btn btn-secondary" type="submit" formaction="/cameras/{{ camera.id }}/rtsp-test" formmethod="post" formnovalidate>Testar padrões RTSP</button>
+        </div>
+    </form>
+</div>
+
+{% if rtsp_test_results %}
+<div class="card detail-panel">
+    <h2>Resultados do teste RTSP</h2>
+    {% if rtsp_test_source %}
+        <p class="muted">Baseado em IP {{ rtsp_test_source.ip }} e usuário {{ rtsp_test_source.username }}.</p>
+    {% endif %}
+    <div style="display:grid; gap:10px;">
+        {% for item in rtsp_test_results %}
+            <div style="padding:12px; border:1px solid #dbe3ec; border-radius:10px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;">
+                    <strong>{{ item.masked_url or item.url }}</strong>
+                    <span class="status {% if item.ok %}status-running{% else %}status-offline{% endif %}">
+                        {% if item.ok %}OK{% else %}Falhou{% endif %}
+                    </span>
+                </div>
+                {% if item.error %}
+                    <div class="muted" style="margin-top:8px;">{{ item.error }}</div>
+                {% endif %}
+                {% if item.ok %}
+                    <div style="margin-top:8px;">
+                        <form method="post" action="/cameras/{{ camera.id }}/rtsp-url">
+                            <input type="hidden" name="rtsp_url" value="{{ item.url }}">
+                            <button class="btn btn-primary" type="submit">Usar esta URL</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card detail-panel" id="sec-ops">
+    <h2>Configuração operacional</h2>
+
+    {% if ops_error %}
+        <div class="error">{{ ops_error }}</div>
+    {% endif %}
+
+    <form id="form-ops" method="post" action="/cameras/{{ camera.id }}/ops-config">
+        <div class="ops-grid">
+            <div class="ops-card">
+                <h3>Perfil operacional</h3>
+                <div class="field-grid">
+                    <div class="wide-2">
+                        <label>Local</label>
+                        <input type="text" name="site_name" value="{{ camera.site_name or '' }}">
+                    </div>
+                    <div class="wide-2">
+                        <label>Grupo</label>
+                        <input type="text" name="group_name" value="{{ camera.group_name or '' }}">
+                    </div>
+                    <div>
+                        <label>Prioridade</label>
+                        <select name="camera_priority">
+                            <option value="low" {% if camera.camera_priority == 'low' %}selected{% endif %}>low</option>
+                            <option value="medium" {% if camera.camera_priority == 'medium' %}selected{% endif %}>medium</option>
+                            <option value="high" {% if camera.camera_priority == 'high' %}selected{% endif %}>high</option>
+                            <option value="critical" {% if camera.camera_priority == 'critical' %}selected{% endif %}>critical</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Família da câmera</label>
+                        <select name="camera_family">
+                            {% for option in camera_family_options %}
+                                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Categoria da cena</label>
+                        <select name="scene_category">
+                            {% for option in scene_category_options %}
+                                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Foco do alvo</label>
+                        <select name="target_focus">
+                            {% for option in target_focus_options %}
+                                <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="wide-4">
+                        <div class="toggle-row">
+                            <label><input type="checkbox" name="auto_start_enabled" value="true" {% if camera.auto_start_enabled %}checked{% endif %}> Iniciar com o servidor</label>
+                            <label><input type="checkbox" name="alarm_sound_enabled" value="true" {% if camera.alarm_sound_enabled %}checked{% endif %}> Som de alarme</label>
+                            <label><input type="checkbox" name="alarm_popup_enabled" value="true" {% if camera.alarm_popup_enabled %}checked{% endif %}> Popup visual</label>
+                            <label><input type="checkbox" name="auto_tuning_enabled" value="true" {% if camera.auto_tuning_enabled %}checked{% endif %}> Permitir microajustes automáticos</label>
+                            <label><input type="checkbox" name="critical_lock" value="true" {% if camera.critical_lock %}checked{% endif %}> Congelar auto tuning nesta câmera</label>
+                        </div>
+                    </div>
+                    <div class="wide-4">
+                        <label>Modo de aprendizado</label>
+                        <select name="learning_mode">
+                            <option value="manual_only" {% if (camera.learning_mode or 'assisted_policy_tuning') == 'manual_only' %}selected{% endif %}>manual_only</option>
+                            <option value="assisted_policy_tuning" {% if (camera.learning_mode or 'assisted_policy_tuning') == 'assisted_policy_tuning' %}selected{% endif %}>assisted_policy_tuning</option>
+                            <option value="bounded_auto_tuning" {% if camera.learning_mode == 'bounded_auto_tuning' %}selected{% endif %}>bounded_auto_tuning</option>
+                            <option value="offline_active_learning_for_detector" {% if camera.learning_mode == 'offline_active_learning_for_detector' %}selected{% endif %}>offline_active_learning_for_detector</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ops-card">
+                <h3>Desempenho da análise</h3>
+                <div class="field-grid field-grid-4">
+                    <div>
+                        <label>Largura máx. de processamento</label>
+                        <input type="number" min="320" step="1" name="processing_max_width" value="{{ camera.processing_max_width_override if camera.processing_max_width_override is not none else 960 }}">
+                    </div>
+                    <div>
+                        <label>Altura máx. de processamento</label>
+                        <input type="number" min="180" step="1" name="processing_max_height" value="{{ camera.processing_max_height_override if camera.processing_max_height_override is not none else 540 }}">
+                    </div>
+                    <input type="hidden" name="normal_inference_interval_seconds" value="{{ camera.normal_inference_interval_seconds_override if camera.normal_inference_interval_seconds_override is not none else 0.35 }}">
+                    <div>
+                        <label>Frames descartados na captura</label>
+                        <input type="number" min="0" step="1" name="capture_drop_frames" value="{{ camera.capture_drop_frames_override if camera.capture_drop_frames_override is not none else 2 }}">
+                    </div>
+                    <div>
+                        <label>Publicação visual raw (s)</label>
+                        <input type="number" min="0" step="0.05" name="visual_raw_publish_interval_seconds" value="{{ camera.visual_raw_publish_interval_seconds_override if camera.visual_raw_publish_interval_seconds_override is not none else 0.10 }}">
+                    </div>
+                    <div>
+                        <label>Publicação visual processada (s)</label>
+                        <input type="number" min="0" step="0.05" name="visual_processed_publish_interval_seconds" value="{{ camera.visual_processed_publish_interval_seconds_override if camera.visual_processed_publish_interval_seconds_override is not none else 0.10 }}">
+                    </div>
+                    <div class="wide-4" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                            <input type="hidden" name="processing_upscale_small_frames" value="false">
+                            <input type="checkbox" name="processing_upscale_small_frames" value="true" {% if camera.processing_upscale_small_frames_override %}checked{% endif %}>
+                            Permitir upscale de frames pequenos
+                        </label>
+                        <input type="hidden" name="prefer_motion_test" value="true">
+                    </div>
+                </div>
+            </div>
+
+            <div class="ops-card">
+                <h3>Ruídos operacionais</h3>
+                <div class="noise-grid">
+                    {% for item in nuisance_options %}
+                        <label class="noise-item">
+                            <input type="checkbox" name="{{ item.key }}" value="true" {% if item.enabled %}checked{% endif %}>
+                            <span>{{ item.label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="ops-card">
+                <h3>Limiares de ajuste</h3>
+                <div class="field-grid field-grid-4">
+                    <div>
+                        <label>Máx. ajustes/dia</label>
+                        <input type="number" min="0" name="max_daily_auto_changes" value="{{ camera.max_daily_auto_changes or 1 }}">
+                    </div>
+                    <div>
+                        <label>Eventos p/ sugestão</label>
+                        <input type="number" min="1" name="min_reviewed_events_for_suggestion" value="{{ camera.min_reviewed_events_for_suggestion or 12 }}">
+                    </div>
+                    <div>
+                        <label>Eventos p/ auto tuning</label>
+                        <input type="number" min="1" name="min_reviewed_events_for_auto_tuning" value="{{ camera.min_reviewed_events_for_auto_tuning or 24 }}">
+                    </div>
+                    <div>
+                        <label>Rollback (horas)</label>
+                        <input type="number" min="1" name="rollback_window_hours" value="{{ camera.rollback_window_hours or 48 }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <button class="btn btn-primary" type="submit">Salvar configuração operacional</button>
+        </div>
+    </form>
+</div>
+
+<div class="card detail-panel" id="sec-analytics">
+    <h2>Configuração analítica</h2>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <p class="muted">
+        A visualização abre em <strong>processado</strong> quando o analítico está ligado e em <strong>original</strong> quando a câmera está parada.
+        Use os botões abaixo para alternar entre as duas visões durante o ajuste.
+        Clique em <strong>Modo ROI</strong> para marcar a área.
+        Clique em <strong>Fechar ROI</strong> para concluir.
+        Para a linha, clique em <strong>Modo Linha</strong> e marque os pontos A e B.
+    </p>
+
+    <div class="legend">
+        <div class="legend-item">
+            <span class="legend-color" style="background:#ffe600;"></span>
+            <span>ROI</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background:#ffa500;"></span>
+            <span>Linha qualquer direção</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background:#00c853;"></span>
+            <span>Linha A → B</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background:#dc2626;"></span>
+            <span>Linha B → A</span>
+        </div>
+    </div>
+
+    <div class="detail-stream-toolbar">
+        <div class="detail-stream-toggle">
+            <button type="button" class="btn btn-secondary" id="streamRawBtn">Original</button>
+            <button type="button" class="btn btn-secondary" id="streamProcessedBtn" {% if not camera.is_running %}disabled{% endif %}>Processado</button>
+        </div>
+        <div class="detail-stream-status">
+            <div>
+                Visualização atual:
+                <strong id="streamModeLabel">{% if detail_default_stream_mode == 'processed' %}Processado{% else %}Original{% endif %}</strong>
+            </div>
+            <div class="muted">
+                {% if camera.is_running %}
+                    O processado mostra overlays, ROI, linha e analítico ao vivo.
+                {% else %}
+                    O processado só fica disponível quando o analítico estiver ligado.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="editor-stage">
+        <div class="editor-surface" id="editorSurface">
+            <img
+                id="editorImage"
+                class="editor-image"
+                src="{% if detail_default_stream_mode == 'processed' %}{{ detail_processed_stream_url }}{% else %}{{ detail_raw_stream_url }}{% endif %}"
+                data-raw-url="{{ detail_raw_stream_url }}"
+                data-processed-url="{{ detail_processed_stream_url }}"
+                data-default-mode="{{ detail_default_stream_mode }}"
+                data-processed-available="{% if camera.is_running %}true{% else %}false{% endif %}"
+                data-source-width="{{ camera.source_frame_width or '' }}"
+                data-source-height="{{ camera.source_frame_height or '' }}"
+                data-coordinate-space="{{ camera.analytics_coordinate_space or 'display' }}"
+                alt="Editor do stream"
+                draggable="false"
+            >
+            <canvas id="editorCanvas" class="editor-canvas"></canvas>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <button type="button" class="btn btn-primary" id="modeRoiBtn">Modo ROI</button>
+        <button type="button" class="btn btn-warning" id="modeLineBtn">Modo Linha</button>
+        <button type="button" class="btn btn-secondary" id="closeRoiBtn">Fechar ROI</button>
+        <button type="button" class="btn btn-secondary" id="undoBtn">Desfazer último ponto</button>
+        <button type="button" class="btn btn-secondary" id="clearRoiBtn">Limpar ROI</button>
+        <button type="button" class="btn btn-secondary" id="clearLineBtn">Limpar Linha</button>
+        <button type="button" class="btn btn-danger" id="clearAllBtn">Limpar Tudo</button>
+    </div>
+
+    <form method="post" action="/cameras/{{ camera.id }}/analytics-config" id="analyticsForm">
+        <div style="margin-bottom:12px; padding:12px 14px; border:1px solid #dbe3ec; border-radius:10px; background:#fff;">
+            <strong>ROI atual:</strong>
+            {% if camera.analytics_summary.roi_enabled %}
+                {{ camera.analytics_summary.roi_name or 'ROI' }}
+            {% else %}
+                Nenhuma ROI configurada
+            {% endif %}
+        </div>
+
+        <label>Direção da linha</label>
+        <select name="line_direction" id="line_direction">
+            <option value="any" {% if (camera.line_direction or 'any') == 'any' %}selected{% endif %}>qualquer direção</option>
+            <option value="a_to_b" {% if camera.line_direction == 'a_to_b' %}selected{% endif %}>A para B</option>
+            <option value="b_to_a" {% if camera.line_direction == 'b_to_a' %}selected{% endif %}>B para A</option>
+        </select>
+
+        <div style="margin:16px 0 12px; padding:14px; border:1px solid #dbe3ec; border-radius:12px; background:#f8fafc;">
+            <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+                <div>
+                    <label style="margin-bottom:4px; display:block;">Eventos humanos</label>
+                    <div class="muted" style="margin-bottom:10px;">
+                        Selecione o que esta câmera deve emitir. Quando houver ROI, os eventos de ROI são os principais.
+                    </div>
+                </div>
+                <div class="muted" style="font-size:13px;">
+                    Linha cruzada usa a direção configurada acima.
+                </div>
+            </div>
+            <div class="grid" style="gap:10px 16px;">
+                <div style="grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.04em;">Presença</div>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="person_entered" {% if 'person_entered' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Pessoa entrou na cena
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="person_left" {% if 'person_left' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Pessoa saiu da cena
+                </label>
+
+                <div style="grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px;">ROI</div>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="person_entered_roi" {% if 'person_entered_roi' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Pessoa entrou na ROI
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="person_left_roi" {% if 'person_left_roi' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Pessoa saiu da ROI
+                </label>
+
+                <div style="grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px;">Permanência longa</div>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="person_loitering" {% if 'person_loitering' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Permanência prolongada
+                </label>
+
+                <div style="grid-column: 1 / -1; font-size: 12px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px;">Linha</div>
+                <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                    <input type="checkbox" name="human_event_modes" value="line_crossing" {% if 'line_crossing' in (camera.human_event_modes or []) %}checked{% endif %}>
+                    Linha cruzada
+                </label>
+            </div>
+            <div style="margin-top:12px; max-width: 260px;">
+                <label>Tempo mínimo de permanência (s)</label>
+                <input type="number" step="0.1" min="0.1" name="human_loitering_seconds" value="{{ camera.human_loitering_seconds if camera.human_loitering_seconds is not none else 10 }}">
+            </div>
+
+            <div style="margin-top:12px; max-width: 260px;">
+                <label>Sensibilidade de detecção</label>
+                <select name="human_detection_sensitivity">
+                    {% set current_sensitivity = camera.human_detection_sensitivity or 'medium' %}
+                    <option value="very_low" {% if current_sensitivity == 'very_low' %}selected{% endif %}>Muito sensível</option>
+                    <option value="low" {% if current_sensitivity == 'low' %}selected{% endif %}>Sensível</option>
+                    <option value="medium" {% if current_sensitivity == 'medium' %}selected{% endif %}>Padrão</option>
+                    <option value="high" {% if current_sensitivity == 'high' %}selected{% endif %}>Conservador</option>
+                </select>
+                <div class="muted" style="margin-top:6px; font-size:12px;">
+                    Controla o limiar mínimo de confidence da IA antes de gerar eventos.
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="roi_polygon_json" id="roi_polygon_json" value='{{ camera.roi_polygon_pretty or "" }}'>
+        <input type="hidden" name="line_start_x" id="line_start_x" value='{{ camera.line_start_x if camera.line_start_x is not none else "" }}'>
+        <input type="hidden" name="line_start_y" id="line_start_y" value='{{ camera.line_start_y if camera.line_start_y is not none else "" }}'>
+        <input type="hidden" name="line_end_x" id="line_end_x" value='{{ camera.line_end_x if camera.line_end_x is not none else "" }}'>
+        <input type="hidden" name="line_end_y" id="line_end_y" value='{{ camera.line_end_y if camera.line_end_y is not none else "" }}'>
+
+        <div class="grid">
+            <div>
+                <label>ROI em JSON</label>
+                <div class="code-box" id="roiPreview">-</div>
+            </div>
+            <div>
+                <label>Linha em JSON</label>
+                <div class="code-box" id="linePreview">-</div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;">
+            <button class="btn btn-primary" type="submit">Salvar configuração analítica</button>
+        </div>
+    </form>
+</div>
+
+<div class="card detail-panel" id="sec-motion">
+    <h2>Configuração de movimento</h2>
+
+    {% if motion_error %}
+        <div class="error">{{ motion_error }}</div>
+    {% endif %}
+
+    <form id="form-motion" method="post" action="/cameras/{{ camera.id }}/motion-config">
+        <div class="grid motion-grid">
+            <div>
+                <label>Intervalo em idle (s)</label>
+                <input type="number" step="0.01" min="0.01" name="motion_idle_interval" value="{{ camera.motion_config.motion_idle_interval }}">
+            </div>
+            <div>
+                <label>Intervalo ativo (s)</label>
+                <input type="number" step="0.01" min="0.01" name="motion_active_interval" value="{{ camera.motion_config.motion_active_interval }}">
+            </div>
+            <div>
+                <label>Persistência após movimento (s)</label>
+                <input type="number" step="0.1" min="0" name="motion_hold_seconds" value="{{ camera.motion_config.motion_hold_seconds }}">
+            </div>
+            <div>
+                <label>Persistência após detecção (s)</label>
+                <input type="number" step="0.1" min="0" name="motion_detection_hold_seconds" value="{{ camera.motion_config.motion_detection_hold_seconds }}">
+            </div>
+            <div>
+                <label>Frames consecutivos</label>
+                <input type="number" step="1" min="1" name="motion_min_motion_frames" value="{{ camera.motion_config.motion_min_motion_frames }}">
+            </div>
+            <div>
+                <label>Largura de análise</label>
+                <input type="number" step="1" min="32" name="motion_downscale_width" value="{{ camera.motion_config.motion_downscale_width }}">
+            </div>
+            <div>
+                <label>Área mínima de contorno</label>
+                <input type="number" step="1" min="1" name="motion_min_contour_area" value="{{ camera.motion_config.motion_min_contour_area }}">
+            </div>
+            <div>
+                <label>Limiar de movimento (0 a 1)</label>
+                <input type="number" step="0.0001" min="0" max="1" name="motion_ratio_threshold" value="{{ camera.motion_config.motion_ratio_threshold }}">
+            </div>
+            <div>
+                <label>Mudança global máxima (0 a 1)</label>
+                <input type="number" step="0.0001" min="0" max="1" name="motion_global_change_ratio_limit" value="{{ camera.motion_config.motion_global_change_ratio_limit }}">
+            </div>
+            <div>
+                <label>Adaptação do fundo (0 a 1)</label>
+                <input type="number" step="0.0001" min="0" max="1" name="motion_background_alpha" value="{{ camera.motion_config.motion_background_alpha }}">
+            </div>
+            <div>
+                <label>Frames de aquecimento</label>
+                <input type="number" step="1" min="1" name="motion_warmup_frames" value="{{ camera.motion_config.motion_warmup_frames }}">
+            </div>
+        </div>
+
+        <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">Salvar configuração de movimento</button>
+        </div>
+    </form>
+
+    <form method="post" action="/cameras/{{ camera.id }}/motion-config/reset" style="margin-top:10px;">
+        <button class="btn btn-secondary" type="submit">Restaurar padrão</button>
+    </form>
+</div>
+
+<div class="card detail-panel" id="sec-suggestions">
+    <div class="section-intro">
+        <div>
+            <h2>Sugestões da câmera</h2>
+            <p class="muted">
+                Pendências de ajuste desta câmera. Parâmetros automáticos podem ser aplicados aqui; ajustes estruturais ficam como orientação para configurar ROI, linha ou regra.
+            </p>
+        </div>
+    </div>
+
+    {% if camera.tuning_suggestions %}
+        <table class="suggestions-table">
+            <thead>
+                <tr>
+                    <th>Parâmetro</th>
+                    <th>Valor atual</th>
+                    <th>Sugerido</th>
+                    <th>Confiança</th>
+                    <th>Motivo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody data-role="camera-suggestions-body">
+                {% for suggestion in camera.tuning_suggestions %}
+                    <tr data-suggestion-row="{{ suggestion.id }}">
+                        <td>{{ suggestion.parameter_name }}</td>
+                        <td>{{ suggestion.old_value }}</td>
+                        <td>{{ suggestion.suggested_value }}</td>
+                        <td>{{ '%.2f'|format(suggestion.confidence_score) }}</td>
+                        <td>{{ suggestion.reason_summary or '-' }}</td>
+                        <td data-role="suggestion-status">
+                            {% if suggestion.is_applicable %}
+                                <div class="suggestion-actions">
+                                    <button class="btn btn-success btn-small" type="button" data-suggestion-action="apply" data-suggestion-id="{{ suggestion.id }}">Aplicar</button>
+                                    <button class="btn btn-secondary btn-small" type="button" data-suggestion-action="reject" data-suggestion-id="{{ suggestion.id }}">Rejeitar</button>
+                                </div>
+                            {% else %}
+                                <div class="suggestion-manual">
+                                    <span>Configuração manual</span>
+                                    <div class="suggestion-actions">
+                                        <a class="btn btn-secondary btn-small" href="#sec-analytics" data-panel-link="sec-analytics">Abrir analíticos</a>
+                                        <button class="btn btn-secondary btn-small" type="button" data-suggestion-action="reject" data-suggestion-id="{{ suggestion.id }}">Rejeitar</button>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="logs-notice" data-role="camera-suggestions-empty">Nenhuma sugestão pendente para esta câmera.</div>
+    {% endif %}
+</div>
+
+<div class="card detail-panel" id="sec-delete">
+    <h2>Excluir câmera</h2>
+    <p class="muted">
+        Excluir a câmera remove também os eventos vinculados a ela e tenta apagar os snapshots salvos.
+    </p>
+
+    <form id="form-delete-camera" method="post" action="/cameras/{{ camera.id }}/delete" onsubmit="return confirm('Excluir a câmera {{ camera.name }} e todos os eventos relacionados?');">
+        <button class="btn btn-danger" type="submit">Excluir câmera</button>
+    </form>
+</div>
+
+<div class="card detail-legacy-hidden" id="sec-stream-compare">
+    <h2>Comparação de stream</h2>
+    <div class="stream-grid">
+        <div class="stream-box">
+            <h3>Original RTSP</h3>
+            <p class="muted">
+                O stream original já está ativo no editor acima.
+                Para reduzir travamentos e consumo de banda, abrimos apenas uma conexão raw nesta tela.
+            </p>
+        </div>
+        <div class="stream-box">
+            <h3>Processado com analítico</h3>
+            {% if camera.is_running %}
+                <img alt="Stream processado (desativado nesta tela)">
+            {% else %}
+                <p class="muted">Inicie o analítico para ver o stream processado.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card detail-panel" id="sec-events">
+    <h2>Últimos eventos</h2>
+    <table id="eventsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Evento</th>
+                <th>Severidade</th>
+                <th>Status</th>
+                <th>Track ID</th>
+                <th>Confiança</th>
+                <th>Snapshot</th>
+                <th>Ações</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody id="cameraDetailEventsBody">
+            {% for event in events %}
+            <tr>
+                <td>{{ event.id }}</td>
+                <td>{{ event.event_type_label or (event.event_type | event_label) }}</td>
+                <td><span class="status priority-{{ event.severity_display }}">{{ event.severity_label or (event.severity_display | severity_label) }}</span></td>
+                <td>{{ event.status_label or (event.status_display | status_label) }}</td>
+                <td>{{ event.track_id }}</td>
+                <td>{{ event.confidence }}</td>
+                <td>
+                    {% if event.snapshot_path %}
+                        <a href="/events/{{ event.id }}/snapshot" target="_blank" data-media-popup data-media-kind="image" data-title="{{ camera.name }} - Evento #{{ event.id }}">Abrir</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        {% if event.status_display == 'new' %}
+                        <form method="post" action="/events/{{ event.id }}/ack">
+                            <button class="btn btn-secondary" type="submit">Reconhecer</button>
+                        </form>
+                        {% endif %}
+
+                        {% if event.status_display != 'closed' %}
+                        <form method="post" action="/events/{{ event.id }}/close">
+                            <button class="btn btn-warning" type="submit">Fechar</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/events/{{ event.id }}/reopen">
+                            <button class="btn btn-secondary" type="submit">Reabrir</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>{{ event.created_at | br_datetime }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card detail-panel" id="sec-logs">
+    <div class="section-intro">
+        <div>
+            <h2>Logs da câmera</h2>
+            <p class="muted">
+                Últimas linhas dos arquivos de log do servidor, filtradas por esta câmera quando houver correspondência.
+            </p>
+        </div>
+        <div class="muted" style="text-align:right;">
+            {% if camera.log_entries.filtered %}
+                Filtro ativo para <strong>cam={{ camera.id }}</strong>
+            {% else %}
+                Sem filtro específico; exibindo os registros mais recentes
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="logs-toolbar">
+        <div class="muted">
+            Fontes: {{ camera.log_entries.sources | join(', ') if camera.log_entries.sources else 'nenhuma fonte encontrada' }}
+        </div>
+        <a class="btn btn-secondary" href="/cameras/{{ camera.id }}">Recarregar página</a>
+    </div>
+
+    <div class="logs-notice">
+        Use esta aba para revisar rapidamente falhas de RTSP, inicialização do worker, reconexões e erros de regra/evento.
+    </div>
+
+    <div style="margin-top:14px;">
+        {% if camera.log_entries.entries %}
+            <div class="log-list">
+                {% for item in camera.log_entries.entries %}
+                    <div class="log-entry">
+                        <div class="log-entry-head">
+                            <span class="log-source">{{ item.source }}</span>
+                        </div>
+                        <pre class="log-line">{{ item.line }}</pre>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="logs-notice">Nenhum log encontrado para esta câmera.</div>
+        {% endif %}
+    </div>
+</div>
+
+    </div>
+</div>
+
+<div class="camera-toast" id="cameraToast"></div>
+
+<script id="cameraDetailOverlayData" type="application/json">
+{{ {
+    "camera_id": camera.id,
+    "source_frame_width": camera.source_frame_width,
+    "source_frame_height": camera.source_frame_height,
+    "monitor_overlay": camera.monitor_overlay if camera.monitor_overlay is defined else None,
+    "monitor_boxes": camera.monitor_boxes if camera.monitor_boxes is defined else []
+} | tojson }}
+</script>
+
+<script>
+(function () {
+    const cameraEditForm = document.getElementById("form-camera-edit");
+    const manufacturerSelect = document.getElementById("camera-manufacturer");
+    const manufacturerDetectButton = document.getElementById("detect-camera-manufacturer");
+    const manufacturerDetectionStatus = document.getElementById("manufacturer-detection-status");
+
+    if (cameraEditForm && manufacturerSelect && manufacturerDetectButton && manufacturerDetectionStatus) {
+        manufacturerDetectButton.addEventListener("click", async function () {
+            const formData = new FormData(cameraEditForm);
+            formData.set("camera_id", "{{ camera.id }}");
+            manufacturerDetectButton.disabled = true;
+            manufacturerDetectionStatus.textContent = "Testando ONVIF, portas conhecidas e padrões RTSP...";
+            try {
+                const response = await fetch("/cameras/manufacturer/detect", {
+                    method: "POST",
+                    body: formData,
+                    cache: "no-store"
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Não foi possível descobrir o fabricante.");
+                manufacturerSelect.value = data.manufacturer || "Generico";
+                const confidence = data.confidence === "high"
+                    ? "alta confiança"
+                    : data.confidence === "medium" ? "confiança média" : "baixa confiança";
+                const sdkLabels = {
+                    confirmed: "confirmado",
+                    failed: "falhou",
+                    unavailable: "SDK indisponível",
+                    port_closed: "porta fechada"
+                };
+                const sdkSummary = (data.sdk_attempts || [])
+                    .map(item => `${item.brand}: ${sdkLabels[item.status] || item.status}`)
+                    .join(" · ");
+                manufacturerDetectionStatus.textContent =
+                    `Resultado: ${manufacturerSelect.options[manufacturerSelect.selectedIndex].text} (${confidence}). ${data.reason || ""}` +
+                    (sdkSummary ? ` Testes: ${sdkSummary}.` : "");
+            } catch (error) {
+                manufacturerDetectionStatus.textContent = error.message;
+            } finally {
+                manufacturerDetectButton.disabled = false;
+            }
+        });
+    }
+
+    const overviewOverlayLayer = document.getElementById("overviewOverlayLayer");
+    const overviewBoxLayer = document.getElementById("overviewBoxLayer");
+    const overlayBoot = document.getElementById("cameraDetailOverlayData");
+    let overviewCamera = {};
+    let overviewTracksPollRunning = false;
+
+    function safeString(value) {
+        if (value === null || value === undefined) return "";
+        return String(value);
+    }
+
+    function escapeOverviewHtml(value) {
+        return safeString(value)
+            .split("&").join("&amp;")
+            .split("<").join("&lt;")
+            .split(">").join("&gt;")
+            .split('"').join("&quot;")
+            .split("'").join("&#039;");
+    }
+
+    function overviewFrameSize(camera) {
+        let width = Number(camera && camera.source_frame_width);
+        let height = Number(camera && camera.source_frame_height);
+        if (!Number.isFinite(width) || width <= 0) width = 16;
+        if (!Number.isFinite(height) || height <= 0) height = 9;
+        return { width, height };
+    }
+
+    function overviewUnits(frameSize) {
+        const minSize = Math.max(1, Math.min(frameSize.width, frameSize.height));
+        return {
+            stroke: Math.max(0.028, minSize * 0.0036),
+            thinStroke: Math.max(0.018, minSize * 0.0018),
+            pointRadius: Math.max(0.045, minSize * 0.006),
+            fontSize: Math.max(0.22, minSize * 0.027),
+            labelHeight: Math.max(0.34, minSize * 0.04),
+            labelPadX: Math.max(0.08, minSize * 0.012),
+            labelOffset: Math.max(0.10, minSize * 0.018)
+        };
+    }
+
+    function normalizeOverviewPoint(point, frameSize) {
+        if (!point || typeof point !== "object") return null;
+        const rawX = Array.isArray(point) ? point[0] : point.x;
+        const rawY = Array.isArray(point) ? point[1] : point.y;
+        const x = Number(rawX);
+        const y = Number(rawY);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return {
+            x: Math.max(0, Math.min(1, x)) * frameSize.width,
+            y: Math.max(0, Math.min(1, y)) * frameSize.height
+        };
+    }
+
+    function renderOverviewOverlay(camera) {
+        const overlay = camera && camera.monitor_overlay ? camera.monitor_overlay : null;
+        if (!overviewOverlayLayer || !overlay || !overlay.enabled) {
+            if (overviewOverlayLayer) overviewOverlayLayer.innerHTML = "";
+            return;
+        }
+
+        const frameSize = overviewFrameSize(camera);
+        const units = overviewUnits(frameSize);
+        const roiPoints = Array.isArray(overlay.roi_points)
+            ? overlay.roi_points.map((point) => normalizeOverviewPoint(point, frameSize)).filter(Boolean)
+            : [];
+        const line = overlay.line || null;
+        const lineStart = line ? normalizeOverviewPoint(line.start, frameSize) : null;
+        const lineEnd = line ? normalizeOverviewPoint(line.end, frameSize) : null;
+        if (roiPoints.length < 3 && (!lineStart || !lineEnd)) {
+            overviewOverlayLayer.innerHTML = "";
+            return;
+        }
+
+        const chunks = [
+            '<svg class="overview-overlay-svg" viewBox="0 0 ' + frameSize.width + ' ' + frameSize.height + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+        ];
+        if (roiPoints.length >= 3) {
+            chunks.push(
+                '<polygon class="overview-overlay-roi" points="' +
+                roiPoints.map((point) => point.x.toFixed(2) + "," + point.y.toFixed(2)).join(" ") +
+                '" stroke-width="' + units.stroke.toFixed(3) + '"></polygon>'
+            );
+            if (overlay.roi_name) {
+                chunks.push(
+                    '<text class="overview-overlay-label" font-size="' + units.fontSize.toFixed(3) + '" stroke-width="' + units.stroke.toFixed(3) + '" x="' + roiPoints[0].x.toFixed(2) + '" y="' + Math.max(units.fontSize, roiPoints[0].y - units.labelOffset).toFixed(2) + '">' +
+                    escapeOverviewHtml(overlay.roi_name) +
+                    "</text>"
+                );
+            }
+        }
+        if (lineStart && lineEnd) {
+            chunks.push(
+                '<line class="overview-overlay-line" stroke-width="' + units.stroke.toFixed(3) + '" x1="' + lineStart.x.toFixed(2) + '" y1="' + lineStart.y.toFixed(2) + '" x2="' + lineEnd.x.toFixed(2) + '" y2="' + lineEnd.y.toFixed(2) + '"></line>' +
+                '<circle class="overview-overlay-line-end" stroke-width="' + units.thinStroke.toFixed(3) + '" cx="' + lineStart.x.toFixed(2) + '" cy="' + lineStart.y.toFixed(2) + '" r="' + units.pointRadius.toFixed(3) + '"></circle>' +
+                '<circle class="overview-overlay-line-end" stroke-width="' + units.thinStroke.toFixed(3) + '" cx="' + lineEnd.x.toFixed(2) + '" cy="' + lineEnd.y.toFixed(2) + '" r="' + units.pointRadius.toFixed(3) + '"></circle>'
+            );
+        }
+        chunks.push("</svg>");
+        overviewOverlayLayer.innerHTML = chunks.join("");
+    }
+
+    function renderOverviewBoxes(camera) {
+        const boxes = Array.isArray(camera && camera.monitor_boxes) ? camera.monitor_boxes : [];
+        if (!overviewBoxLayer || !boxes.length) {
+            if (overviewBoxLayer) overviewBoxLayer.innerHTML = "";
+            return;
+        }
+
+        const frameSize = overviewFrameSize(camera);
+        const units = overviewUnits(frameSize);
+        const chunks = [
+            '<svg class="overview-box-svg" viewBox="0 0 ' + frameSize.width + ' ' + frameSize.height + '" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+        ];
+        boxes.slice(0, 30).forEach((box) => {
+            const bbox = box && Array.isArray(box.bbox) ? box.bbox : null;
+            if (!bbox || bbox.length !== 4) return;
+            let x1 = Number(bbox[0]);
+            let y1 = Number(bbox[1]);
+            let x2 = Number(bbox[2]);
+            let y2 = Number(bbox[3]);
+            if (![x1, y1, x2, y2].every(Number.isFinite)) return;
+
+            x1 = Math.max(0, Math.min(frameSize.width, x1));
+            y1 = Math.max(0, Math.min(frameSize.height, y1));
+            x2 = Math.max(0, Math.min(frameSize.width, x2));
+            y2 = Math.max(0, Math.min(frameSize.height, y2));
+            const width = Math.max(1, x2 - x1);
+            const height = Math.max(1, y2 - y1);
+            const confidence = Number(box.confidence);
+            let label = box.label || "person";
+            if (box.track_id !== null && box.track_id !== undefined && Number(box.track_id) >= 0) {
+                label += " #" + String(box.track_id);
+            }
+            if (Number.isFinite(confidence)) {
+                label += " " + confidence.toFixed(2);
+            }
+            if (box.visual_status === "revalidated") {
+                label += " IA";
+            }
+            const labelY = Math.max(units.fontSize + units.labelPadX, y1 - units.labelOffset);
+            const labelWidth = Math.max(units.fontSize * 4.8, Math.min(frameSize.width * 0.32, units.labelPadX * 2 + label.length * units.fontSize * 0.55));
+            chunks.push(
+                '<rect class="overview-detection-box" stroke-width="' + units.stroke.toFixed(3) + '" x="' + x1.toFixed(2) + '" y="' + y1.toFixed(2) + '" width="' + width.toFixed(2) + '" height="' + height.toFixed(2) + '"></rect>' +
+                '<rect class="overview-detection-label-bg" stroke-width="' + units.thinStroke.toFixed(3) + '" x="' + x1.toFixed(2) + '" y="' + (labelY - units.fontSize - units.labelPadX * 0.45).toFixed(2) + '" width="' + labelWidth.toFixed(2) + '" height="' + units.labelHeight.toFixed(2) + '" rx="' + (units.labelHeight * 0.18).toFixed(2) + '"></rect>' +
+                '<text class="overview-detection-label" font-size="' + units.fontSize.toFixed(3) + '" x="' + (x1 + units.labelPadX).toFixed(2) + '" y="' + labelY.toFixed(2) + '">' + escapeOverviewHtml(label) + "</text>"
+            );
+        });
+        chunks.push("</svg>");
+        overviewBoxLayer.innerHTML = chunks.join("");
+    }
+
+    function refreshOverviewLayers() {
+        renderOverviewOverlay(overviewCamera);
+        renderOverviewBoxes(overviewCamera);
+    }
+
+    async function pollOverviewBoxes() {
+        if (!overviewCamera.camera_id || overviewTracksPollRunning || document.hidden) return;
+        if (String(overviewCamera.worker_mode || "").toLowerCase() === "motion_test") {
+            overviewCamera.monitor_boxes = [];
+            renderOverviewBoxes(overviewCamera);
+            return;
+        }
+        overviewTracksPollRunning = true;
+        try {
+            const params = new URLSearchParams();
+            params.set("camera_ids", String(overviewCamera.camera_id));
+            params.set("max_age_seconds", "1.5");
+            params.set("_ts", String(Date.now()));
+            const response = await fetch("/monitor/tracks?" + params.toString(), {
+                cache: "no-store",
+                headers: { "Cache-Control": "no-cache" }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            const item = data && data.cameras ? data.cameras[String(overviewCamera.camera_id)] : null;
+            overviewCamera.monitor_boxes = item && Array.isArray(item.tracks) ? item.tracks : [];
+            if (item && Number(item.source_frame_width) > 0) {
+                overviewCamera.source_frame_width = Number(item.source_frame_width);
+            }
+            if (item && Number(item.source_frame_height) > 0) {
+                overviewCamera.source_frame_height = Number(item.source_frame_height);
+            }
+            renderOverviewBoxes(overviewCamera);
+        } catch (error) {
+            console.warn("Falha ao atualizar boxes do resumo", error);
+        } finally {
+            overviewTracksPollRunning = false;
+        }
+    }
+
+    try {
+        overviewCamera = overlayBoot ? JSON.parse(overlayBoot.textContent || "{}") : {};
+    } catch (error) {
+        overviewCamera = {};
+    }
+    refreshOverviewLayers();
+    setInterval(pollOverviewBoxes, 1200);
+
+    const image = document.getElementById("editorImage");
+    const canvas = document.getElementById("editorCanvas");
+    const surface = document.getElementById("editorSurface");
+    const ctx = canvas.getContext("2d");
+
+    const modeRoiBtn = document.getElementById("modeRoiBtn");
+    const modeLineBtn = document.getElementById("modeLineBtn");
+    const streamRawBtn = document.getElementById("streamRawBtn");
+    const streamProcessedBtn = document.getElementById("streamProcessedBtn");
+    const streamModeLabel = document.getElementById("streamModeLabel");
+    const closeRoiBtn = document.getElementById("closeRoiBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const clearRoiBtn = document.getElementById("clearRoiBtn");
+    const clearLineBtn = document.getElementById("clearLineBtn");
+    const clearAllBtn = document.getElementById("clearAllBtn");
+
+    const roiInput = document.getElementById("roi_polygon_json");
+    const lineStartX = document.getElementById("line_start_x");
+    const lineStartY = document.getElementById("line_start_y");
+    const lineEndX = document.getElementById("line_end_x");
+    const lineEndY = document.getElementById("line_end_y");
+    const lineDirection = document.getElementById("line_direction");
+
+    const roiPreview = document.getElementById("roiPreview");
+    const linePreview = document.getElementById("linePreview");
+    const panelButtons = Array.from(document.querySelectorAll(".detail-nav-btn[data-panel]"));
+    const detailPanels = Array.from(document.querySelectorAll(".detail-panel"));
+    const cameraToast = document.getElementById("cameraToast");
+
+    let mode = "roi";
+    let roiPoints = [];
+    let roiClosed = false;
+    let line = null;
+    let lineClickStage = 0;
+    let streamMode = image.dataset.defaultMode || "raw";
+
+    function activatePanel(panelId) {
+        if (!panelId) {
+            return;
+        }
+
+        detailPanels.forEach((panel) => {
+            panel.hidden = panel.id !== panelId;
+        });
+
+        panelButtons.forEach((button) => {
+            const isActive = button.dataset.panel === panelId;
+            button.classList.toggle("is-active", isActive);
+            button.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+    }
+
+    function initPanelNavigation() {
+        panelButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                activatePanel(button.dataset.panel);
+            });
+        });
+
+        document.querySelectorAll("[data-panel-link], [data-panel-jump]").forEach((link) => {
+            link.addEventListener("click", (event) => {
+                event.preventDefault();
+                const panelId = link.dataset.panelLink || link.dataset.panelJump;
+                activatePanel(panelId);
+                window.location.hash = panelId;
+            });
+        });
+
+        const panelWithError = detailPanels.find((panel) => panel.querySelector(".error"));
+        const hashPanelId = (window.location.hash || "").replace("#", "");
+        const hashPanelExists = hashPanelId && detailPanels.some((panel) => panel.id === hashPanelId);
+        const defaultPanelId = panelWithError?.id || (hashPanelExists ? hashPanelId : panelButtons[0]?.dataset.panel);
+
+        activatePanel(defaultPanelId);
+    }
+
+    function showCameraToast(message) {
+        if (!cameraToast) return;
+        cameraToast.textContent = message;
+        cameraToast.classList.add("show");
+        window.setTimeout(() => cameraToast.classList.remove("show"), 2200);
+    }
+
+    function maybeShowEmptySuggestions(body) {
+        if (!body || body.querySelector("[data-suggestion-row]")) {
+            return;
+        }
+        const table = body.closest("table");
+        const empty = document.createElement("div");
+        empty.className = "logs-notice";
+        empty.dataset.role = "camera-suggestions-empty";
+        empty.textContent = "Nenhuma sugestão pendente para esta câmera.";
+        if (table) table.replaceWith(empty);
+    }
+
+    function initSuggestionActions() {
+        document.querySelectorAll("[data-suggestion-action]").forEach((button) => {
+            button.addEventListener("click", async () => {
+                const suggestionId = button.dataset.suggestionId;
+                const action = button.dataset.suggestionAction;
+                const row = document.querySelector(`[data-suggestion-row="${suggestionId}"]`);
+                const buttons = row ? Array.from(row.querySelectorAll("[data-suggestion-action]")) : [button];
+
+                buttons.forEach((item) => item.disabled = true);
+
+                try {
+                    const response = await fetch(`/api/feedback/suggestions/${suggestionId}/${action}`, { method: "POST" });
+                    if (!response.ok) {
+                        let detail = "Nao foi possivel atualizar a sugestao.";
+                        try {
+                            const data = await response.json();
+                            detail = data.detail || detail;
+                        } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    if (row) {
+                        const body = row.closest("[data-role='camera-suggestions-body']");
+                        row.remove();
+                        maybeShowEmptySuggestions(body);
+                    }
+                    showCameraToast(action === "apply" ? "Sugestão aplicada" : "Sugestão rejeitada");
+                } catch (error) {
+                    buttons.forEach((item) => item.disabled = false);
+                    showCameraToast(error.message);
+                }
+            });
+        });
+    }
+
+    function updateStreamButtons() {
+        const processedAvailable = image.dataset.processedAvailable === "true";
+
+        if (streamRawBtn) {
+            streamRawBtn.classList.toggle("btn-primary", streamMode === "raw");
+            streamRawBtn.classList.toggle("btn-secondary", streamMode !== "raw");
+        }
+
+        if (streamProcessedBtn) {
+            streamProcessedBtn.disabled = !processedAvailable;
+            streamProcessedBtn.classList.toggle("btn-primary", streamMode === "processed");
+            streamProcessedBtn.classList.toggle("btn-secondary", streamMode !== "processed");
+        }
+
+        if (streamModeLabel) {
+            streamModeLabel.textContent = streamMode === "processed" ? "Processado" : "Original";
+        }
+    }
+
+    function setStreamMode(nextMode) {
+        const processedAvailable = image.dataset.processedAvailable === "true";
+
+        if (nextMode === "processed" && !processedAvailable) {
+            return;
+        }
+
+        const normalizedMode = nextMode === "processed" ? "processed" : "raw";
+        const nextUrl = normalizedMode === "processed"
+            ? image.dataset.processedUrl
+            : image.dataset.rawUrl;
+
+        if (!nextUrl) {
+            return;
+        }
+
+        streamMode = normalizedMode;
+        updateStreamButtons();
+
+        if (image.src !== nextUrl) {
+            image.src = nextUrl;
+        } else {
+            syncCanvasToImage();
+        }
+    }
+
+    function clamp01(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) {
+            return 0;
+        }
+        return Math.max(0, Math.min(1, n));
+    }
+
+    function round6(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) {
+            return 0;
+        }
+        return Number(n.toFixed(6));
+    }
+
+    function getImageFrameSize() {
+        const naturalWidth = Number(image.naturalWidth || 0);
+        const naturalHeight = Number(image.naturalHeight || 0);
+        const datasetWidth = Number.parseInt(image.dataset.sourceWidth || "0", 10);
+        const datasetHeight = Number.parseInt(image.dataset.sourceHeight || "0", 10);
+
+        return {
+            width: Number.isFinite(naturalWidth) && naturalWidth > 0
+                ? naturalWidth
+                : (Number.isFinite(datasetWidth) && datasetWidth > 0 ? datasetWidth : 960),
+            height: Number.isFinite(naturalHeight) && naturalHeight > 0
+                ? naturalHeight
+                : (Number.isFinite(datasetHeight) && datasetHeight > 0 ? datasetHeight : 540)
+        };
+    }
+
+    function getCoordinateSpace() {
+        return (image.dataset.coordinateSpace || "display").toLowerCase();
+    }
+
+    function getContentRect() {
+        const rect = image.getBoundingClientRect();
+        const source = getImageFrameSize();
+
+        const scale = Math.min(rect.width / source.width, rect.height / source.height);
+        const contentWidth = source.width * scale;
+        const contentHeight = source.height * scale;
+        const left = (rect.width - contentWidth) / 2;
+        const top = (rect.height - contentHeight) / 2;
+
+        return {
+            left,
+            top,
+            width: contentWidth,
+            height: contentHeight
+        };
+    }
+
+    function getDisplayRect() {
+        const contentRect = getContentRect();
+        return {
+            width: Math.max(1, Math.round(contentRect.width)),
+            height: Math.max(1, Math.round(contentRect.height))
+        };
+    }
+
+    function displayNormalizedToSourceNormalized(point) {
+        const coordinateSpace = getCoordinateSpace();
+        if (!point) {
+            return null;
+        }
+
+        if (coordinateSpace === "source") {
+            return {
+                x: clamp01(Number(point.x)),
+                y: clamp01(Number(point.y))
+            };
+        }
+
+        const displayRect = getDisplayRect();
+        const displayPoint = {
+            x: clamp01(Number(point.x)) * displayRect.width,
+            y: clamp01(Number(point.y)) * displayRect.height
+        };
+        const contentRect = getContentRect();
+        const localX = displayPoint.x - contentRect.left;
+        const localY = displayPoint.y - contentRect.top;
+
+        if (localX < 0 || localY < 0 || localX > contentRect.width || localY > contentRect.height) {
+            return null;
+        }
+
+        return {
+            x: clamp01(localX / contentRect.width),
+            y: clamp01(localY / contentRect.height)
+        };
+    }
+
+    function sourceNormalizedToDisplayPoint(point) {
+        if (!point) {
+            return null;
+        }
+
+        const coordinateSpace = getCoordinateSpace();
+        const contentRect = getContentRect();
+        const displayRect = getDisplayRect();
+
+        if (coordinateSpace === "display") {
+            return {
+                x: clamp01(Number(point.x)) * displayRect.width + contentRect.left,
+                y: clamp01(Number(point.y)) * displayRect.height + contentRect.top
+            };
+        }
+
+        return {
+            x: clamp01(Number(point.x)) * contentRect.width + contentRect.left,
+            y: clamp01(Number(point.y)) * contentRect.height + contentRect.top
+        };
+    }
+
+    function parseInitialState() {
+        const coordinateSpace = getCoordinateSpace();
+
+        try {
+            if (roiInput.value && roiInput.value.trim()) {
+                const parsed = JSON.parse(roiInput.value);
+                if (Array.isArray(parsed)) {
+                    roiPoints = parsed
+                        .filter(p => p && typeof p.x !== "undefined" && typeof p.y !== "undefined")
+                        .map((p) => {
+                            const normalized = {
+                                x: clamp01(Number(p.x)),
+                                y: clamp01(Number(p.y))
+                            };
+
+                            if (coordinateSpace === "display") {
+                                return displayNormalizedToSourceNormalized(normalized);
+                            }
+
+                            return normalized;
+                        })
+                        .filter(Boolean);
+                    roiClosed = roiPoints.length >= 3;
+                }
+            }
+        } catch (_) {
+            roiPoints = [];
+            roiClosed = false;
+        }
+
+        const x1 = parseFloat(lineStartX.value);
+        const y1 = parseFloat(lineStartY.value);
+        const x2 = parseFloat(lineEndX.value);
+        const y2 = parseFloat(lineEndY.value);
+
+        if (
+            !Number.isNaN(x1) &&
+            !Number.isNaN(y1) &&
+            !Number.isNaN(x2) &&
+            !Number.isNaN(y2)
+        ) {
+            const convertedStart = coordinateSpace === "display"
+                ? displayNormalizedToSourceNormalized({ x: x1, y: y1 })
+                : { x: clamp01(x1), y: clamp01(y1) };
+            const convertedEnd = coordinateSpace === "display"
+                ? displayNormalizedToSourceNormalized({ x: x2, y: y2 })
+                : { x: clamp01(x2), y: clamp01(y2) };
+            if (convertedStart && convertedEnd) {
+                line = {
+                    x1: convertedStart.x,
+                    y1: convertedStart.y,
+                    x2: convertedEnd.x,
+                    y2: convertedEnd.y
+                };
+            } else {
+                line = { x1, y1, x2, y2 };
+            }
+            lineClickStage = 0;
+        }
+
+        syncHiddenFields();
+    }
+
+    function syncCanvasToImage() {
+        const rect = image.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+
+        canvas.width = width;
+        canvas.height = height;
+
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+
+        surface.style.height = height + "px";
+
+        draw();
+    }
+
+    function getCanvasPointFromEvent(event) {
+        const rect = image.getBoundingClientRect();
+        const drawRect = getContentRect();
+
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const localX = x - drawRect.left;
+        const localY = y - drawRect.top;
+
+        if (localX < 0 || localY < 0 || localX > drawRect.width || localY > drawRect.height) {
+            return null;
+        }
+
+        return {
+            x: clamp01(localX / drawRect.width),
+            y: clamp01(localY / drawRect.height)
+        };
+    }
+
+    function normalizedToCanvasPoint(p) {
+        const rect = getContentRect();
+        return {
+            x: rect.left + (p.x * rect.width),
+            y: rect.top + (p.y * rect.height)
+        };
+    }
+
+    function getLineColor() {
+        const direction = lineDirection.value || "any";
+        if (direction === "a_to_b") return "#00c853";
+        if (direction === "b_to_a") return "#dc2626";
+        return "#ffa500";
+    }
+
+    function syncHiddenFields() {
+        if (roiClosed && roiPoints.length >= 3) {
+            roiInput.value = JSON.stringify(
+                roiPoints.map(p => ({ x: round6(p.x), y: round6(p.y) }))
+            );
+        } else {
+            roiInput.value = "";
+        }
+
+        if (line) {
+            lineStartX.value = round6(line.x1);
+            lineStartY.value = round6(line.y1);
+            lineEndX.value = round6(line.x2);
+            lineEndY.value = round6(line.y2);
+        } else {
+            lineStartX.value = "";
+            lineStartY.value = "";
+            lineEndX.value = "";
+            lineEndY.value = "";
+        }
+
+        roiPreview.textContent = roiInput.value || "-";
+        linePreview.textContent = line
+            ? JSON.stringify({
+                x1: round6(line.x1),
+                y1: round6(line.y1),
+                x2: round6(line.x2),
+                y2: round6(line.y2)
+            })
+            : "-";
+    }
+
+    function drawROI() {
+        if (!roiPoints.length) return;
+
+        const borderColor = "#ffe600";
+        const fillColor = "rgba(255, 230, 0, 0.18)";
+
+        ctx.save();
+
+        if (roiPoints.length >= 2) {
+            ctx.beginPath();
+            const first = normalizedToCanvasPoint(roiPoints[0]);
+            ctx.moveTo(first.x, first.y);
+
+            for (let i = 1; i < roiPoints.length; i++) {
+                const p = normalizedToCanvasPoint(roiPoints[i]);
+                ctx.lineTo(p.x, p.y);
+            }
+
+            if (roiClosed && roiPoints.length >= 3) {
+                ctx.closePath();
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+            }
+
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        roiPoints.forEach((p, idx) => {
+            const pt = normalizedToCanvasPoint(p);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = borderColor;
+            ctx.fill();
+
+            ctx.font = "12px Arial";
+            ctx.fillStyle = "#111827";
+            ctx.fillText(String(idx + 1), pt.x + 7, pt.y - 7);
+        });
+
+        ctx.restore();
+    }
+
+    function drawArrowHead(x, y, angle, color, size = 14) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(
+            x - size * Math.cos(angle - Math.PI / 6),
+            y - size * Math.sin(angle - Math.PI / 6)
+        );
+        ctx.lineTo(
+            x - size * Math.cos(angle + Math.PI / 6),
+            y - size * Math.sin(angle + Math.PI / 6)
+        );
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
+    function drawArrow(x1, y1, x2, y2, color) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        drawArrowHead(x2, y2, angle, color);
+    }
+
+    function drawCenteredFlow(x1, y1, x2, y2, color, direction) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.max(1, Math.hypot(dx, dy));
+        const normalX = dy / length;
+        const normalY = -dx / length;
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const markerGap = 16;
+        const markerLength = 26;
+
+        function marker(sign) {
+            const startX = midX + normalX * markerGap * sign;
+            const startY = midY + normalY * markerGap * sign;
+            const endX = startX + normalX * markerLength * sign;
+            const endY = startY + normalY * markerLength * sign;
+            drawArrow(startX, startY, endX, endY, color);
+        }
+
+        if (direction === "b_to_a") {
+            marker(-1);
+        } else if (direction === "a_to_b") {
+            marker(1);
+        } else {
+            marker(1);
+            marker(-1);
+        }
+    }
+
+    function drawLine() {
+        if (!line) return;
+
+        const color = getLineColor();
+        const p1 = normalizedToCanvasPoint({ x: line.x1, y: line.y1 });
+        const p2 = normalizedToCanvasPoint({ x: line.x2, y: line.y2 });
+
+        ctx.save();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        drawCenteredFlow(p1.x, p1.y, p2.x, p2.y, color, lineDirection.value || "any");
+
+        ctx.beginPath();
+        ctx.arc(p1.x, p1.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = "bold 13px Arial";
+        ctx.fillStyle = color;
+        ctx.fillText("A", p1.x + 8, p1.y - 8);
+        ctx.fillText("B", p2.x + 8, p2.y - 8);
+
+        ctx.restore();
+    }
+
+    function drawModeBadge() {
+        ctx.save();
+        const label = mode === "roi" ? "Modo ROI" : "Modo Linha";
+        ctx.fillStyle = "rgba(17,24,39,0.82)";
+        ctx.fillRect(10, 10, 120, 28);
+        ctx.font = "bold 14px Arial";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(label, 20, 29);
+        ctx.restore();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawROI();
+        drawLine();
+        drawModeBadge();
+    }
+
+    function setMode(newMode) {
+        mode = newMode;
+        draw();
+    }
+
+    function onCanvasPointerDown(event) {
+        event.preventDefault();
+
+        const p = getCanvasPointFromEvent(event);
+        if (!p) {
+            return;
+        }
+
+        const point = { x: round6(p.x), y: round6(p.y) };
+
+        if (mode === "roi") {
+            if (roiClosed) {
+                roiPoints = [];
+                roiClosed = false;
+            }
+
+            roiPoints.push(point);
+        } else if (mode === "line") {
+            if (lineClickStage === 0 || !line) {
+                line = {
+                    x1: point.x,
+                    y1: point.y,
+                    x2: point.x,
+                    y2: point.y
+                };
+                lineClickStage = 1;
+            } else {
+                line.x2 = point.x;
+                line.y2 = point.y;
+                lineClickStage = 0;
+            }
+        }
+
+        syncHiddenFields();
+        draw();
+    }
+
+    function closeROI() {
+        if (roiPoints.length < 3) {
+            alert("A ROI precisa de pelo menos 3 pontos.");
+            return;
+        }
+
+        roiClosed = true;
+        syncHiddenFields();
+        draw();
+    }
+
+    function undoLastPoint() {
+        if (mode === "roi") {
+            if (roiPoints.length > 0) {
+                roiPoints.pop();
+                if (roiPoints.length < 3) {
+                    roiClosed = false;
+                }
+            }
+        } else if (mode === "line") {
+            line = null;
+            lineClickStage = 0;
+        }
+
+        syncHiddenFields();
+        draw();
+    }
+
+    function clearROI() {
+        roiPoints = [];
+        roiClosed = false;
+        syncHiddenFields();
+        draw();
+    }
+
+    function clearLine() {
+        line = null;
+        lineClickStage = 0;
+        syncHiddenFields();
+        draw();
+    }
+
+    function clearAll() {
+        roiPoints = [];
+        roiClosed = false;
+        line = null;
+        lineClickStage = 0;
+        syncHiddenFields();
+        draw();
+    }
+
+    modeRoiBtn.addEventListener("click", () => setMode("roi"));
+    modeLineBtn.addEventListener("click", () => setMode("line"));
+    if (streamRawBtn) {
+        streamRawBtn.addEventListener("click", () => setStreamMode("raw"));
+    }
+    if (streamProcessedBtn) {
+        streamProcessedBtn.addEventListener("click", () => setStreamMode("processed"));
+    }
+    closeRoiBtn.addEventListener("click", closeROI);
+    undoBtn.addEventListener("click", undoLastPoint);
+    clearRoiBtn.addEventListener("click", clearROI);
+    clearLineBtn.addEventListener("click", clearLine);
+    clearAllBtn.addEventListener("click", clearAll);
+    lineDirection.addEventListener("change", draw);
+
+    canvas.addEventListener("pointerdown", onCanvasPointerDown);
+
+    const resizeObserver = new ResizeObserver(() => {
+        syncCanvasToImage();
+    });
+
+    resizeObserver.observe(surface);
+    window.addEventListener("resize", syncCanvasToImage);
+    image.addEventListener("load", syncCanvasToImage);
+
+    parseInitialState();
+    syncHiddenFields();
+    updateStreamButtons();
+    initPanelNavigation();
+    initSuggestionActions();
+
+    setTimeout(syncCanvasToImage, 150);
+    setTimeout(syncCanvasToImage, 600);
+
+    const cameraEventsEndpoint = "/cameras/{{ camera.id }}/events-data";
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function renderCameraEvents(events) {
+        const tbody = document.getElementById("cameraDetailEventsBody");
+        if (!tbody) return;
+
+        if (!events || !events.length) {
+            tbody.innerHTML = '<tr><td colspan="9">Sem eventos para esta câmera.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = events.map((event) => {
+            const snapshotCell = event.snapshot_url
+                ? `<a href="${event.snapshot_url}" target="_blank" data-media-popup data-media-kind="image" data-title="${escapeHtml(event.camera_name || {{ camera.name|tojson }} || 'Camera')} - Evento #${event.id}">Abrir</a>`
+                : "-";
+
+            let actions = "";
+            if (event.can_ack) {
+                actions += `<form method="post" action="/events/${event.id}/ack"><button class="btn btn-secondary" type="submit">Reconhecer</button></form>`;
+            }
+            if (event.can_close) {
+                actions += `<form method="post" action="/events/${event.id}/close"><button class="btn btn-warning" type="submit">Fechar</button></form>`;
+            } else if (event.can_reopen) {
+                actions += `<form method="post" action="/events/${event.id}/reopen"><button class="btn btn-secondary" type="submit">Reabrir</button></form>`;
+            }
+
+            return `
+                <tr>
+                    <td>${event.id}</td>
+                    <td>${escapeHtml(event.event_type_label || event.event_type)}</td>
+                    <td><span class="status priority-${escapeHtml(event.severity)}">${escapeHtml(event.severity_label || event.severity)}</span></td>
+                    <td>${escapeHtml(event.status_label || event.status)}</td>
+                    <td>${event.track_id ?? '-'}</td>
+                    <td>${event.confidence != null ? Number(event.confidence).toFixed(3) : '-'}</td>
+                    <td>${snapshotCell}</td>
+                    <td><div style="display:flex; gap:6px; flex-wrap:wrap;">${actions}</div></td>
+                    <td>${escapeHtml(event.created_at_label || '-')}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    async function refreshCameraEvents() {
+        if (document.hidden) return;
+        try {
+            const ts = Date.now();
+            const response = await fetch(`${cameraEventsEndpoint}?_ts=${ts}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+            renderCameraEvents(payload.events || []);
+        } catch (error) {
+            console.warn("Falha ao atualizar eventos da câmera:", error);
+        }
+    }
+
+    refreshCameraEvents();
+    setInterval(refreshCameraEvents, 3000);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) refreshCameraEvents();
+    });
+})();
+</script>
+
+{% else %}
+<div class="card">
+    <p>Câmera não encontrada.</p>
+</div>
+{% endif %}
+{% endblock %}

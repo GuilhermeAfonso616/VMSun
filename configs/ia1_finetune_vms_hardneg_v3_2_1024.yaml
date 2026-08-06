@@ -1,0 +1,92 @@
+name: ia1_finetune_vms_hardneg_v3_2_1024
+description: IA1 candidate V3.2, fine-tune em resolucao 1024 a partir do V3.
+
+paths:
+  project_root: D:/Analitico
+  database: D:/Analitico/analytics.db
+  snapshot_roots:
+    - D:/Analitico
+    - D:/Analitico/data
+  external_person_dataset: D:/IA/datasets/mixed_day_night_virat20_yolo_v2
+  output_dataset: D:/IA/datasets/ia1_finetune_vms_hardneg_v3
+  reports: D:/Analitico/reports/ia1_finetune_vms_hardneg_v3_2_1024
+  ia1_current_model: D:/Analitico/models/ia1_candidate/ia1_candidate_vms_hardneg_v3.pt
+  ia1_candidate_model: D:/Analitico/models/ia1_candidate/ia1_candidate_vms_hardneg_v3_2_1024.pt
+  runs: D:/Analitico/runs/detect
+
+classes:
+  0: person
+
+review_labels:
+  positive:
+    - true_positive
+    - verdadeiro_positivo
+    - person
+    - pessoa
+  negative:
+    - false_positive
+    - falso_positivo
+    - not_person
+    - nao_pessoa
+    - não_pessoa
+  ignore:
+    - inconclusive
+    - inconclusivo
+    - canceled
+    - cancelado
+    - uncertain
+    - incerto
+
+external_dataset:
+  enabled: true
+  copy_mode: copy
+  max_train_images: 6000
+  max_val_images: 1000
+  max_test_images: 1000
+  seed: 43
+
+reviewed_vms:
+  positive_mode: full_image_with_event_bbox
+  false_positive_mode: padded_crop_empty_label
+  false_positive_padding_ratio: 0.35
+  min_bbox_width: 2
+  min_bbox_height: 2
+  reviewed_exports:
+    - D:/IA2/reviewed_events_export_20260504_134833
+
+review_audit:
+  decisions_csv: D:/Analitico/reports/ia1_finetune_vms_hardneg_v1/visual_review_discrepancy_decisions.csv
+  exclude_actions:
+    - needs_manual_review
+
+extra_trusted_datasets:
+  trusted_csvs:
+    - D:/Analitico/reports/ia1_v3_prevalidation/trusted_train_candidates.csv
+  excluded_csvs:
+    - D:/Analitico/reports/ia1_v3_prevalidation/review_required.csv
+    - D:/Analitico/reports/ia1_v3_prevalidation/excluded_uncertain_or_invalid.csv
+
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+  policy: stable_hash_by_camera_date_event
+  reviewed_force_real_validation: true
+
+training:
+  run_name: IA1_candidate_vms_hardneg_v3_2_1024
+  imgsz: 1024
+  epochs: 40
+  patience: 10
+  batch: 8
+  optimizer: AdamW
+  lr0: 0.00001
+  lrf: 0.01
+  seed: 46
+  workers: 0
+
+evaluation:
+  conf: 0.25
+  iou_match_threshold: 0.50
+  candidate_model: auto
+  status: audit

@@ -1,0 +1,1710 @@
+{% extends "base.html" %}
+
+{% macro label_text(value) -%}
+    {%- set labels = {
+        'true_positive': 'Verdadeiro positivo',
+        'false_positive': 'Falso positivo',
+        'expected_event': 'Evento esperado',
+        'inconclusive': 'Inconclusivo'
+    } -%}
+    {{ labels.get(value, value or '-') }}
+{%- endmacro %}
+
+{% macro cause_text(value) -%}
+    {%- set causes = {
+        'vegetation_wind': 'Vegetação/vento',
+        'shadow': 'Sombra',
+        'glass_reflection': 'Reflexo em vidro',
+        'headlights': 'Faróis',
+        'rain': 'Chuva',
+        'insects_ir': 'Insetos/IR',
+        'camera_vibration': 'Vibração da câmera',
+        'small_target': 'Alvo pequeno',
+        'poor_roi': 'ROI inadequada',
+        'threshold_too_low': 'Limite muito baixo',
+        'confirmation_too_short': 'Confirmação curta',
+        'wrong_direction_rule': 'Direção incorreta',
+        'normal_human_flow': 'Fluxo normal de pessoas'
+    } -%}
+    {{ causes.get(value, value or '-') }}
+{%- endmacro %}
+
+{% macro turn_text(value) -%}
+    {%- set turns = {
+        'morning': 'Manhã',
+        'afternoon': 'Tarde',
+        'night': 'Noite',
+        'overnight': 'Madrugada'
+    } -%}
+    {{ turns.get(value, value or '-') }}
+{%- endmacro %}
+
+{% macro status_text(value) -%}
+    {%- set statuses = {
+        'new': 'Novo',
+        'acknowledged': 'Reconhecido',
+        'closed': 'Fechado',
+        'persisted': 'Persistido',
+        'pending': 'Pendente',
+        'applied': 'Aplicada',
+        'rejected': 'Rejeitada',
+        'canceled': 'Cancelado'
+    } -%}
+    {{ statuses.get(value, value or '-') }}
+{%- endmacro %}
+
+{% macro review_card(event, reviewed=False) %}
+<section class="review-card {% if reviewed %}is-reviewed{% endif %}" id="event-card-{{ event.id }}" data-event-id="{{ event.id }}" data-reviewed="{{ '1' if reviewed else '0' }}">
+    <div class="review-media">
+        <div>
+            <div class="section-label">Imagem do evento</div>
+            {% if event.snapshot_path %}
+                <img
+                    class="zoomable-media"
+                    src="/events/{{ event.id }}/snapshot"
+                    data-full-src="/events/{{ event.id }}/snapshot"
+                    data-media-popup
+                    data-media-kind="image"
+                    data-title="{{ event.camera_name }} - Evento #{{ event.id }}"
+                    alt="Imagem do evento {{ event.id }}"
+                    loading="lazy"
+                    decoding="async"
+                    role="button"
+                    tabindex="0"
+                >
+            {% else %}
+                <div class="empty-media">Imagem indisponível</div>
+            {% endif %}
+        </div>
+        <div>
+            <div class="section-label">Antes/depois</div>
+            <div class="clip-row">
+                {% if event.clip_path %}
+                    <img
+                        class="zoomable-media"
+                        src="/events/{{ event.id }}/clip/before"
+                        data-full-src="/events/{{ event.id }}/clip/before"
+                        data-media-popup
+                        data-media-kind="image"
+                        data-title="{{ event.camera_name }} - Evento #{{ event.id }} - antes"
+                        alt="Imagem antes do evento"
+                        loading="lazy"
+                        decoding="async"
+                        role="button"
+                        tabindex="0"
+                    >
+                    <img
+                        class="zoomable-media"
+                        src="/events/{{ event.id }}/clip/after"
+                        data-full-src="/events/{{ event.id }}/clip/after"
+                        data-media-popup
+                        data-media-kind="image"
+                        data-title="{{ event.camera_name }} - Evento #{{ event.id }} - depois"
+                        alt="Imagem depois do evento"
+                        loading="lazy"
+                        decoding="async"
+                        role="button"
+                        tabindex="0"
+                    >
+                    <div class="media-caption">
+                        Antes{% if event.clip_metadata.before_captured_at_label is defined and event.clip_metadata.before_captured_at_label %}: {{ event.clip_metadata.before_captured_at_label }}{% endif %}
+                        {% if event.clip_metadata.before_offset_seconds is defined and event.clip_metadata.before_offset_seconds is not none %}({{ event.clip_metadata.before_offset_seconds }}s){% endif %}
+                    </div>
+                    <div class="media-caption">
+                        Depois{% if event.clip_metadata.after_captured_at_label is defined and event.clip_metadata.after_captured_at_label %}: {{ event.clip_metadata.after_captured_at_label }}{% endif %}
+                        {% if event.clip_metadata.after_offset_seconds is defined and event.clip_metadata.after_offset_seconds is not none %}(+{{ event.clip_metadata.after_offset_seconds }}s){% endif %}
+                    </div>
+                    {% if event.clip_video_available %}
+                        <video
+                            class="review-clip-video"
+                            controls
+                            preload="none"
+                            src="/events/{{ event.id }}/clip/video"
+                            data-media-popup
+                            data-media-kind="video"
+                            data-title="{{ event.camera_name }} - Evento #{{ event.id }} - clipe"
+                        ></video>
+                    {% endif %}
+                    {% if event.clip_remote_web_url and event.clip_remote_status == 'uploaded' %}
+                        <a class="clip-remote-link" href="{{ event.clip_remote_web_url }}" target="_blank" rel="noopener noreferrer">
+                            Abrir vídeo no OneDrive
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-media">Antes indisponível</div>
+                    <div class="empty-media">Depois indisponível</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="review-body">
+        <div class="review-header">
+            <div>
+                <h2>{{ event.event_type | event_label }}</h2>
+                <div class="muted">{{ event.camera_name }} - Evento #{{ event.id }} - {{ event.event_type }}</div>
+            </div>
+            <span class="review-badge" data-role="review-badge">
+                {% if reviewed %}Avaliado{% else %}Pendente{% endif %}
+            </span>
+        </div>
+
+        <div class="review-actions">
+            <a class="btn btn-secondary btn-small" href="/cameras/{{ event.camera_id }}">Editar câmera</a>
+            <a class="btn btn-secondary btn-small" href="/cameras/{{ event.camera_id }}#sec-analytics">Editar ROI/zona</a>
+            <form method="post" action="/events/{{ event.id }}/suggestion" class="inline-form">
+                <button class="btn btn-warning btn-small" type="submit">Criar sugestão</button>
+            </form>
+            <button
+                class="btn btn-secondary btn-small"
+                type="button"
+                data-revalidate-crop
+                data-event-id="{{ event.id }}"
+            >Reavaliar IA box</button>
+        </div>
+
+        <div class="review-meta">
+            <div class="meta-pill"><strong>Data/hora</strong>{{ event.created_at | br_datetime }}</div>
+            <div class="meta-pill"><strong>Regra</strong>{{ (event.rule_id or event.event_type) | event_label }}</div>
+            <div class="meta-pill"><strong>Zona/ROI</strong>{{ event.zone_id or event.roi_id or '-' }}</div>
+            <div class="meta-pill"><strong>Perfil</strong>{{ event.scene_profile or event.camera_family or '-' }}</div>
+            <div class="meta-pill" data-role="score-summary"><strong>Scores no disparo</strong>detector {{ event.detector_score if event.detector_score is not none else '-' }} · evento {{ event.event_score if event.event_score is not none else '-' }}{% if event.revalidator_score is not none %} · revalidador {{ '%.3f'|format(event.revalidator_score) }}{% endif %}</div>
+            <div class="meta-pill"><strong>Status</strong><span data-role="event-status">{{ event.status | status_label }}</span></div>
+        </div>
+
+        {% set ai_summary = event.ai_validation_summary or {} %}
+        <div class="ai-validation-panel" data-role="ai-validation-panel">
+            <div class="ai-validation-row">
+                <span class="ai-validation-label">IA1</span>
+                <span class="ai-validation-text">{{ ai_summary.ia1_text or 'IA1 confirmou: pessoa' }}</span>
+            </div>
+            <div class="ai-validation-row {% if ai_summary.ia2_status in ['recusou pessoa', 'recusou visualmente pessoa'] %}is-warning{% elif ai_summary.ia2_status == 'confirmou pessoa' %}is-ok{% endif %}">
+                <span class="ai-validation-label">IA2</span>
+                <span class="ai-validation-text">{{ ai_summary.ia2_text or 'IA2 sem dados neste evento' }}</span>
+            </div>
+            <div class="ai-validation-row {% if ai_summary.ia3_status in ['disse pessoa', 'protegeu pessoa'] %}is-ok{% elif ai_summary.ia3_status in ['disse não pessoa', 'disse nao pessoa'] %}is-warning{% endif %}">
+                <span class="ai-validation-label">IA3</span>
+                <span class="ai-validation-text">{{ ai_summary.ia3_text or 'IA3 não foi solicitada' }}</span>
+            </div>
+            {% if ai_summary.production_block_candidate %}
+            <div class="ai-validation-row is-production-block">
+                <span class="ai-validation-label">Prod.</span>
+                <span class="ai-validation-text prod-block-line"><span class="prod-block-symbol" aria-hidden="true">!</span>{{ ai_summary.consensus_text or 'BLOQUEARIA EM PROD por consenso' }}</span>
+            </div>
+            {% endif %}
+            <div class="ai-validation-row"><span class="ai-validation-label">Origem</span><span class="ai-validation-text">Scores salvos no disparo do evento</span></div>
+        </div>
+
+        <details>
+            <summary>Parâmetros vigentes no disparo</summary>
+            <div class="json-box">{{ event.threshold_snapshot | tojson(indent=2) }}</div>
+        </details>
+
+        <details>
+            <summary>Perfil analítico no disparo</summary>
+            <div class="json-box">{{ event.active_profile_snapshot | tojson(indent=2) }}</div>
+        </details>
+
+        {% if event.ai_validation_label %}
+            <div class="feedback-summary">
+                <strong>Concluído pela IA:</strong>
+                <span>{{ label_text(event.ai_validation_label) }}</span>
+                <span class="muted">·</span>
+                <span class="muted">consenso IA2+IA3 ({{ event.ai_validation_reason }})</span>
+                <span class="muted">·</span>
+                <span class="muted">não substitui avaliação do operador, se ele quiser registrar uma</span>
+            </div>
+        {% endif %}
+
+        <div class="feedback-summary {% if not reviewed %}hidden{% endif %}" data-role="feedback-summary">
+            <strong>Avaliação:</strong>
+            <span data-role="feedback-label">{{ label_text(event.label) if reviewed else '-' }}</span>
+            <span class="muted">·</span>
+            <span data-role="feedback-cause">{{ cause_text(event.probable_cause) if reviewed else '-' }}</span>
+            <span class="muted">·</span>
+            <span data-role="feedback-user">{{ event.reviewed_by or '-' }}</span>
+        </div>
+
+        <form method="post" action="/events/{{ event.id }}/feedback" class="review-form" data-event-id="{{ event.id }}">
+            <div class="review-form-grid">
+                <div class="full">
+                    <label>Observação do operador</label>
+                    <textarea name="operator_note" rows="3">{{ event.feedback.operator_note or '' }}</textarea>
+                </div>
+                <div>
+                    <label>Revisado por</label>
+                    <input name="reviewed_by" value="{{ event.feedback.reviewed_by or 'operador' }}">
+                </div>
+                <div>
+                    <label>Causa provável</label>
+                    <select name="probable_cause">
+                        <option value="">Selecione</option>
+                        {% for cause in probable_causes %}
+                            <option value="{{ cause }}" {% if event.feedback.probable_cause == cause %}selected{% endif %}>{{ cause_text(cause) }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="full">
+                    <input type="hidden" name="auto_suggest" value="1">
+                    <div class="review-actions">
+                        <button class="btn btn-success" type="submit" name="label" value="true_positive">Verdadeiro positivo</button>
+                        <button class="btn btn-danger" type="submit" name="label" value="false_positive">Falso positivo</button>
+                        <button class="btn btn-warning" type="submit" name="label" value="expected_event">Evento esperado</button>
+                        <button class="btn btn-secondary" type="submit" name="label" value="inconclusive">Inconclusivo</button>
+                    </div>
+                    <div class="form-status muted" data-role="form-status"></div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endmacro %}
+
+{% block content %}
+<style>
+    .validation-layout {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+    }
+    .validation-sidebar {
+        position: sticky;
+        top: 86px;
+    }
+    .review-grid {
+        display: grid;
+        gap: 16px;
+    }
+    .review-card {
+        display: grid;
+        grid-template-columns: minmax(320px, 1.05fr) minmax(0, 1.2fr);
+        gap: 14px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--shadow-card);
+        padding: 16px;
+        content-visibility: auto;
+        contain-intrinsic-size: 620px;
+    }
+    .review-card.is-reviewed {
+        border-color: #bbf7d0;
+        background: #fbfffc;
+    }
+    .review-media {
+        display: grid;
+        gap: 10px;
+    }
+    .review-media img {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid var(--line-soft);
+        background: #0f172a;
+        object-fit: contain;
+        max-height: 360px;
+    }
+    .zoomable-media {
+        cursor: zoom-in;
+    }
+    .zoomable-media:focus-visible {
+        outline: 3px solid #60a5fa;
+        outline-offset: 2px;
+    }
+    .clip-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .media-caption {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.3;
+        margin-top: -4px;
+    }
+    .clip-remote-link {
+        grid-column: 1 / -1;
+        justify-self: start;
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .review-clip-video {
+        grid-column: 1 / -1;
+        width: 100%;
+        max-height: 280px;
+        border-radius: 8px;
+        border: 1px solid var(--line-soft);
+        background: #0f172a;
+    }
+    .empty-media {
+        min-height: 90px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        background: #f8fafc;
+        font-size: 13px;
+    }
+    .review-body, .stack {
+        display: grid;
+        gap: 12px;
+    }
+    .ai-validation-panel {
+        display: grid;
+        gap: 7px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 10px;
+    }
+    .ai-validation-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        color: #334155;
+        font-size: 13px;
+    }
+    .ai-validation-row.is-ok {
+        color: #166534;
+    }
+    .ai-validation-row.is-warning {
+        color: #991b1b;
+    }
+    .ai-validation-row.is-production-block {
+        grid-template-columns: 44px minmax(0, 1fr);
+        padding: 6px;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        background: #fff1f2;
+        color: #7f1d1d;
+    }
+    .ai-validation-row.is-production-block .ai-validation-label {
+        background: #dc2626;
+        color: #fff;
+    }
+    .ai-validation-label {
+        display: inline-grid;
+        place-items: center;
+        min-height: 24px;
+        border-radius: 6px;
+        background: #e2e8f0;
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 12px;
+    }
+    .ai-validation-text {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-weight: 700;
+    }
+    .prod-block-line {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        align-items: center;
+        min-width: 0;
+        line-height: 1.35;
+    }
+    .prod-block-symbol {
+        display: inline-grid;
+        flex: 0 0 auto;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #991b1b;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1;
+    }
+    .review-header {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .review-header h2 {
+        margin-bottom: 2px;
+    }
+    .review-badge {
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .is-reviewed .review-badge {
+        background: #dcfce7;
+        color: #166534;
+    }
+    .section-label {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+    .review-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+        gap: 8px;
+    }
+    .meta-pill {
+        background: #f8fafc;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+    .meta-pill strong {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
+    .review-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    .suggestion-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .suggestion-actions .btn {
+        min-width: 76px;
+    }
+    .review-actions .btn {
+        min-width: 132px;
+        text-align: center;
+    }
+    .review-form {
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        padding: 14px;
+        margin: 0;
+        background: #f8fbff;
+    }
+    .review-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .review-form-grid .full {
+        grid-column: 1 / -1;
+    }
+    .json-box {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        overflow: auto;
+        max-height: 220px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .review-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .tab-button {
+        border: 1px solid var(--line-strong);
+        background: #fff;
+        color: #1e293b;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .tab-button.active {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        color: #fff;
+    }
+    .tab-panel {
+        display: none;
+    }
+    .tab-panel.active {
+        display: grid;
+        gap: 16px;
+    }
+    .feedback-summary {
+        border: 1px solid #bbf7d0;
+        background: #f0fdf4;
+        color: #14532d;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    .hidden {
+        display: none !important;
+    }
+    .inline-form {
+        display: inline;
+        margin: 0;
+    }
+    .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 80;
+        display: none;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #fff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.25);
+        font-weight: 700;
+    }
+    .toast.show {
+        display: block;
+    }
+
+    .revalidator-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 140;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, 0.62);
+    }
+    .revalidator-modal.open {
+        display: flex;
+    }
+    .revalidator-dialog {
+        width: min(720px, 96vw);
+        max-height: 90vh;
+        overflow: auto;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.32);
+        border: 1px solid var(--line-soft);
+    }
+    .revalidator-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line-soft);
+    }
+    .revalidator-header h3 {
+        margin: 0;
+        font-size: 18px;
+    }
+    .revalidator-header .muted {
+        margin-top: 4px;
+        font-size: 12px;
+    }
+    .revalidator-close {
+        border: 0;
+        background: #e2e8f0;
+        color: #0f172a;
+        border-radius: 8px;
+        padding: 7px 10px;
+        cursor: pointer;
+        font-weight: 800;
+    }
+    .revalidator-content {
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+    }
+    .revalidator-status-card {
+        border-radius: 10px;
+        border: 1px solid var(--line-soft);
+        padding: 14px;
+        background: #f8fafc;
+    }
+    .revalidator-status-card.is-person {
+        border-color: #fecaca;
+        background: #fff7f7;
+    }
+    .revalidator-status-card.is-not-person {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+    }
+    .revalidator-status-card.is-loading {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+    }
+    .revalidator-main-result {
+        font-size: 20px;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+    .revalidator-summary {
+        display: grid;
+        gap: 6px;
+        color: #334155;
+        font-size: 14px;
+    }
+    .revalidator-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+    }
+    .revalidator-metric {
+        border: 1px solid var(--line-soft);
+        border-radius: 9px;
+        padding: 11px;
+        background: #fff;
+    }
+    .revalidator-metric strong {
+        display: block;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 5px;
+    }
+    .revalidator-metric span {
+        font-weight: 800;
+        color: #0f172a;
+        word-break: break-word;
+    }
+    .revalidator-raw {
+        margin-top: 2px;
+    }
+    .revalidator-raw summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 8px;
+    }
+
+    .image-viewer {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        display: none;
+        background: rgba(15, 23, 42, 0.92);
+    }
+    .image-viewer.open {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+    .image-viewer-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: rgba(15, 23, 42, 0.98);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+        color: #fff;
+    }
+    .image-viewer-title {
+        min-width: 0;
+        flex: 1;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .image-viewer-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+    .viewer-button {
+        min-width: 38px;
+        height: 34px;
+        border: 1px solid rgba(226, 232, 240, 0.35);
+        border-radius: 8px;
+        background: rgba(30, 41, 59, 0.95);
+        color: #fff;
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .viewer-button:hover,
+    .viewer-button:focus-visible {
+        background: #2563eb;
+        outline: none;
+    }
+    .image-viewer-stage {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        cursor: grab;
+        user-select: none;
+        touch-action: none;
+    }
+    .image-viewer-stage.is-dragging {
+        cursor: grabbing;
+    }
+    .image-viewer-stage img {
+        max-width: none;
+        max-height: none;
+        width: auto;
+        height: auto;
+        transform-origin: center center;
+        border-radius: 4px;
+        background: #000;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+        user-select: none;
+    }
+    @media (max-width: 1180px) {
+        .validation-layout { grid-template-columns: 1fr; }
+        .validation-sidebar { position: static; }
+        .review-card { grid-template-columns: 1fr; }
+    }
+</style>
+
+{% set pending_count = namespace(value=0) %}
+{% set reviewed_count = namespace(value=0) %}
+{% for event in events %}
+    {% if event.label %}
+        {% set reviewed_count.value = reviewed_count.value + 1 %}
+    {% else %}
+        {% set pending_count.value = pending_count.value + 1 %}
+    {% endif %}
+{% endfor %}
+
+<h1>Validação de eventos</h1>
+<div class="muted">Classifique eventos, registre a causa provável e alimente sugestões de ajuste sem alterar o detector.</div>
+
+<div class="validation-layout">
+    <aside class="validation-sidebar">
+        <div class="card">
+            <h2>Filtros</h2>
+            <form method="get" action="/events/review">
+                <label>Câmera</label>
+                <select name="camera_id">
+                    <option value="">Todas</option>
+                    {% for camera in cameras %}
+                        <option value="{{ camera.id }}" {% if selected_camera_id == camera.id %}selected{% endif %}>{{ camera.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Avaliação</label>
+                <select name="label">
+                    <option value="">Todas</option>
+                    {% for item in labels %}
+                        <option value="{{ item }}" {% if selected_label == item %}selected{% endif %}>{{ label_text(item) }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Causa provável</label>
+                <select name="probable_cause">
+                    <option value="">Todas</option>
+                    {% for item in probable_causes %}
+                        <option value="{{ item }}" {% if selected_probable_cause == item %}selected{% endif %}>{{ cause_text(item) }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Perfil</label>
+                <select name="profile">
+                    <option value="">Todos</option>
+                    {% for item in profile_options %}
+                        <option value="{{ item }}" {% if selected_profile == item %}selected{% endif %}>{{ item }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Turno</label>
+                <select name="turn">
+                    <option value="">Todos</option>
+                    {% for item in ['morning','afternoon','night','overnight'] %}
+                        <option value="{{ item }}" {% if selected_turn == item %}selected{% endif %}>{{ turn_text(item) }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Status</label>
+                <select name="status">
+                    <option value="">Todos</option>
+                    {% for item in ['new','acknowledged','closed','canceled'] %}
+                        <option value="{{ item }}" {% if selected_status == item %}selected{% endif %}>{{ status_text(item) }}</option>
+                    {% endfor %}
+                </select>
+
+                <label>Janela em dias</label>
+                <input type="number" min="1" max="365" name="days" value="{{ selected_days }}">
+
+                <label>Concluídos pela IA</label>
+                <select name="include_ai_validated">
+                    <option value="false" {% if not include_ai_validated %}selected{% endif %}>Ocultar (padrão)</option>
+                    <option value="true" {% if include_ai_validated %}selected{% endif %}>Mostrar junto</option>
+                </select>
+
+                <input type="hidden" name="limit" value="{{ selected_limit }}">
+                <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+                <a class="btn btn-secondary" href="/events/review">Limpar</a>
+            </form>
+
+            {% if ai_validated_count %}
+                <p class="muted" style="margin-top:.75rem">
+                    {{ ai_validated_count }} evento(s) já concluído(s) por consenso IA2+IA3 e fora da fila manual:
+                    {% for item_label, total in ai_validated_by_label.items() %}
+                        {{ total }} {{ label_text(item_label) | lower }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}.
+                </p>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Resumo operacional</h2>
+            <div class="stack">
+                <div class="meta-pill"><strong>Eventos revisados</strong>{{ metrics.reviewed_events }}</div>
+                <div class="meta-pill"><strong>Precisão operacional</strong>{{ '%.2f'|format(metrics.operational_precision * 100) }}%</div>
+                <div class="meta-pill"><strong>Falsos positivos</strong>{{ '%.2f'|format(metrics.false_positive_rate * 100) }}%</div>
+                <div class="meta-pill"><strong>Verdadeiros positivos</strong>{{ '%.2f'|format(metrics.true_positive_rate * 100) }}%</div>
+                <div class="meta-pill"><strong>Cancelados</strong>{{ metrics.canceled_events }}</div>
+                <div class="meta-pill"><strong>Cancelados revisados</strong>{{ metrics.canceled_reviewed }}</div>
+                <div class="meta-pill"><strong>Eficiência dos cancelamentos</strong>{{ '%.2f'|format(metrics.canceled_efficiency * 100) }}%</div>
+                <div class="meta-pill"><strong>Pessoas canceladas</strong>{{ metrics.canceled_true_positive }} / {{ '%.2f'|format(metrics.canceled_person_miss_rate * 100) }}%</div>
+                <div class="meta-pill"><strong>Causa principal</strong>{{ cause_text(metrics.top_false_positive_causes[0]) if metrics.top_false_positive_causes else '-' }}</div>
+                <div class="meta-pill"><strong>Câmeras críticas</strong>{{ metrics.top_cameras | join(', ') if metrics.top_cameras else '-' }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Drift</h2>
+            {% if drift and drift.drift_detected %}
+                <div class="error">Drift detectado. Priorize a revisão humana e congele ajustes automáticos agressivos.</div>
+            {% else %}
+                <div class="muted">Nenhum drift forte detectado na janela atual.</div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <h2>Fila de aprendizado ativo</h2>
+            {% if active_learning_queue %}
+                <div class="stack">
+                    {% for item in active_learning_queue[:8] %}
+                        <div class="meta-pill">
+                            <strong>Evento {{ item.event_id }}</strong>
+                            {{ label_text(item.label) }} / {{ cause_text(item.probable_cause) }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="muted">Nenhum item elegível no momento.</div>
+            {% endif %}
+        </div>
+        <div class="card">
+            <h2>Dataset do revalidador</h2>
+            <div class="stack">
+                <div class="meta-pill"><strong>Person</strong>{{ revalidator_dataset.classes.person.crops }} crops</div>
+                <div class="meta-pill"><strong>Not person</strong>{{ revalidator_dataset.classes.not_person.crops }} crops</div>
+                <div class="meta-pill"><strong>Pares balanceados</strong>{{ revalidator_dataset.balanced_pairs }}</div>
+                <div class="meta-pill"><strong>Status</strong>{{ revalidator_dataset.readiness }}</div>
+            </div>
+            <div class="muted" style="margin-top:10px;">{{ revalidator_dataset.recommendation }}</div>
+        </div>
+    </aside>
+
+    <main>
+        <div class="card">
+            <h2>Sugestões pendentes aplicáveis</h2>
+            {% if suggestions %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Câmera</th>
+                            <th>Parâmetro</th>
+                            <th>Valor atual</th>
+                            <th>Sugerido</th>
+                            <th>Confiança</th>
+                            <th>Status</th>
+                            <th>Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody data-role="suggestions-body">
+                        {% for suggestion in suggestions[:10] %}
+                            <tr data-suggestion-row="{{ suggestion.id }}">
+                                <td>{{ suggestion.camera_id }}</td>
+                                <td>{{ suggestion.parameter_name }}</td>
+                                <td>{{ suggestion.old_value }}</td>
+                                <td>{{ suggestion.suggested_value }}</td>
+                                <td>{{ '%.2f'|format(suggestion.confidence_score) }}</td>
+                                <td data-role="suggestion-status">{{ status_text(suggestion.status) }}</td>
+                                <td>
+                                    {% if suggestion.status == 'pending' %}
+                                        <div class="suggestion-actions">
+                                            <button class="btn btn-success btn-small" type="button" data-suggestion-action="apply" data-suggestion-id="{{ suggestion.id }}">Aplicar</button>
+                                            <button class="btn btn-secondary btn-small" type="button" data-suggestion-action="reject" data-suggestion-id="{{ suggestion.id }}">Rejeitar</button>
+                                        </div>
+                                    {% else %}
+                                        <span class="muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="muted" data-role="suggestions-empty">Sem sugestões aplicáveis pendentes.</div>
+            {% endif %}
+        </div>
+
+        <div class="review-tabs" role="tablist" aria-label="Abas de validação">
+            <button class="tab-button active" type="button" data-tab-target="pending-panel">Pendentes <span data-count="pending">{{ pending_count.value }}</span></button>
+            <button class="tab-button" type="button" data-tab-target="reviewed-panel">Avaliados <span data-count="reviewed">{{ reviewed_count.value }}</span></button>
+        </div>
+        <div class="muted" style="margin-bottom:12px;">Mostrando ate {{ selected_limit }} eventos recentes nesta carga.</div>
+
+        <section id="pending-panel" class="tab-panel active">
+            {% if pending_count.value %}
+                {% for event in events %}
+                    {% if not event.label %}
+                        {{ review_card(event, False) }}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="card empty-panel">Nenhum evento pendente com os filtros atuais.</div>
+            {% endif %}
+        </section>
+
+        <section id="reviewed-panel" class="tab-panel">
+            {% if reviewed_count.value %}
+                {% for event in events %}
+                    {% if event.label %}
+                        {{ review_card(event, True) }}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="card empty-panel">Nenhum evento avaliado com os filtros atuais.</div>
+            {% endif %}
+        </section>
+    </main>
+</div>
+
+<div class="toast" id="reviewToast">Avaliação registrada</div>
+
+<div class="revalidator-modal" id="revalidatorModal" aria-hidden="true">
+    <div class="revalidator-dialog" role="dialog" aria-modal="true" aria-labelledby="revalidatorModalTitle">
+        <div class="revalidator-header">
+            <div>
+                <h3 id="revalidatorModalTitle">Reavaliação IA da box</h3>
+                <div class="muted" id="revalidatorModalSubtitle">Aguardando resultado...</div>
+            </div>
+            <button class="revalidator-close" type="button" data-revalidator-close>Fechar</button>
+        </div>
+        <div class="revalidator-content" id="revalidatorModalContent">
+            <div class="revalidator-status-card is-loading">
+                <div class="revalidator-main-result">Processando...</div>
+                <div class="revalidator-summary">A IA está reavaliando apenas o crop da box salva no evento.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="image-viewer" id="imageViewer" aria-hidden="true">
+    <div class="image-viewer-toolbar">
+        <div class="image-viewer-title" id="imageViewerTitle">Imagem</div>
+        <div class="image-viewer-actions">
+            <button class="viewer-button" type="button" data-viewer-action="zoom-out" title="Diminuir zoom">-</button>
+            <button class="viewer-button" type="button" data-viewer-action="reset" title="Ajustar imagem">1:1</button>
+            <button class="viewer-button" type="button" data-viewer-action="zoom-in" title="Aumentar zoom">+</button>
+            <button class="viewer-button" type="button" data-viewer-action="close" title="Fechar">X</button>
+        </div>
+    </div>
+    <div class="image-viewer-stage" id="imageViewerStage">
+        <img id="imageViewerImage" alt="">
+    </div>
+</div>
+
+<script>
+(() => {
+    const labelNames = {
+        true_positive: "Verdadeiro positivo",
+        false_positive: "Falso positivo",
+        expected_event: "Evento esperado",
+        inconclusive: "Inconclusivo"
+    };
+    const causeNames = {
+        vegetation_wind: "Vegetação/vento",
+        shadow: "Sombra",
+        glass_reflection: "Reflexo em vidro",
+        headlights: "Faróis",
+        rain: "Chuva",
+        insects_ir: "Insetos/IR",
+        camera_vibration: "Vibração da câmera",
+        small_target: "Alvo pequeno",
+        poor_roi: "ROI inadequada",
+        threshold_too_low: "Limite muito baixo",
+        confirmation_too_short: "Confirmação curta",
+        wrong_direction_rule: "Direção incorreta",
+        normal_human_flow: "Fluxo normal de pessoas"
+    };
+
+    const suggestionStatusNames = {
+        pending: "Pendente",
+        applied: "Aplicada",
+        rejected: "Rejeitada"
+    };
+
+    const tabButtons = Array.from(document.querySelectorAll(".tab-button"));
+    const panels = Array.from(document.querySelectorAll(".tab-panel"));
+    const pendingPanel = document.getElementById("pending-panel");
+    const reviewedPanel = document.getElementById("reviewed-panel");
+    const toast = document.getElementById("reviewToast");
+    const imageViewer = document.getElementById("imageViewer");
+    const imageViewerImage = document.getElementById("imageViewerImage");
+    const imageViewerTitle = document.getElementById("imageViewerTitle");
+    const imageViewerStage = document.getElementById("imageViewerStage");
+    let imageViewerScale = 1;
+    let imageViewerOffsetX = 0;
+    let imageViewerOffsetY = 0;
+    let imageViewerDragging = false;
+    let imageViewerDragStartX = 0;
+    let imageViewerDragStartY = 0;
+    let imageViewerDragOriginX = 0;
+    let imageViewerDragOriginY = 0;
+
+    function showToast(message) {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    const revalidatorModal = document.getElementById("revalidatorModal");
+    const revalidatorModalSubtitle = document.getElementById("revalidatorModalSubtitle");
+    const revalidatorModalContent = document.getElementById("revalidatorModalContent");
+
+    function formatScore(value) {
+        const number = Number(value || 0);
+        return `${(number * 100).toFixed(3)}%`;
+    }
+
+    function formatMs(value) {
+        const number = Number(value || 0);
+        return `${number.toFixed(2)} ms`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function renderAiDecisionRows(data) {
+        const ia1 = data.ia1 || {};
+        const ia2 = data.ia2 || {};
+        const ia3 = data.ia3 || {};
+        const consensus = data.consensus_revalidator || {};
+        const maturity = data.event_maturity || {};
+        const alarmDecision = data.alarm_decision || {};
+        const region = data.region_memory || {};
+        const layered = data.layered_decision || {};
+        const productionBlockActive = Boolean(
+            consensus.would_block
+            || consensus.block_applied
+            || consensus.block_candidate
+            || consensus.balanced_block_candidate
+            || consensus.ia3_confirmed_dynamic_candidate
+            || consensus.ia2_dominant_ia3_non_person_candidate
+            || consensus.ia2_only_balanced_candidate
+            || consensus.operational_decision === "blocked"
+            || consensus.operational_decision === "would_block_by_consensus"
+            || data.operational_block_decision === "BLOQUEARIA_EVENTO_CONSENSO"
+        );
+        const productionBlockProfile = consensus.block_profile || (
+            consensus.ia2_only_balanced_candidate
+                ? "ia2_only_balanced"
+                : consensus.ia2_dominant_ia3_non_person_candidate
+                ? "ia2_dominant_ia3_non_person"
+                : consensus.ia3_confirmed_dynamic_candidate
+                ? "ia3_confirmed_dynamic"
+                : consensus.balanced_block_candidate
+                ? "balanced"
+                : consensus.block_candidate
+                ? "strict"
+                : "consensus"
+        );
+        const productionBlockText = consensus.block_applied || consensus.operational_decision === "blocked"
+            ? `BLOQUEADO em producao por consenso (${productionBlockProfile})`
+            : `BLOQUEARIA EM PROD por consenso (${productionBlockProfile})`;
+        const ia2Text = ia2.applied
+            ? `${ia2.raw_model_interpretation === "PARECE_PESSOA" ? "IA2 confirma visualmente pessoa" : "IA2 favorece não pessoa"} · pessoa ${formatScore(ia2.person_score)} · não pessoa ${formatScore(ia2.not_person_score)}`
+            : `IA2 não avaliou · ${ia2.reason || data.reason || "-"}`;
+        const ia3Text = ia3.summary || "IA3 não foi solicitada";
+        let consensusText = `Consenso IA2+IA3: manter/auditar · ${consensus.reason || "sem consenso forte"}`;
+        if (consensus.would_block) {
+            consensusText = "Consenso IA2+IA3: bloquearia evento novo no fluxo ao vivo";
+        } else if (consensus.block_candidate) {
+            consensusText = "Consenso IA2+IA3: candidato a block em auditoria";
+        } else if (consensus.border_consensus_candidate) {
+            consensusText = `Consenso IA2+IA3: barrado por borda · ${consensus.quality_reason || "bbox_near_border"}`;
+        } else if (consensus.small_bbox_consensus_candidate) {
+            consensusText = `Consenso IA2+IA3: barrado por bbox pequena · ${consensus.quality_reason || "bbox_too_small"}`;
+        } else if (consensus.ia2_strong_not_person_without_ia3) {
+            consensusText = "IA2 rejeitou forte, mas IA3 não foi solicitada";
+        }
+        const maturityText = maturity.level
+            ? `Maturidade: ${maturity.level} · score ${formatScore(maturity.score)} · ${maturity.decision || "audit"}`
+            : "Maturidade: não registrada";
+        const alarmDecisionText = alarmDecision.action
+            ? `Alarme sugerido: ${alarmDecision.action} · status ${alarmDecision.suggested_status || "-"} · ${alarmDecision.reason || "-"}`
+            : "Alarme sugerido: audit";
+        const regionText = region.region_cell
+            ? `Região ${region.region_cell} · ${region.risk_level || "UNKNOWN"} · FP ${region.false_positive_count || 0} · pessoa ${region.true_positive_count || 0}`
+            : "Região sem histórico suficiente";
+        const layeredText = layered.decision
+            ? `Decisão em camadas: ${layered.decision} · ${layered.reason || "-"}`
+            : "Decisão em camadas: audit";
+
+        return `
+            <div class="ai-validation-panel">
+                <div class="ai-validation-row is-ok">
+                    <span class="ai-validation-label">IA1</span>
+                    <span class="ai-validation-text">${escapeHtml(ia1.summary || "IA1 confirmou: pessoa")}</span>
+                </div>
+                <div class="ai-validation-row ${ia2.raw_model_interpretation === "PARECE_PESSOA" ? "is-ok" : "is-warning"}">
+                    <span class="ai-validation-label">IA2</span>
+                    <span class="ai-validation-text">${escapeHtml(ia2Text)}</span>
+                </div>
+                <div class="ai-validation-row ${ia3.raw_model_interpretation === "PARECE_PESSOA" ? "is-ok" : (ia3.raw_model_interpretation === "NAO_PARECE_PESSOA" ? "is-warning" : "")}">
+                    <span class="ai-validation-label">IA3</span>
+                    <span class="ai-validation-text">${escapeHtml(ia3Text)}</span>
+                </div>
+                <div class="ai-validation-row ${consensus.block_candidate || consensus.would_block || consensus.border_consensus_candidate || consensus.small_bbox_consensus_candidate || consensus.ia2_strong_not_person_without_ia3 ? "is-warning" : ""}">
+                    <span class="ai-validation-label">Cons.</span>
+                    <span class="ai-validation-text">${escapeHtml(consensusText)}</span>
+                </div>
+                ${productionBlockActive ? `
+                <div class="ai-validation-row is-production-block">
+                    <span class="ai-validation-label">Prod.</span>
+                    <span class="ai-validation-text prod-block-line"><span class="prod-block-symbol" aria-hidden="true">!</span>${escapeHtml(productionBlockText)}</span>
+                </div>
+                ` : ""}
+                <div class="ai-validation-row ${maturity.decision === "suppress_candidate_audit" ? "is-warning" : ""}">
+                    <span class="ai-validation-label">Mat.</span>
+                    <span class="ai-validation-text">${escapeHtml(maturityText)}</span>
+                </div>
+                <div class="ai-validation-row ${String(alarmDecision.action || "").includes("LOW_CONFIDENCE") ? "is-warning" : ""}">
+                    <span class="ai-validation-label">Alarme</span>
+                    <span class="ai-validation-text">${escapeHtml(alarmDecisionText)}</span>
+                </div>
+                <div class="ai-validation-row ${region.risk_level === "GREEN" ? "is-warning" : ""}">
+                    <span class="ai-validation-label">Reg.</span>
+                    <span class="ai-validation-text">${escapeHtml(regionText)}</span>
+                </div>
+                <div class="ai-validation-row ${layered.decision === "suppress_candidate" ? "is-warning" : ""}">
+                    <span class="ai-validation-label">Fluxo</span>
+                    <span class="ai-validation-text">${escapeHtml(layeredText)}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderReviewCardRevalidationPanel(data) {
+        const ia1 = data.ia1 || {};
+        const ia2 = data.ia2 || {};
+        const ia3 = data.ia3 || {};
+        const ia2Text = ia2.applied
+            ? `${ia2.raw_model_interpretation === "PARECE_PESSOA" ? "IA2 confirma visualmente pessoa" : "IA2 favorece nao pessoa"} · pessoa ${formatScore(ia2.person_score)} · nao pessoa ${formatScore(ia2.not_person_score)}`
+            : `IA2 nao avaliou · ${ia2.reason || data.reason || "-"}`;
+        const ia3Text = ia3.summary || "IA3 nao foi solicitada";
+        const ia3Protects = String(ia3Text).includes("protegeu");
+        return `
+            <div class="ai-validation-row is-ok">
+                <span class="ai-validation-label">IA1</span>
+                <span class="ai-validation-text">${escapeHtml(ia1.summary || "IA1 confirmou: pessoa")}</span>
+            </div>
+            <div class="ai-validation-row ${ia2.raw_model_interpretation === "PARECE_PESSOA" ? "is-ok" : "is-warning"}">
+                <span class="ai-validation-label">IA2</span>
+                <span class="ai-validation-text">${escapeHtml(ia2Text)}</span>
+            </div>
+            <div class="ai-validation-row ${ia3.raw_model_interpretation === "PARECE_PESSOA" || ia3Protects ? "is-ok" : (ia3.raw_model_interpretation === "NAO_PARECE_PESSOA" ? "is-warning" : "")}">
+                <span class="ai-validation-label">IA3</span>
+                <span class="ai-validation-text">${escapeHtml(ia3Text)}</span>
+            </div>
+            <div class="ai-validation-row is-warning">
+                <span class="ai-validation-label">Origem</span>
+                <span class="ai-validation-text">Reavaliacao atual da box salva, nao o score original do disparo</span>
+            </div>
+        `;
+    }
+
+    function updateReviewCardWithRevalidation(data) {
+        const eventId = data.event_id;
+        if (!eventId) return;
+        const card = document.getElementById(`event-card-${eventId}`);
+        if (!card) return;
+
+        const panel = card.querySelector("[data-role='ai-validation-panel']");
+        if (panel) {
+            panel.innerHTML = renderReviewCardRevalidationPanel(data);
+        }
+
+        const scoreSummary = card.querySelector("[data-role='score-summary']");
+        if (scoreSummary) {
+            const detector = data.ia1 && data.ia1.person_score !== null && data.ia1.person_score !== undefined
+                ? Number(data.ia1.person_score).toFixed(3)
+                : "-";
+            const ia2 = data.raw_person_score !== null && data.raw_person_score !== undefined
+                ? Number(data.raw_person_score).toFixed(3)
+                : "-";
+            const ia3 = data.ia3 && data.ia3.person_far_score !== null && data.ia3.person_far_score !== undefined
+                ? Number(data.ia3.person_far_score).toFixed(3)
+                : "-";
+            scoreSummary.innerHTML = `<strong>Scores reavaliados</strong>detector ${escapeHtml(detector)} · IA2 ${escapeHtml(ia2)} · IA3 ${escapeHtml(ia3)}`;
+        }
+    }
+
+    function openRevalidatorModalLoading(eventId) {
+        if (!revalidatorModal || !revalidatorModalContent) return;
+        if (revalidatorModalSubtitle) {
+            revalidatorModalSubtitle.textContent = `Evento #${eventId}`;
+        }
+        revalidatorModalContent.innerHTML = `
+            <div class="revalidator-status-card is-loading">
+                <div class="revalidator-main-result">Processando...</div>
+                <div class="revalidator-summary">A IA está reavaliando apenas o crop da box salva no evento.</div>
+            </div>
+        `;
+        revalidatorModal.classList.add("open");
+        revalidatorModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeRevalidatorModal() {
+        if (!revalidatorModal) return;
+        revalidatorModal.classList.remove("open");
+        revalidatorModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderRevalidatorModal(data) {
+        if (!revalidatorModalContent) return;
+
+        const raw = data.raw_model_interpretation || data.conclusion || "INDEFINIDO";
+        const isNotPerson = raw === "NAO_PARECE_PESSOA" || raw === "NAO_CONFIRMOU_COMO_PESSOA";
+        const resultClass = isNotPerson ? "is-not-person" : "is-person";
+        const resultTitle = isNotPerson ? "Modelo bruto: NÃO parece pessoa" : "Modelo bruto: PARECE pessoa";
+
+        const human = data.human_summary || {};
+        const modeloBruto = human.modelo_bruto || (isNotPerson ? "O modelo bruto acha que NÃO parece pessoa." : "O modelo bruto acha que PARECE pessoa.");
+        const decisaoOperacional = human.decisao_operacional || data.operational_revalidator_result || "-";
+        const bloqueio = human.bloqueio || data.operational_block_decision || "-";
+        const rawJson = escapeHtml(JSON.stringify(data, null, 2));
+
+        if (revalidatorModalSubtitle) {
+            revalidatorModalSubtitle.textContent = `Evento #${data.event_id || "-"} · câmera ${data.camera_id || "-"}`;
+        }
+
+        revalidatorModalContent.innerHTML = `
+            <div class="revalidator-status-card ${resultClass}">
+                <div class="revalidator-main-result">${escapeHtml(resultTitle)}</div>
+                <div class="revalidator-summary">
+                    <div>${escapeHtml(modeloBruto)}</div>
+                    <div>${escapeHtml(decisaoOperacional)}</div>
+                    <div>${escapeHtml(bloqueio)}</div>
+                </div>
+            </div>
+
+            ${renderAiDecisionRows(data)}
+
+            <div class="revalidator-grid">
+                <div class="revalidator-metric">
+                    <strong>Score pessoa</strong>
+                    <span>${formatScore(data.raw_person_score ?? data.person_score)}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Score não pessoa</strong>
+                    <span>${formatScore(data.raw_not_person_score ?? data.not_person_score)}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Margem bruta</strong>
+                    <span>${formatScore(data.raw_model_margin)}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Threshold operacional</strong>
+                    <span>${Number(data.operational_threshold ?? data.threshold ?? 0).toFixed(4)}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Resultado operacional</strong>
+                    <span>${escapeHtml(data.operational_revalidator_result || (data.passed ? "PASSOU_REVALIDADOR" : "REPROVOU_REVALIDADOR"))}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Bloqueio</strong>
+                    <span>${escapeHtml(data.operational_block_decision || "-")}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Elegível para bloqueio</strong>
+                    <span>${data.block_eligible ? "Sim" : "Não"}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Motivo</strong>
+                    <span>${escapeHtml(data.block_reason || data.quality_reason || data.reason || "-")}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Perto da borda</strong>
+                    <span>${data.near_border ? "Sim" : "Não"}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Inferência</strong>
+                    <span>${formatMs(data.inference_ms)}</span>
+                </div>
+                <div class="revalidator-metric">
+                    <strong>Modelo</strong>
+                    <span>${escapeHtml(data.model_path || "-")}</span>
+                </div>
+            </div>
+
+            <details class="revalidator-raw">
+                <summary>Ver JSON completo</summary>
+                <pre class="json-box">${rawJson}</pre>
+            </details>
+        `;
+    }
+
+    function renderRevalidatorError(eventId, message) {
+        if (!revalidatorModalContent) return;
+        if (revalidatorModalSubtitle) {
+            revalidatorModalSubtitle.textContent = `Evento #${eventId}`;
+        }
+        revalidatorModalContent.innerHTML = `
+            <div class="revalidator-status-card is-person">
+                <div class="revalidator-main-result">Erro na reavaliação</div>
+                <div class="revalidator-summary">${escapeHtml(message)}</div>
+            </div>
+        `;
+    }
+
+    document.querySelectorAll("[data-revalidator-close]").forEach((button) => {
+        button.addEventListener("click", closeRevalidatorModal);
+    });
+
+    if (revalidatorModal) {
+        revalidatorModal.addEventListener("click", (event) => {
+            if (event.target === revalidatorModal) closeRevalidatorModal();
+        });
+    }
+
+    document.querySelectorAll("[data-revalidate-crop]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const eventId = button.dataset.eventId;
+            if (!eventId) return;
+
+            openRevalidatorModalLoading(eventId);
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/events/${eventId}/revalidate-crop`, { method: "POST" });
+                if (!response.ok) {
+                    let detail = "Não foi possível reavaliar a box.";
+                    try {
+                        const data = await response.json();
+                        detail = data.detail || detail;
+                    } catch (_) {}
+                    throw new Error(detail);
+                }
+                const data = await response.json();
+                renderRevalidatorModal(data);
+                updateReviewCardWithRevalidation(data);
+            } catch (error) {
+                renderRevalidatorError(eventId, error.message);
+                showToast(error.message);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
+
+    function activateTab(panelId) {
+        tabButtons.forEach((button) => {
+            button.classList.toggle("active", button.dataset.tabTarget === panelId);
+        });
+        panels.forEach((panel) => {
+            panel.classList.toggle("active", panel.id === panelId);
+        });
+    }
+
+    function refreshCounts() {
+        const pendingCount = pendingPanel.querySelectorAll(".review-card").length;
+        const reviewedCount = reviewedPanel.querySelectorAll(".review-card").length;
+        const pendingBadge = document.querySelector("[data-count='pending']");
+        const reviewedBadge = document.querySelector("[data-count='reviewed']");
+        if (pendingBadge) pendingBadge.textContent = String(pendingCount);
+        if (reviewedBadge) reviewedBadge.textContent = String(reviewedCount);
+        refreshEmptyState(pendingPanel, "Nenhum evento pendente com os filtros atuais.");
+        refreshEmptyState(reviewedPanel, "Nenhum evento avaliado com os filtros atuais.");
+    }
+
+    function refreshEmptyState(panel, message) {
+        const existing = panel.querySelector(".empty-panel");
+        const hasCards = panel.querySelector(".review-card") !== null;
+        if (hasCards && existing) {
+            existing.remove();
+        } else if (!hasCards && !existing) {
+            const empty = document.createElement("div");
+            empty.className = "card empty-panel";
+            empty.textContent = message;
+            panel.appendChild(empty);
+        }
+    }
+
+    tabButtons.forEach((button) => {
+        button.addEventListener("click", () => activateTab(button.dataset.tabTarget));
+    });
+
+    function applyViewerScale() {
+        if (!imageViewerImage) return;
+        imageViewerImage.style.transform = `translate(${imageViewerOffsetX}px, ${imageViewerOffsetY}px) scale(${imageViewerScale})`;
+    }
+
+    function viewerBaseCenter() {
+        if (!imageViewerStage) return { x: 0, y: 0 };
+        const rect = imageViewerStage.getBoundingClientRect();
+        return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2
+        };
+    }
+
+    function setViewerScale(nextScale, focusX = null, focusY = null) {
+        const previousScale = imageViewerScale;
+        const next = Math.max(1, Math.min(8, nextScale));
+        if (Math.abs(next - previousScale) < 0.001) return;
+
+        if (focusX !== null && focusY !== null) {
+            const center = viewerBaseCenter();
+            imageViewerOffsetX = focusX - center.x - ((focusX - center.x - imageViewerOffsetX) / previousScale) * next;
+            imageViewerOffsetY = focusY - center.y - ((focusY - center.y - imageViewerOffsetY) / previousScale) * next;
+        }
+
+        imageViewerScale = next;
+        applyViewerScale();
+    }
+
+    function resetViewerTransform() {
+        imageViewerScale = 1;
+        imageViewerOffsetX = 0;
+        imageViewerOffsetY = 0;
+        applyViewerScale();
+    }
+
+    function openImageViewer(source, title) {
+        if (!imageViewer || !imageViewerImage) return;
+        imageViewerImage.src = source;
+        imageViewerImage.alt = title || "Imagem do evento";
+        if (imageViewerTitle) imageViewerTitle.textContent = title || "Imagem";
+        resetViewerTransform();
+        imageViewer.classList.add("open");
+        imageViewer.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeImageViewer() {
+        if (!imageViewer || !imageViewerImage) return;
+        imageViewer.classList.remove("open");
+        imageViewer.setAttribute("aria-hidden", "true");
+        imageViewerImage.removeAttribute("src");
+        imageViewerStage?.classList.remove("is-dragging");
+        imageViewerDragging = false;
+        document.body.style.overflow = "";
+    }
+
+    document.addEventListener("click", (event) => {
+        const target = event.target;
+        if (target instanceof HTMLImageElement && target.classList.contains("zoomable-media")) {
+            openImageViewer(target.dataset.fullSrc || target.src, target.dataset.title || target.alt);
+            return;
+        }
+
+        const actionButton = target instanceof Element ? target.closest("[data-viewer-action]") : null;
+        if (!actionButton) return;
+        const action = actionButton.dataset.viewerAction;
+        if (action === "close") closeImageViewer();
+        if (action === "zoom-in") {
+            const center = viewerBaseCenter();
+            setViewerScale(imageViewerScale + 0.25, center.x, center.y);
+        }
+        if (action === "zoom-out") {
+            const center = viewerBaseCenter();
+            setViewerScale(imageViewerScale - 0.25, center.x, center.y);
+        }
+        if (action === "reset") resetViewerTransform();
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.target instanceof HTMLImageElement && event.target.classList.contains("zoomable-media")) {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openImageViewer(event.target.dataset.fullSrc || event.target.src, event.target.dataset.title || event.target.alt);
+            }
+            return;
+        }
+        if (!imageViewer || !imageViewer.classList.contains("open")) return;
+        if (event.key === "Escape") closeImageViewer();
+        const center = viewerBaseCenter();
+        if (event.key === "+" || event.key === "=") setViewerScale(imageViewerScale + 0.25, center.x, center.y);
+        if (event.key === "-") setViewerScale(imageViewerScale - 0.25, center.x, center.y);
+        if (event.key === "0") resetViewerTransform();
+    });
+
+    if (imageViewerStage) {
+        imageViewerStage.addEventListener("wheel", (event) => {
+            if (!imageViewer || !imageViewer.classList.contains("open")) return;
+            event.preventDefault();
+            setViewerScale(imageViewerScale + (event.deltaY < 0 ? 0.18 : -0.18), event.clientX, event.clientY);
+        }, { passive: false });
+
+        imageViewerStage.addEventListener("pointerdown", (event) => {
+            if (!imageViewer || !imageViewer.classList.contains("open")) return;
+            imageViewerDragging = true;
+            imageViewerDragStartX = event.clientX;
+            imageViewerDragStartY = event.clientY;
+            imageViewerDragOriginX = imageViewerOffsetX;
+            imageViewerDragOriginY = imageViewerOffsetY;
+            imageViewerStage.classList.add("is-dragging");
+            imageViewerStage.setPointerCapture(event.pointerId);
+        });
+
+        imageViewerStage.addEventListener("pointermove", (event) => {
+            if (!imageViewerDragging) return;
+            imageViewerOffsetX = imageViewerDragOriginX + event.clientX - imageViewerDragStartX;
+            imageViewerOffsetY = imageViewerDragOriginY + event.clientY - imageViewerDragStartY;
+            applyViewerScale();
+        });
+
+        function stopViewerDrag(event) {
+            if (!imageViewerDragging) return;
+            imageViewerDragging = false;
+            imageViewerStage.classList.remove("is-dragging");
+            try {
+                imageViewerStage.releasePointerCapture(event.pointerId);
+            } catch (_) {}
+        }
+
+        imageViewerStage.addEventListener("pointerup", stopViewerDrag);
+        imageViewerStage.addEventListener("pointercancel", stopViewerDrag);
+    }
+
+    document.querySelectorAll(".review-form").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            const submitter = event.submitter;
+            if (!submitter || !submitter.name || submitter.name !== "label") return;
+            event.preventDefault();
+
+            const eventId = form.dataset.eventId;
+            const statusEl = form.querySelector("[data-role='form-status']");
+            const payload = {
+                label: submitter.value,
+                probable_cause: form.elements.probable_cause.value || null,
+                operator_note: form.elements.operator_note.value || null,
+                reviewed_by: form.elements.reviewed_by.value || "operador",
+                auto_suggest: true
+            };
+
+            submitter.disabled = true;
+            if (statusEl) statusEl.textContent = "Registrando avaliação...";
+
+            try {
+                const response = await fetch(`/api/events/${eventId}/feedback`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    let detail = "Não foi possível registrar a avaliação.";
+                    try {
+                        const data = await response.json();
+                        detail = data.detail || detail;
+                    } catch (_) {}
+                    throw new Error(detail);
+                }
+
+                const card = document.getElementById(`event-card-${eventId}`);
+                if (card) {
+                    card.classList.add("is-reviewed");
+                    card.dataset.reviewed = "1";
+                    const badge = card.querySelector("[data-role='review-badge']");
+                    const summary = card.querySelector("[data-role='feedback-summary']");
+                    const labelEl = card.querySelector("[data-role='feedback-label']");
+                    const causeEl = card.querySelector("[data-role='feedback-cause']");
+                    const userEl = card.querySelector("[data-role='feedback-user']");
+                    const eventStatus = card.querySelector("[data-role='event-status']");
+                    if (badge) badge.textContent = "Avaliado";
+                    if (summary) summary.classList.remove("hidden");
+                    if (labelEl) labelEl.textContent = labelNames[payload.label] || payload.label;
+                    if (causeEl) causeEl.textContent = causeNames[payload.probable_cause] || payload.probable_cause || "-";
+                    if (userEl) userEl.textContent = payload.reviewed_by || "operador";
+                    if (eventStatus) {
+                        eventStatus.textContent = payload.label === "false_positive" ? "Fechado" : "Reconhecido";
+                    }
+                    reviewedPanel.prepend(card);
+                }
+
+                if (statusEl) statusEl.textContent = "Avaliação registrada.";
+                refreshCounts();
+                activateTab("pending-panel");
+                showToast("Avaliação registrada e movida para Avaliados");
+            } catch (error) {
+                if (statusEl) statusEl.textContent = error.message;
+                showToast(error.message);
+            } finally {
+                submitter.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll("[data-suggestion-action]").forEach((button) => {
+        button.addEventListener("click", async () => {
+            const suggestionId = button.dataset.suggestionId;
+            const action = button.dataset.suggestionAction;
+            const row = document.querySelector(`[data-suggestion-row="${suggestionId}"]`);
+            const statusEl = row ? row.querySelector("[data-role='suggestion-status']") : null;
+            const buttons = row ? Array.from(row.querySelectorAll("[data-suggestion-action]")) : [button];
+
+            buttons.forEach((item) => item.disabled = true);
+            if (statusEl) statusEl.textContent = action === "apply" ? "Aplicando..." : "Rejeitando...";
+
+            try {
+                const response = await fetch(`/api/feedback/suggestions/${suggestionId}/${action}`, { method: "POST" });
+                if (!response.ok) {
+                    let detail = "Nao foi possivel atualizar a sugestao.";
+                    try {
+                        const data = await response.json();
+                        detail = data.detail || detail;
+                    } catch (_) {
+                        try {
+                            const text = await response.text();
+                            if (text) detail = `${detail} HTTP ${response.status}: ${text.slice(0, 160)}`;
+                        } catch (__) {}
+                    }
+                    throw new Error(detail);
+                }
+                if (row) {
+                    const body = row.closest("[data-role='suggestions-body']");
+                    row.remove();
+                    if (body && !body.querySelector("[data-suggestion-row]")) {
+                        const table = body.closest("table");
+                        const empty = document.createElement("div");
+                        empty.className = "muted";
+                        empty.dataset.role = "suggestions-empty";
+                        empty.textContent = "Sem sugestões aplicáveis pendentes.";
+                        if (table) table.replaceWith(empty);
+                    }
+                }
+                showToast(action === "apply" ? "Sugestao aplicada" : "Sugestao rejeitada");
+            } catch (error) {
+                if (statusEl) statusEl.textContent = suggestionStatusNames.pending;
+                buttons.forEach((item) => item.disabled = false);
+                showToast(error.message);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

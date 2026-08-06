@@ -1,0 +1,129 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<h1>Métricas da câmera</h1>
+
+{% if camera %}
+<div class="card">
+    <p><strong>ID:</strong> {{ camera.id }}</p>
+    <p><strong>Nome:</strong> {{ camera.name }}</p>
+    <p><strong>IP:</strong> {{ camera.ip }}</p>
+    <p><strong>Status:</strong> {{ camera.status }}</p>
+    {% if rtsp_probe %}
+    <div style="margin-top:12px; padding:12px 14px; border-radius:10px; border:1px solid {% if rtsp_probe.reachable is sameas true %}#bfe5c8{% elif rtsp_probe.reachable is sameas false %}#f0c36d{% else %}#dbe3ec{% endif %}; background:{% if rtsp_probe.reachable is sameas true %}#eef9f1{% elif rtsp_probe.reachable is sameas false %}#fff4e6{% else %}#f7f9fc{% endif %};">
+        <strong style="display:block; margin-bottom: 6px;">RTSP / rede</strong>
+        <div>
+            Status:
+            {% if rtsp_probe.reachable is sameas true %}
+                <span class="status status-running">Acessível</span>
+            {% elif rtsp_probe.reachable is sameas false %}
+                <span class="status status-offline">Indisponível</span>
+            {% else %}
+                <span class="status">Indefinido</span>
+            {% endif %}
+        </div>
+        <div class="muted" style="margin-top: 4px; font-size: 12px;">Alvo: {{ rtsp_probe.target }}</div>
+        <div class="muted" style="margin-top: 4px; font-size: 12px;">O teste usa cache do monitor para evitar carga excessiva.</div>
+    </div>
+    {% endif %}
+    <div style="margin-top:16px;"><a class="btn btn-secondary" href="/cameras/{{ camera.id }}">Voltar para câmera</a></div>
+</div>
+
+<div class="card">
+    <h2>Diagnóstico em tempo real</h2>
+    {% if light_profile and light_profile.enabled %}
+    <div style="margin: 0 0 16px 0; padding: 14px 16px; border-radius: 12px; background: #eef6ff; border: 1px solid #9fc0ff;">
+        <strong style="display:block; margin-bottom: 6px;">{{ light_profile.title }}</strong>
+        <div>{{ light_profile.summary }}</div>
+        {% if light_profile.recommendations %}
+        <ul style="margin: 10px 0 0 18px; padding: 0;">
+            {% for item in light_profile.recommendations %}
+            <li style="margin-bottom: 4px;">{{ item }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if light_profile.overrides %}
+        <div class="muted" style="margin-top: 8px; font-size: 12px;">
+            Sugestão de ajustes:
+            {% for key, value in light_profile.overrides.items() %}
+            <span style="display:inline-block; margin-right: 8px; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: #dfeaff; border: 1px solid #bfd3ff;">
+                {{ key }}={{ value }}
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div style="margin-top: 10px;">
+            <a class="btn btn-secondary" href="/cameras/{{ camera.id }}#sec-ops">Aplicar perfil leve</a>
+            <a class="btn btn-secondary" href="/cameras/{{ camera.id }}#sec-analytics" style="margin-left: 8px;">Abrir ROI / movimento</a>
+        </div>
+    </div>
+    {% endif %}
+    {% if metrics %}
+    {% if metrics.capture_inference_pressure %}
+    <div style="margin: 0 0 16px 0; padding: 14px 16px; border-radius: 12px; background: #fff4e6; border: 1px solid #f0c36d;">
+        <strong style="display:block; margin-bottom: 6px;">Pipeline em pressão</strong>
+        <div>{{ metrics.capture_inference_pipeline_hint }}</div>
+        <div class="muted" style="margin-top: 6px; font-size: 12px;">
+            Modo atual: {{ metrics.capture_inference_pipeline_mode }} | Relação captura/inferência: {{ metrics.capture_inference_pressure_ratio if metrics.capture_inference_pressure_ratio is not none else '-' }}
+        </div>
+        <div style="margin-top: 10px;">
+            <a class="btn btn-secondary" href="/cameras/{{ camera.id }}#sec-ops">Ajustar perfil leve</a>
+            <a class="btn btn-secondary" href="/cameras/{{ camera.id }}#sec-analytics" style="margin-left: 8px;">Abrir ROI / movimento</a>
+        </div>
+    </div>
+    {% else %}
+    <div style="margin: 0 0 16px 0; padding: 14px 16px; border-radius: 12px; background: #eef9f1; border: 1px solid #bfe5c8;">
+        <strong style="display:block; margin-bottom: 6px;">Pipeline estável</strong>
+        <div>{{ metrics.capture_inference_pipeline_hint }}</div>
+        <div class="muted" style="margin-top: 6px; font-size: 12px;">
+            Modo atual: {{ metrics.capture_inference_pipeline_mode }} | Relação captura/inferência: {{ metrics.capture_inference_pressure_ratio if metrics.capture_inference_pressure_ratio is not none else '-' }}
+        </div>
+    </div>
+    {% endif %}
+    <table>
+        <tbody>
+            <tr><th>FPS</th><td>{{ metrics.fps }}</td></tr>
+            <tr><th>FPS captura</th><td>{{ metrics.raw_fps if metrics.raw_fps is defined else metrics.fps }}</td></tr>
+            <tr><th>FPS processamento</th><td>{{ metrics.processed_fps if metrics.processed_fps is defined else metrics.fps }}</td></tr>
+            <tr><th>Leitura do frame (ms)</th><td>{{ metrics.read_ms }}</td></tr>
+            <tr><th>Inferência (ms)</th><td>{{ metrics.infer_ms }}</td></tr>
+            <tr><th>Loop total (ms)</th><td>{{ metrics.loop_ms }}</td></tr>
+            <tr><th>Pressão captura/inferência</th><td>{{ metrics.capture_inference_pressure_label if metrics.capture_inference_pressure_label is defined else '-' }}</td></tr>
+            <tr><th>CPU processo (%)</th><td>{{ metrics.process_cpu_percent }}</td></tr>
+            <tr><th>CPU sistema (%)</th><td>{{ metrics.system_cpu_percent }}</td></tr>
+            <tr><th>RAM processo (MB)</th><td>{{ metrics.process_rss_mb }}</td></tr>
+            <tr><th>Resolução</th><td>{{ metrics.frame_width }} x {{ metrics.frame_height }}</td></tr>
+            <tr><th>Tracks ativos</th><td>{{ metrics.tracks_count }}</td></tr>
+            <tr>
+                <th>Frames descartados na fila</th>
+                <td>
+                    {{ metrics.capture_queue_dropped_frames if metrics.capture_queue_dropped_frames is defined else '-' }}
+                    <span class="muted" style="display:block; font-size: 12px; margin-top: 4px;">
+                        Mostra quando a captura está mais rápida que a inferência e o pipeline precisa manter só o frame mais recente.
+                    </span>
+                </td>
+            </tr>
+            <tr><th>Modelo detector</th><td style="word-break:break-all;">{{ metrics.detector_model_path }}</td></tr>
+            <tr><th>Modo do worker</th><td>{{ metrics.worker_mode if metrics.worker_mode else 'normal' }}</td></tr>
+            <tr><th>ROI habilitada</th><td>{{ metrics.roi_enabled }}</td></tr>
+            <tr><th>Linha habilitada</th><td>{{ metrics.line_enabled }}</td></tr>
+            <tr><th>Movimento detectado</th><td>{{ metrics.motion_detected if metrics.motion_detected is defined else '-' }}</td></tr>
+            <tr><th>Gate de movimento</th><td>{{ metrics.gate_state if metrics.gate_state is defined else '-' }}</td></tr>
+            <tr><th>Intervalo idle</th><td>{{ metrics.idle_interval if metrics.idle_interval is defined else '-' }}</td></tr>
+            <tr><th>Intervalo ativo</th><td>{{ metrics.active_interval if metrics.active_interval is defined else '-' }}</td></tr>
+            <tr><th>Área mínima</th><td>{{ metrics.min_contour_area if metrics.min_contour_area is defined else '-' }}</td></tr>
+            <tr><th>Limiar de movimento</th><td>{{ metrics.motion_ratio_threshold if metrics.motion_ratio_threshold is defined else '-' }}</td></tr>
+            <tr><th>Última atualização</th><td>{{ metrics.updated_at }}</td></tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p>Sem métricas disponíveis no momento. Inicie o analítico e recarregue esta página.</p>
+    {% endif %}
+</div>
+
+<script>setTimeout(() => { window.location.reload(); }, 4000);</script>
+{% else %}
+<div class="card"><p>Câmera não encontrada.</p></div>
+{% endif %}
+{% endblock %}
+

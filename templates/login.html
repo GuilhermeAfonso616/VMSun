@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunOrus VMS - Login</title>
+    <link rel="icon" href="/static/branding/sunorus-logo.png" type="image/png">
+    
+    <!-- Tipografia premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --font-primary: 'Plus Jakarta Sans', sans-serif;
+            --bg-base: #070d19;
+            --bg-surface: rgba(11, 18, 32, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #2563eb;
+            --accent-hover: #3b82f6;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-base);
+            font-family: var(--font-primary);
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Fundo com efeito de luz sutil */
+        .ambient-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(0,0,0,0) 70%);
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header img {
+            width: 64px;
+            height: 78px;
+            margin-bottom: 12px;
+        }
+
+        .login-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .login-header p {
+            margin: 6px 0 0;
+            font-size: 13.5px;
+            color: var(--text-secondary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            background: #0d1527;
+            border: 1.5px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-size: 14.5px;
+            font-family: var(--font-primary);
+            box-sizing: border-box;
+            width: 100%;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            background-color: #0f1a32;
+            outline: none;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            display: none;
+            text-align: center;
+        }
+
+        .btn-submit {
+            background: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            width: 100%;
+            cursor: pointer;
+            font-family: var(--font-primary);
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-submit:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-submit:disabled {
+            background-color: #1e293b;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-glow"></div>
+    
+    <div class="login-container">
+        <div class="login-header">
+            <img src="/static/branding/sunorus-logo.png" alt="SunOrus Logo">
+            <h1>SunOrus VMS</h1>
+            <p>Painel de Controle Operacional</p>
+        </div>
+
+        <div id="errorAlert" class="error-message"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" class="form-control" placeholder="Digite seu usuário" required autofocus>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" class="form-control" placeholder="Digite sua senha" required>
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-submit">Entrar</button>
+        </form>
+    </div>
+
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const usernameInput = document.getElementById("username");
+            const passwordInput = document.getElementById("password");
+            const errorAlert = document.getElementById("errorAlert");
+            const submitBtn = document.getElementById("submitBtn");
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            errorAlert.style.display = "none";
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Conectando...";
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Usuário ou senha incorretos.");
+                }
+
+                const data = await res.json();
+
+                if (data.concurrent_session_notice) {
+                    window.alert(data.concurrent_session_notice);
+                }
+
+                // O servidor grava um cookie HttpOnly; o JavaScript nunca acessa o token.
+                window.location.href = data.must_change_password
+                    ? "/perfil?password_change=required"
+                    : "/monitor";
+            } catch (err) {
+                errorAlert.innerText = err.message;
+                errorAlert.style.display = "block";
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Entrar";
+            }
+        }
+        
+        window.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get("reason") === "inactivity") {
+                const errorAlert = document.getElementById("errorAlert");
+                errorAlert.innerText = "Sua sessão expirou por inatividade. Faça login novamente.";
+                errorAlert.style.display = "block";
+                errorAlert.style.background = "rgba(217, 119, 6, 0.15)";
+                errorAlert.style.borderColor = "rgba(217, 119, 6, 0.4)";
+                errorAlert.style.color = "#fbbf24";
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Câmeras</h1>
+
+<div style="margin-bottom:16px;">
+    <a class="btn btn-primary" href="/cameras/new">Nova câmera</a>
+    <a class="btn btn-secondary" href="/cameras/network-discovery">Rastrear rede ONVIF</a>
+    <a class="btn btn-secondary" href="/video-sources/nvr">Adicionar NVR</a>
+    <a class="btn btn-secondary" href="/monitor">Monitoramento</a>
+</div>
+
+{% if message == 'all_cameras_deleted' %}
+<div class="alert alert-success">Todas as cameras ativas foram excluidas/desativadas.</div>
+{% elif message == 'camera_disabled' %}
+<div class="alert alert-success">Camera excluida/desativada.</div>
+{% elif message == 'camera_purged' %}
+<div class="alert alert-success">Camera removida permanentemente.</div>
+{% elif message == 'all_cameras_stopped' %}
+<div class="alert alert-success">{{ request.query_params.get('count', '0') }} cameras foram paradas.</div>
+{% elif message == 'selected_cameras_started' %}
+<div class="alert alert-success">{{ request.query_params.get('count', '0') }} cameras selecionadas tiveram a IA iniciada.</div>
+{% elif message == 'selected_cameras_stopped' %}
+<div class="alert alert-success">{{ request.query_params.get('count', '0') }} cameras selecionadas tiveram a IA parada.</div>
+{% elif message == 'selected_cameras_deleted' %}
+<div class="alert alert-success">{{ request.query_params.get('count', '0') }} cameras selecionadas foram excluidas/desativadas.</div>
+{% endif %}
+
+{% if error == 'bulk_delete_disabled' %}
+<div class="alert alert-error">Exclusao em massa desabilitada: configure CAMERA_BULK_DELETE_PASSWORD no ambiente.</div>
+{% elif error == 'bulk_delete_bad_password' %}
+<div class="alert alert-error">Senha incorreta. Nenhuma camera foi excluida.</div>
+{% elif error == 'bulk_delete_bad_confirmation' %}
+<div class="alert alert-error">Confirmacao invalida. Digite EXCLUIR TODAS para confirmar.</div>
+{% elif error == 'bulk_action_no_selection' %}
+<div class="alert alert-error">Selecione pelo menos uma camera.</div>
+{% elif error == 'bulk_action_invalid' %}
+<div class="alert alert-error">Acao em lote invalida.</div>
+{% elif error == 'bulk_action_delete_confirmation' %}
+<div class="alert alert-error">A exclusao das cameras selecionadas nao foi confirmada.</div>
+{% endif %}
+
+<div class="card camera-bulk-actions">
+    <form method="post" action="/cameras/start-all" data-loading-title="Iniciando analitico" data-loading-message="Abrindo todas as cameras em modo movimento.">
+        <button class="btn btn-success" type="submit">Iniciar todas</button>
+    </form>
+    <form method="post" action="/cameras/stop-all" onsubmit="return confirm('Parar TODAS as cameras agora?');">
+        <button class="btn btn-danger" type="submit">Parar todas</button>
+    </form>
+</div>
+
+<details class="card camera-danger-zone">
+    <summary>Zona critica: excluir todas as cameras</summary>
+    <p class="muted">
+        Esta acao para os workers e desativa todas as cameras ativas. O historico de eventos fica preservado.
+    </p>
+    <form
+        method="post"
+        action="/cameras/delete-all"
+        class="camera-delete-all-form"
+        onsubmit="return confirm('Tem certeza que deseja excluir/desativar TODAS as cameras ativas?');"
+    >
+        <label>Senha de exclusao</label>
+        <input type="password" name="bulk_delete_password" autocomplete="off" {% if not bulk_delete_enabled %}disabled{% endif %} required>
+        <label>Confirmacao</label>
+        <input type="text" name="confirm_text" placeholder="Digite EXCLUIR TODAS" {% if not bulk_delete_enabled %}disabled{% endif %} required>
+        <button class="btn btn-danger" type="submit" {% if not bulk_delete_enabled %}disabled{% endif %}>Excluir todas as cameras</button>
+    </form>
+</details>
+
+<div class="card camera-selection-panel">
+    <div class="camera-filter-grid">
+        <div class="camera-filter-search">
+            <label for="cameraSearch">Buscar</label>
+            <input id="cameraSearch" type="search" placeholder="Nome, IP, local ou grupo" autocomplete="off">
+        </div>
+        <div>
+            <label for="cameraSiteFilter">Local</label>
+            <select id="cameraSiteFilter">
+                <option value="">Todos os locais</option>
+                {% for site in site_options %}<option value="{{ site|e }}">{{ site }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="cameraGroupFilter">Grupo</label>
+            <select id="cameraGroupFilter">
+                <option value="">Todos os grupos</option>
+                {% for group in group_options %}<option value="{{ group|e }}">{{ group }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="cameraPriorityFilter">Prioridade</label>
+            <select id="cameraPriorityFilter">
+                <option value="">Todas</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+        </div>
+        <div>
+            <label for="cameraStatusFilter">Estado da IA</label>
+            <select id="cameraStatusFilter">
+                <option value="">Todos</option>
+                <option value="running">IA ativa</option>
+                <option value="stopped">IA parada</option>
+                <option value="attention">Atencao/erro</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary camera-clear-filters" id="cameraClearFilters" type="button">Limpar filtros</button>
+    </div>
+
+    <form method="post" action="/cameras/bulk-action" id="cameraBulkForm">
+        <input type="hidden" name="delete_confirmation" id="cameraDeleteConfirmation" value="">
+        <div class="camera-selection-actions">
+            <span id="cameraVisibleCount">0 cameras visiveis</span>
+            <strong id="cameraSelectedCount">0 selecionadas</strong>
+            <button class="btn btn-success" type="submit" name="action" value="start" data-bulk-action="start" disabled>Iniciar IA</button>
+            <button class="btn btn-secondary" type="submit" name="action" value="stop" data-bulk-action="stop" disabled>Parar IA</button>
+            <button class="btn btn-danger" type="submit" name="action" value="delete" data-bulk-action="delete" disabled>Excluir selecionadas</button>
+            <button class="btn btn-secondary" type="button" id="cameraClearSelection" disabled>Limpar selecao</button>
+        </div>
+    </form>
+</div>
+
+<div class="card camera-table-card">
+    <table>
+        <thead>
+            <tr>
+                <th class="camera-select-column">
+                    <input type="checkbox" id="cameraSelectVisible" aria-label="Selecionar cameras visiveis" title="Selecionar cameras visiveis">
+                </th>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Local</th>
+                <th>Grupo</th>
+                <th>Prioridade</th>
+                <th>Cadastro</th>
+                <th>Runtime</th>
+                <th>Pipeline IA</th>
+                <th>Captura</th>
+                <th>RTSP</th>
+                <th>Analíticos</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for camera in cameras %}
+            <tr
+                class="camera-list-row"
+                data-search="{{ (camera.name ~ ' ' ~ camera.ip ~ ' ' ~ (camera.site_name or '') ~ ' ' ~ (camera.group_name or ''))|lower|e }}"
+                data-site="{{ (camera.site_name or '')|lower|e }}"
+                data-group="{{ (camera.group_name or '')|lower|e }}"
+                data-priority="{{ (camera.camera_priority or 'medium')|lower|e }}"
+                data-pipeline-status="{{ (camera.list_status.pipeline.status or '')|lower|e }}"
+            >
+                <td class="camera-select-column">
+                    <input
+                        class="camera-select-item"
+                        type="checkbox"
+                        name="camera_ids"
+                        value="{{ camera.id }}"
+                        form="cameraBulkForm"
+                        aria-label="Selecionar {{ camera.name }}"
+                        data-camera-name="{{ camera.name|e }}"
+                    >
+                </td>
+                <td>{{ camera.id }}</td>
+                <td>{{ camera.name }}</td>
+                <td>{{ camera.site_name or '-' }}</td>
+                <td>{{ camera.group_name or '-' }}</td>
+                <td>
+                    <span class="status priority-{{ camera.camera_priority or 'medium' }}">
+                        {{ camera.camera_priority or 'medium' }}
+                    </span>
+                </td>
+                <td class="camera-status-cell">
+                    <span class="status status-{{ camera.list_status.config.status }}">{{ camera.list_status.config.label }}</span>
+                    <div class="camera-status-detail">{{ camera.list_status.config.detail }}</div>
+                </td>
+                <td class="camera-status-cell">
+                    <span class="status status-{{ camera.list_status.runtime.status }}">{{ camera.list_status.runtime.label }}</span>
+                    <div class="camera-status-detail">{{ camera.list_status.runtime.detail }}</div>
+                </td>
+                <td class="camera-status-cell">
+                    <span class="status status-{{ camera.list_status.pipeline.status }}">{{ camera.list_status.pipeline.label }}</span>
+                    <div class="camera-status-detail">{{ camera.list_status.pipeline.detail }}</div>
+                </td>
+                <td class="camera-status-cell">
+                    <span class="status status-{{ camera.list_status.capture.status }}">{{ camera.list_status.capture.label }}</span>
+                    <div class="camera-status-detail">{{ camera.list_status.capture.detail }}</div>
+                </td>
+                <td style="max-width:280px; word-break:break-all;">{{ camera.masked_rtsp_url }}</td>
+                <td>
+                    {% if camera.analytics_summary.roi_enabled %}
+                        <span class="pill pill-roi">ROI</span>
+                    {% endif %}
+                    {% if camera.analytics_summary.line_enabled %}
+                        <span class="pill pill-line-any">Linha</span>
+                    {% endif %}
+                    {% if not camera.analytics_summary.roi_enabled and not camera.analytics_summary.line_enabled %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="camera-row-actions">
+                        <form method="post" action="/cameras/{{ camera.id }}/start" data-loading-title="Iniciando analitico" data-loading-message="Abrindo {{ camera.name }} em modo movimento.">
+                            <button class="btn btn-success btn-small" type="submit" {% if not camera.rtsp_url %}disabled{% endif %}>Iniciar</button>
+                        </form>
+                        <form method="post" action="/cameras/{{ camera.id }}/stop">
+                            <button class="btn btn-secondary btn-small" type="submit">Parar</button>
+                        </form>
+                        <a class="btn btn-secondary" href="/cameras/{{ camera.id }}">Detalhes</a>
+
+                        <form method="post" action="/cameras/{{ camera.id }}/delete" onsubmit="return confirm('Excluir a câmera {{ camera.name }} e os eventos relacionados?');" style="display:inline;">
+                            <button class="btn btn-danger" type="submit">Excluir</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+.camera-bulk-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.camera-danger-zone {
+    border: 1px solid #fecaca;
+    background: #fff7f7;
+    margin-bottom: 16px;
+}
+
+.camera-danger-zone summary {
+    cursor: pointer;
+    color: #991b1b;
+    font-weight: 800;
+}
+
+.camera-delete-all-form {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.camera-delete-all-form label {
+    display: none;
+}
+
+.camera-delete-all-form input {
+    min-height: 34px;
+}
+
+.camera-table-card {
+    overflow-x: auto;
+}
+
+.camera-table-card table {
+    min-width: 1230px;
+}
+
+.camera-selection-panel {
+    margin-bottom: 16px;
+}
+
+.camera-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(145px, 1fr)) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.camera-filter-grid label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+}
+
+.camera-filter-grid input,
+.camera-filter-grid select {
+    width: 100%;
+}
+
+.camera-selection-actions {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    flex-wrap: wrap;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 14px;
+    padding-top: 14px;
+}
+
+.camera-selection-actions span,
+.camera-selection-actions strong {
+    font-size: 13px;
+    color: #475569;
+}
+
+.camera-selection-actions strong {
+    margin-right: auto;
+    color: #1e3a5f;
+}
+
+.camera-selection-actions button[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.camera-select-column {
+    width: 34px;
+    min-width: 34px;
+    text-align: center;
+}
+
+.camera-select-column input {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+}
+
+.camera-list-row.is-selected td {
+    background: #eff6ff;
+}
+
+.camera-list-row[hidden] {
+    display: none;
+}
+
+.camera-status-cell {
+    min-width: 128px;
+    vertical-align: top;
+}
+
+.camera-status-detail {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    margin-top: 5px;
+    max-width: 180px;
+    white-space: normal;
+}
+
+.status-ok,
+.status-standby {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.status-processing,
+.status-warming,
+.status-attention,
+.status-stale {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.status-down {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+@media (max-width: 900px) {
+    .camera-delete-all-form {
+        grid-template-columns: 1fr;
+    }
+
+    .camera-delete-all-form label {
+        display: block;
+        margin-bottom: -6px;
+    }
+
+    .camera-filter-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .camera-filter-search {
+        grid-column: 1 / -1;
+    }
+
+    .camera-clear-filters {
+        width: 100%;
+    }
+}
+
+.camera-bulk-actions form,
+.camera-row-actions form {
+    margin: 0;
+}
+
+.camera-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.camera-row-actions .btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+</style>
+
+<script>
+(function () {
+    const rows = Array.from(document.querySelectorAll(".camera-list-row"));
+    const checkboxes = rows.map((row) => row.querySelector(".camera-select-item")).filter(Boolean);
+    const searchInput = document.getElementById("cameraSearch");
+    const siteFilter = document.getElementById("cameraSiteFilter");
+    const groupFilter = document.getElementById("cameraGroupFilter");
+    const priorityFilter = document.getElementById("cameraPriorityFilter");
+    const statusFilter = document.getElementById("cameraStatusFilter");
+    const selectVisible = document.getElementById("cameraSelectVisible");
+    const clearFilters = document.getElementById("cameraClearFilters");
+    const clearSelection = document.getElementById("cameraClearSelection");
+    const selectedCount = document.getElementById("cameraSelectedCount");
+    const visibleCount = document.getElementById("cameraVisibleCount");
+    const bulkForm = document.getElementById("cameraBulkForm");
+    const deleteConfirmation = document.getElementById("cameraDeleteConfirmation");
+    const actionButtons = Array.from(document.querySelectorAll("[data-bulk-action]"));
+
+    function normalize(value) {
+        return String(value || "")
+            .toLocaleLowerCase("pt-BR")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
+    }
+
+    function pipelineCategory(status) {
+        const value = normalize(status);
+        if (["running", "ok", "processing"].includes(value)) return "running";
+        if (["stopped", "idle", "standby"].includes(value)) return "stopped";
+        return "attention";
+    }
+
+    function visibleRows() {
+        return rows.filter((row) => !row.hidden);
+    }
+
+    function updateSelectionState() {
+        const visible = visibleRows();
+        const visibleSelected = visible.filter((row) => row.querySelector(".camera-select-item").checked);
+        const selected = checkboxes.filter((checkbox) => checkbox.checked);
+
+        rows.forEach((row) => {
+            row.classList.toggle("is-selected", row.querySelector(".camera-select-item").checked);
+        });
+        visibleCount.textContent = visible.length + (visible.length === 1 ? " camera visivel" : " cameras visiveis");
+        selectedCount.textContent = selected.length + (selected.length === 1 ? " selecionada" : " selecionadas");
+        selectVisible.checked = visible.length > 0 && visibleSelected.length === visible.length;
+        selectVisible.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visible.length;
+        selectVisible.disabled = visible.length === 0;
+        actionButtons.forEach((button) => { button.disabled = selected.length === 0; });
+        clearSelection.disabled = selected.length === 0;
+    }
+
+    function applyFilters() {
+        const query = normalize(searchInput.value);
+        const site = normalize(siteFilter.value);
+        const group = normalize(groupFilter.value);
+        const priority = normalize(priorityFilter.value);
+        const status = normalize(statusFilter.value);
+
+        rows.forEach((row) => {
+            const matches = (!query || normalize(row.dataset.search).includes(query))
+                && (!site || normalize(row.dataset.site) === site)
+                && (!group || normalize(row.dataset.group) === group)
+                && (!priority || normalize(row.dataset.priority) === priority)
+                && (!status || pipelineCategory(row.dataset.pipelineStatus) === status);
+            row.hidden = !matches;
+        });
+        updateSelectionState();
+    }
+
+    [searchInput, siteFilter, groupFilter, priorityFilter, statusFilter].forEach((control) => {
+        control.addEventListener(control === searchInput ? "input" : "change", applyFilters);
+    });
+
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", updateSelectionState));
+    selectVisible.addEventListener("change", function () {
+        visibleRows().forEach((row) => {
+            row.querySelector(".camera-select-item").checked = selectVisible.checked;
+        });
+        updateSelectionState();
+    });
+    clearSelection.addEventListener("click", function () {
+        checkboxes.forEach((checkbox) => { checkbox.checked = false; });
+        updateSelectionState();
+    });
+    clearFilters.addEventListener("click", function () {
+        searchInput.value = "";
+        siteFilter.value = "";
+        groupFilter.value = "";
+        priorityFilter.value = "";
+        statusFilter.value = "";
+        applyFilters();
+        searchInput.focus();
+    });
+
+    bulkForm.addEventListener("submit", function (event) {
+        const selected = checkboxes.filter((checkbox) => checkbox.checked);
+        const action = event.submitter ? event.submitter.dataset.bulkAction : "";
+        if (!selected.length) {
+            event.preventDefault();
+            window.alert("Selecione pelo menos uma camera.");
+            return;
+        }
+        deleteConfirmation.value = "";
+        if (action === "stop" && !window.confirm("Parar a IA das " + selected.length + " cameras selecionadas?")) {
+            event.preventDefault();
+            return;
+        }
+        if (action === "delete") {
+            if (!window.confirm("Excluir/desativar " + selected.length + " cameras selecionadas? O historico sera preservado.")) {
+                event.preventDefault();
+                return;
+            }
+            deleteConfirmation.value = "EXCLUIR SELECIONADAS";
+        }
+    });
+
+    applyFilters();
+})();
+</script>
+
+{% endblock %}

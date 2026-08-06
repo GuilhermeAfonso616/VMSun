@@ -1,0 +1,1169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .diagnostics-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 20px 22px;
+        background: linear-gradient(135deg, #111827 0%, #0f172a 45%, #1d4ed8 100%);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+        margin-bottom: 18px;
+    }
+
+    .diagnostics-hero h1,
+    .diagnostics-hero p { color: inherit; }
+    .diagnostics-hero h1 { margin-bottom: 8px; font-size: 1.9rem; }
+    .diagnostics-meta { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .diagnostics-chip {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:7px 12px; border-radius:999px;
+        background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.12);
+        font-size:13px; font-weight:600;
+    }
+    .diagnostics-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+    .gateway-mode-panel {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        align-items:center;
+        padding:10px;
+        border-radius:12px;
+        background:rgba(255,255,255,0.10);
+        border:1px solid rgba(255,255,255,0.14);
+    }
+    .gateway-mode-panel .btn { min-height:36px; }
+    .gateway-mode-panel .active-mode {
+        background:#dcfce7;
+        border-color:#86efac;
+        color:#166534;
+    }
+    .gateway-mode-status {
+        width:100%;
+        color:rgba(255,255,255,0.84);
+        font-size:12px;
+        font-weight:700;
+    }
+    .diagnostics-danger-zone {
+        margin-bottom:18px;
+        border-color:#fecaca;
+        background:#fff7f7;
+    }
+    .diagnostics-danger-zone summary {
+        cursor:pointer;
+        color:#991b1b;
+        font-weight:800;
+    }
+    .diagnostics-danger-form {
+        display:grid;
+        grid-template-columns:minmax(180px, 1fr) minmax(220px, 1fr) auto;
+        gap:10px;
+        align-items:end;
+        margin-top:12px;
+    }
+    .diagnostics-danger-form label {
+        display:block;
+        margin-bottom:5px;
+    }
+    .diagnostics-danger-form input {
+        width:100%;
+    }
+    .diagnostics-drive-card {
+        margin-bottom:18px;
+        border-color:#bfdbfe;
+        background:#f8fbff;
+    }
+    .diagnostics-tuning-card {
+        margin-bottom:18px;
+        border-color:#bbf7d0;
+        background:#f7fef9;
+    }
+    .diagnostics-tuning-grid {
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));
+        gap:10px;
+        align-items:end;
+    }
+    .diagnostics-tuning-grid label {
+        display:grid;
+        gap:5px;
+        font-weight:700;
+    }
+    .diagnostics-tuning-grid input[type="number"],
+    .diagnostics-tuning-grid select {
+        width:100%;
+    }
+    .diagnostics-tuning-checks {
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px 16px;
+        margin:12px 0;
+    }
+    .diagnostics-tuning-checks label {
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        font-weight:700;
+        white-space:nowrap;
+    }
+    .diagnostics-tuning-status {
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-top:8px;
+    }
+    .diagnostics-drive-head {
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+        align-items:flex-start;
+        margin-bottom:12px;
+    }
+    .diagnostics-drive-status {
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        margin-top:8px;
+    }
+    .diagnostics-drive-status span {
+        padding:5px 8px;
+        border-radius:999px;
+        background:#e0f2fe;
+        color:#075985;
+        font-size:12px;
+        font-weight:700;
+    }
+    .diagnostics-drive-status span.off {
+        background:#fee2e2;
+        color:#991b1b;
+    }
+    .diagnostics-drive-form {
+        display:grid;
+        grid-template-columns:minmax(240px, 1fr) auto;
+        gap:10px;
+        align-items:end;
+    }
+    .diagnostics-drive-form label {
+        display:block;
+        margin-bottom:5px;
+        font-weight:700;
+    }
+    .diagnostics-drive-form input {
+        width:100%;
+    }
+    .diagnostics-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 18px; }
+    .diagnostics-kpi .metric { font-size: 30px; line-height: 1; }
+    .diagnostics-kpi .label { color: var(--text-secondary); font-size: 14px; font-weight: 600; }
+    .diagnostics-kpi .compact { margin-top: 8px; }
+    .diagnostics-table-wrap { overflow-x: auto; }
+    .diagnostics-table th,
+    .diagnostics-table td { white-space: nowrap; }
+    .diagnostics-table td { vertical-align: middle; }
+    .diagnostics-row.row-running { background: #f8fff8; }
+    .diagnostics-row.row-degraded { background: #fffaf0; }
+    .diagnostics-row.row-reconnecting { background: #f8fbff; }
+    .diagnostics-row.row-offline { background: #fff7f7; }
+    .diagnostics-row.row-stopped { background: #fafafa; }
+    .timestamp-cell { display:flex; flex-direction:column; gap:4px; }
+    .timestamp-cell .compact { font-size: 12px; }
+    .diagnostics-empty {
+        padding: 18px;
+        text-align: center;
+        color: var(--text-secondary);
+    }
+    .source-note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        margin-bottom: 18px;
+    }
+    .diagnostics-logs-head {
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+        align-items:flex-end;
+        margin-bottom:12px;
+    }
+    .diagnostics-logs-toolbar {
+        display:flex;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+        align-items:center;
+        margin:12px 0 14px;
+    }
+    .diagnostics-logs-note {
+        padding: 12px 14px;
+        border: 1px solid #dbe3ec;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+        margin-bottom: 14px;
+    }
+    .diagnostics-log-list { display: grid; gap: 10px; }
+    .diagnostics-log-entry {
+        border: 1px solid #dbe3ec;
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px 14px;
+    }
+    .diagnostics-log-entry-head {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-bottom:8px;
+    }
+    .diagnostics-log-source {
+        display:inline-flex;
+        align-items:center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background:#dbeafe;
+        color:#1e3a8a;
+        font-size:12px;
+        font-weight:700;
+    }
+    .diagnostics-log-line {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #0f172a;
+    }
+    @media (max-width: 720px) {
+        .diagnostics-hero { padding: 18px; }
+        .diagnostics-hero h1 { font-size: 1.55rem; }
+        .diagnostics-danger-form,
+        .diagnostics-drive-form,
+        .diagnostics-tuning-grid { grid-template-columns:1fr; }
+    }
+</style>
+
+<div class="diagnostics-hero">
+    <div>
+        <h1>Diagnóstico operacional</h1>
+        <p class="muted" style="color: rgba(255,255,255,0.88);">
+            Visão técnica consolidada de saúde, reconnect, métricas e eventos. Útil para suporte e operação rápida.
+        </p>
+        <div class="diagnostics-meta">
+            <span class="diagnostics-chip">Total de câmeras: <strong id="diagTotalCameras">{{ summary.camera_total }}</strong></span>
+            <span class="diagnostics-chip">Atualizado: <strong id="diagUpdatedAt">{{ summary.last_updated_at or '-' }}</strong></span>
+            <span class="diagnostics-chip">Gerado em: <strong id="diagGeneratedAt">{{ summary.generated_at or '-' }}</strong></span>
+        </div>
+    </div>
+    <div class="diagnostics-actions">
+        <div class="gateway-mode-panel">
+            <button class="btn btn-secondary gateway-mode-btn {% if summary.gateway_capture_mode == 'gateway_only' %}active-mode{% endif %}" data-gateway-mode="gateway_only" type="button">So Gateway</button>
+            <div class="gateway-mode-status">Modo: <strong id="gatewayModeLabel">{{ summary.gateway_capture_mode_label or '-' }}</strong></div>
+        </div>
+        <a class="btn btn-primary" href="/monitor">Abrir monitor</a>
+        <a class="btn btn-secondary" href="/events">Central de eventos</a>
+        <a class="btn btn-secondary" href="/dashboard/metrics">JSON recursos</a>
+    </div>
+</div>
+
+{% if message == 'docker_stop_requested' %}
+<div class="alert alert-success">Parada do stack Docker solicitada. Os containers deste projeto serao encerrados em instantes.</div>
+{% elif message == 'docker_restart_requested' %}
+<div class="alert alert-success">Reinicio do stack Docker solicitado. Os containers deste projeto serao reiniciados em instantes.</div>
+{% elif message == 'onedrive_token_saved' %}
+<div class="alert alert-success">Token do Drive salvo. Os proximos arquivos podem ser enviados quando a configuracao do OneDrive estiver ativa.</div>
+{% elif message == 'onedrive_upload_enabled' %}
+<div class="alert alert-success">Upload para o Drive ativado.</div>
+{% elif message == 'onedrive_upload_disabled' %}
+<div class="alert alert-success">Upload para o Drive desativado.</div>
+{% elif message == 'onedrive_reviewed_upload_done' %}
+<div class="alert alert-success">Eventos avaliados pendentes enviados para o Drive.</div>
+{% elif message == 'onedrive_reviewed_upload_partial' %}
+<div class="alert alert-success">Envio dos eventos avaliados concluido com algumas falhas. Verifique os logs de diagnostico.</div>
+{% elif message == 'runtime_tuning_saved' %}
+<div class="alert alert-success">Controles de VRAM, FP16 e pool atualizados para o runtime atual.</div>
+{% elif message == 'backup_restored' %}
+<div class="alert alert-success">Backup do servidor restaurado com sucesso! Recomendamos reiniciar o servidor para reatar todas as conexões e instâncias ativas de forma limpa.</div>
+{% endif %}
+
+{% if error == 'docker_control_disabled' %}
+<div class="alert alert-error">Controle Docker desabilitado: configure DOCKER_STACK_CONTROL_ENABLED e DOCKER_STACK_CONTROL_PASSWORD.</div>
+{% elif error == 'docker_bad_password' %}
+<div class="alert alert-error">Senha incorreta. Nenhuma acao foi executada no Docker.</div>
+{% elif error == 'docker_bad_confirmation' %}
+<div class="alert alert-error">Confirmacao invalida. Use PARAR DOCKER ou REINICIAR DOCKER conforme a acao escolhida.</div>
+{% elif error == 'docker_bad_action' %}
+<div class="alert alert-error">Acao Docker invalida.</div>
+{% elif error == 'onedrive_token_failed' %}
+<div class="alert alert-error">Nao foi possivel salvar o token do Drive. Verifique se colou o JSON completo ou o refresh token correto.</div>
+{% elif error == 'onedrive_token_file_failed' %}
+<div class="alert alert-error">Nao foi possivel importar o arquivo do token. Selecione o onedrive_token.json gerado pelo login.</div>
+{% elif error == 'onedrive_upload_toggle_failed' %}
+<div class="alert alert-error">Nao foi possivel alterar o upload do Drive. Verifique os logs.</div>
+{% elif error == 'onedrive_reviewed_upload_failed' %}
+<div class="alert alert-error">Nao foi possivel enviar os eventos avaliados para o Drive. Verifique token, permissao e logs.</div>
+{% elif error == 'runtime_tuning_failed' %}
+<div class="alert alert-error">Nao foi possivel aplicar os controles no runtime remoto. Verifique o container runtime.</div>
+{% elif error == 'backup_export_failed' %}
+<div class="alert alert-error">Falha ao exportar backup: {{ request.query_params.get('msg') or 'Erro desconhecido.' }}</div>
+{% elif error == 'backup_restore_failed' %}
+<div class="alert alert-error">Falha ao restaurar backup: {{ request.query_params.get('msg') or 'Senha incorreta ou arquivo corrompido.' }}</div>
+{% elif error == 'backup_restore_unexpected' %}
+<div class="alert alert-error">Erro inesperado durante a restauração do backup: {{ request.query_params.get('msg') or 'Erro de infraestrutura.' }}</div>
+{% endif %}
+
+<div class="card diagnostics-tuning-card">
+    <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; margin-bottom:12px;">
+        <div>
+            <h2 style="margin-bottom:4px;">Protecao de VRAM e testes IA</h2>
+            <div class="muted">Controles aplicados ao runtime atual. FP16 e pool valem para workers novos ou reiniciados.</div>
+        </div>
+        <div class="diagnostics-tuning-status">
+            <span class="diagnostics-chip" style="background:#dcfce7; color:#166534; border-color:#86efac;">VRAM: <strong id="runtimeGpuMemory">{{ runtime_tuning.gpu_memory_used_mb if runtime_tuning.gpu_memory_used_mb is not none else '-' }}</strong> / <strong id="runtimeGpuTotal">{{ runtime_tuning.gpu_memory_total_mb if runtime_tuning.gpu_memory_total_mb is not none else '-' }}</strong> MB</span>
+            <span class="diagnostics-chip" style="background:#dcfce7; color:#166534; border-color:#86efac;">Workers: <strong id="runtimeActiveWorkers">{{ runtime_tuning.active_workers if runtime_tuning.active_workers is not none else '-' }}</strong> / <strong id="runtimeMaxWorkers">{{ runtime_tuning.max_active_workers }}</strong></span>
+            <span class="diagnostics-chip" style="background:#dcfce7; color:#166534; border-color:#86efac;">Pool: <strong id="runtimePoolState">{% if runtime_tuning.inference_pool_enabled %}ativa{% else %}desativada{% endif %}</strong></span>
+            <span class="diagnostics-chip" style="background:#dcfce7; color:#166534; border-color:#86efac;">Backend: <strong id="runtimePoolBackend">{{ runtime_tuning.inference_pool_backend or 'local' }}</strong></span>
+            <span class="diagnostics-chip" style="background:#dcfce7; color:#166534; border-color:#86efac;">Pools: <strong id="runtimePoolCount">{{ runtime_tuning.inference_pool_count or 1 }}</strong> x <strong id="runtimePoolMaxCameras">{{ runtime_tuning.inference_pool_max_cameras_per_pool or 8 }}</strong></span>
+            <span class="diagnostics-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">IA1: <strong id="detectorEngineBackend">{{ detector_engine.backend or 'pytorch' }}</strong></span>
+            <span class="diagnostics-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">Engine: <strong id="detectorEngineStatus">{{ detector_engine.status or '-' }}</strong></span>
+        </div>
+    </div>
+    <div class="compact muted" style="margin-bottom:10px;">
+        Auto-build TensorRT: <strong id="detectorEngineAutoBuild">{% if detector_engine.auto_build_enabled %}ativo{% else %}desativado{% endif %}</strong>
+        | Motivo: <strong id="detectorEngineReason">{{ detector_engine.reason or '-' }}</strong>
+        | Caminho: <span id="detectorEnginePath">{{ detector_engine.engine_path or '-' }}</span>
+    </div>
+    <form method="post" action="/diagnostics/runtime-tuning">
+        <div class="diagnostics-tuning-checks">
+            <label><input type="checkbox" name="gpu_guard_enabled" value="true" {% if runtime_tuning.gpu_guard_enabled %}checked{% endif %}> Protecao VRAM</label>
+            <label><input type="checkbox" name="detector_fp16_enabled" value="true" {% if runtime_tuning.detector_fp16_enabled %}checked{% endif %}> FP16 IA1</label>
+            <label><input type="checkbox" name="inference_pool_enabled" value="true" {% if runtime_tuning.inference_pool_enabled %}checked{% endif %}> Pool experimental</label>
+        </div>
+        <div class="diagnostics-tuning-grid">
+            <label>
+                Limite VRAM MB
+                <input type="number" name="max_gpu_memory_mb" min="0" step="128" value="{{ runtime_tuning.max_gpu_memory_mb }}">
+            </label>
+            <label>
+                Max workers IA
+                <input type="number" name="max_active_workers" min="0" step="1" value="{{ runtime_tuning.max_active_workers }}">
+            </label>
+            <label>
+                Tamanho fila pool
+                <input type="number" name="inference_pool_max_queue_size" min="1" step="1" value="{{ runtime_tuning.inference_pool_max_queue_size }}">
+            </label>
+            <label>
+                Timeout job pool
+                <input type="number" name="inference_pool_job_timeout_seconds" min="0.1" step="0.1" value="{{ runtime_tuning.inference_pool_job_timeout_seconds }}">
+            </label>
+            <label>
+                Idade max job
+                <input type="number" name="inference_pool_max_job_age_seconds" min="0" step="0.1" value="{{ runtime_tuning.inference_pool_max_job_age_seconds }}">
+            </label>
+            <label>
+                Politica fila cheia
+                <select name="inference_pool_overflow_policy">
+                    <option value="drop_oldest" {% if runtime_tuning.inference_pool_overflow_policy == 'drop_oldest' %}selected{% endif %}>Descartar antigo</option>
+                    <option value="reject_new" {% if runtime_tuning.inference_pool_overflow_policy == 'reject_new' %}selected{% endif %}>Rejeitar novo</option>
+                </select>
+            </label>
+            <label>
+                Backend pool
+                <select name="inference_pool_backend">
+                    <option value="local" {% if runtime_tuning.inference_pool_backend != 'central' %}selected{% endif %}>Local por worker</option>
+                    <option value="central" {% if runtime_tuning.inference_pool_backend == 'central' %}selected{% endif %}>Central runtime</option>
+                </select>
+            </label>
+            <label>
+                Numero de pools
+                <input type="number" name="inference_pool_count" min="1" max="16" step="1" value="{{ runtime_tuning.inference_pool_count or 1 }}">
+            </label>
+            <label>
+                Max cameras/pool
+                <input type="number" name="inference_pool_max_cameras_per_pool" min="1" max="64" step="1" value="{{ runtime_tuning.inference_pool_max_cameras_per_pool or 8 }}">
+            </label>
+            <label>
+                Qualidade JPEG central
+                <input type="number" name="inference_pool_central_jpeg_quality" min="40" max="95" step="1" value="{{ runtime_tuning.inference_pool_central_jpeg_quality or 80 }}">
+            </label>
+            <label>
+                <span>&nbsp;</span>
+                <input type="checkbox" name="inference_pool_central_fallback_direct" value="true" {% if runtime_tuning.inference_pool_central_fallback_direct %}checked{% endif %}> Fallback direto
+            </label>
+            <button class="btn btn-primary" type="submit">Aplicar</button>
+        </div>
+    </form>
+</div>
+
+<div class="card diagnostics-drive-card">
+    <div class="diagnostics-drive-head">
+        <div>
+            <h2 style="margin-bottom:4px;">Drive para arquivos de diagnostico</h2>
+            <div class="muted">Cole o JSON do token ou apenas o refresh token. O valor fica salvo no servidor e nao aparece nesta tela.</div>
+            <div class="diagnostics-drive-status">
+                <span class="{% if not onedrive_status.token_exists %}off{% endif %}">Token: {% if onedrive_status.token_exists %}salvo{% else %}ausente{% endif %}</span>
+                <span class="{% if not onedrive_status.client_id_configured %}off{% endif %}">Client ID: {% if onedrive_status.client_id_configured %}configurado{% else %}pendente{% endif %}</span>
+                <span class="{% if not onedrive_status.refresh_enabled or onedrive_status.refresh_error %}off{% endif %}">Refresh: {% if onedrive_status.refresh_error %}erro{% elif onedrive_status.refresh_enabled %}pronto{% else %}pendente{% endif %}</span>
+                <span class="{% if not onedrive_status.archive_enabled %}off{% endif %}">Upload: {% if onedrive_status.archive_enabled %}ativo{% else %}desativado{% endif %}</span>
+                <span class="{% if not onedrive_pending_reviewed_events %}off{% endif %}">Avaliados pendentes: {{ onedrive_pending_reviewed_events }}</span>
+                {% if onedrive_status.expires_at %}<span>Expira: {{ onedrive_status.expires_at }}</span>{% endif %}
+                {% if onedrive_status.refresh_error %}<span class="off">Erro refresh: {{ onedrive_status.refresh_error }}</span>{% endif %}
+            </div>
+        </div>
+        <form method="post" action="/diagnostics/onedrive-upload-toggle">
+            {% if onedrive_status.archive_enabled %}
+            <input type="hidden" name="upload_enabled" value="false">
+            <button class="btn btn-warning" type="submit">Desativar upload</button>
+            {% else %}
+            <input type="hidden" name="upload_enabled" value="true">
+            <button class="btn btn-primary" type="submit">Ativar upload</button>
+            {% endif %}
+        </form>
+    </div>
+    <form method="post" action="/diagnostics/onedrive-token" class="diagnostics-drive-form">
+        <div>
+            <label>Token do OneDrive</label>
+            <input type="password" name="onedrive_token" autocomplete="off" placeholder="Cole o JSON do token ou refresh_token" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Salvar token</button>
+    </form>
+    <form method="post" action="/diagnostics/onedrive-token-file" enctype="multipart/form-data" class="diagnostics-drive-form" style="margin-top:10px;">
+        <div>
+            <label>Arquivo onedrive_token.json</label>
+            <input type="file" name="onedrive_token_file" accept=".json,application/json" required>
+        </div>
+        <button class="btn btn-secondary" type="submit">Importar arquivo</button>
+    </form>
+    <form
+        method="post"
+        action="/diagnostics/onedrive-reviewed-events/upload"
+        class="diagnostics-drive-form"
+        style="margin-top:10px;"
+        onsubmit="return confirm('Enviar para o Drive os eventos avaliados que ainda estao pendentes?');"
+    >
+        <div>
+            <label>Eventos avaliados ainda nao enviados</label>
+            <input type="number" name="limit" min="1" max="1000" value="200">
+        </div>
+        <button class="btn btn-secondary" type="submit" {% if not onedrive_status.enabled or not onedrive_status.refresh_enabled or not onedrive_pending_reviewed_events %}disabled{% endif %}>Enviar pendentes</button>
+    </form>
+</div>
+
+<div class="card diagnostics-drive-card" style="margin-top:20px;">
+    <h2>Backup e Restauração Criptografados</h2>
+    <p class="muted">
+        Gere uma cópia criptografada e segura (AES-256-GCM) de todas as câmeras, regras, mosaicos, usuários e configurações (.env) do servidor.
+    </p>
+    
+    <!-- Export Backup -->
+    <form method="post" action="/diagnostics/backup/export" class="diagnostics-drive-form">
+        <div>
+            <label>Senha para criptografar o Backup</label>
+            <input type="password" name="password" placeholder="Defina uma senha para proteger o backup" required style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
+        </div>
+        <button class="btn btn-primary" type="submit">Gerar e Exportar Backup (.enc)</button>
+    </form>
+    
+    <!-- Import Backup -->
+    <form method="post" action="/diagnostics/backup/import" enctype="multipart/form-data" class="diagnostics-drive-form" style="margin-top:20px; border-top:1px solid #eee; padding-top:15px;" onsubmit="return confirm('ATENÇÃO: Restaurar o backup substituirá todas as configurações atuais e câmeras do servidor. Deseja continuar?');">
+        <div style="margin-bottom:10px;">
+            <label style="display:block; margin-bottom:5px;">Arquivo de Backup (.enc)</label>
+            <input type="file" name="file" accept=".enc" required>
+        </div>
+        <div>
+            <label>Senha de descriptografia</label>
+            <input type="password" name="password" placeholder="Senha usada na criação do backup" required style="width:100%; padding:8px; margin-bottom:8px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
+        </div>
+        <button class="btn btn-danger" type="submit">Importar / Restaurar Backup</button>
+    </form>
+</div>
+
+<details class="card diagnostics-danger-zone">
+    <summary>Zona critica: controlar stack Docker</summary>
+    <p class="muted">
+        Estas acoes afetam apenas os containers deste projeto. O computador host continua ligado.
+    </p>
+    <form
+        method="post"
+        action="/diagnostics/docker-stack"
+        class="diagnostics-danger-form"
+        onsubmit="return confirm('Tem certeza que deseja executar esta acao no stack Docker agora?');"
+    >
+        <div>
+            <label>Senha de controle Docker</label>
+            <input type="password" name="docker_control_password" autocomplete="off" {% if not docker_stack_control_enabled %}disabled{% endif %} required>
+        </div>
+        <div>
+            <label>Confirmacao</label>
+            <input type="text" name="confirm_text" placeholder="PARAR DOCKER ou REINICIAR DOCKER" {% if not docker_stack_control_enabled %}disabled{% endif %} required>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-danger" type="submit" name="action" value="stop" {% if not docker_stack_control_enabled %}disabled{% endif %}>Parar Docker</button>
+            <button class="btn btn-warning" type="submit" name="action" value="restart" {% if not docker_stack_control_enabled %}disabled{% endif %}>Reiniciar Docker</button>
+        </div>
+    </form>
+</details>
+
+<div class="grid diagnostics-grid" id="diagnosticsSummary">
+    <div class="card diagnostics-kpi"><div class="label">Running</div><div class="metric" data-summary="running_count">{{ summary.running_count }}</div><div class="compact muted">Dentro da janela saudável</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Degraded</div><div class="metric" data-summary="degraded_count">{{ summary.degraded_count }}</div><div class="compact muted">Sem atividade recente</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Reconnecting</div><div class="metric" data-summary="reconnecting_count">{{ summary.reconnecting_count }}</div><div class="compact muted">Recuperação automática</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Offline</div><div class="metric" data-summary="offline_count">{{ summary.offline_count }}</div><div class="compact muted">Falha sustentada</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Stopped</div><div class="metric" data-summary="stopped_count">{{ summary.stopped_count }}</div><div class="compact muted">Parada manual</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Workers ativos</div><div class="metric" data-summary="worker_count">{{ summary.worker_count }}</div><div class="compact muted">Processos em execução</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Gerando via gateway</div><div class="metric" data-summary="capture_source_gateway_count">{{ summary.capture_source_gateway_count }}</div><div class="compact muted"><span data-summary="capture_source_gateway_fps">{{ summary.capture_source_gateway_fps }}</span> FPS bruto</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Gerando via Python</div><div class="metric" data-summary="capture_source_python_count">{{ summary.capture_source_python_count }}</div><div class="compact muted"><span data-summary="capture_source_python_fps">{{ summary.capture_source_python_fps }}</span> FPS bruto</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Restarts</div><div class="metric" data-summary="restart_total">{{ summary.restart_total }}</div><div class="compact muted">Reinícios recentes acumulados</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Câmeras em stall</div><div class="metric" data-summary="stalling_cameras">{{ summary.stalling_cameras }}</div><div class="compact muted">Com stall_checks &gt; 0</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Dedupe recente</div><div class="metric" data-summary="dedupe_recent_total">{{ summary.dedupe_recent_total }}</div><div class="compact muted">Eventos bloqueados na janela</div></div>
+    <div class="card diagnostics-kpi"><div class="label">Alarmes abertos</div><div class="metric" data-summary="open_events_count">{{ summary.open_events_count }}</div><div class="compact muted">Entradas da fila operacional</div></div>
+</div>
+
+<div class="source-note">
+    Os dados abaixo vêm de <strong>/health/cameras</strong>, <strong>/dashboard/metrics</strong>, <strong>monitor payload</strong> e do ledger local de idempotência.
+</div>
+
+<div class="card" id="inferencePoolSummaryCard">
+    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px;">
+        <div>
+            <h2 style="margin-bottom:4px;">Situacao por pool IA</h2>
+            <div class="muted">Resumo central da fila e atribuicao de cameras por pool.</div>
+        </div>
+        <div class="diagnostics-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">
+            <span id="poolSummaryLabel">
+                {{ (summary.inference_pool_summary.backend or runtime_tuning.inference_pool_backend or 'local') }}
+                {% if summary.inference_pool_summary.pool_count %} | {{ summary.inference_pool_summary.pool_count }} pools{% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="diagnostics-table-wrap">
+        <table class="diagnostics-table">
+            <thead>
+                <tr>
+                    <th>Pool</th>
+                    <th>Cameras</th>
+                    <th>Fila</th>
+                    <th>Ativa</th>
+                    <th>Jobs</th>
+                    <th>Latencia</th>
+                    <th>Falhas</th>
+                </tr>
+            </thead>
+            <tbody id="inferencePoolSummaryBody">
+                {% set pool_summary = summary.inference_pool_summary or {} %}
+                {% if pool_summary.pools %}
+                    {% for pool in pool_summary.pools %}
+                    <tr>
+                        <td><strong>{{ (pool.pool_id or 0) + 1 }}/{{ pool_summary.pool_count or 1 }}</strong></td>
+                        <td>
+                            <div class="compact">{{ pool.assigned_cameras or 0 }}/{{ pool.max_cameras_per_pool or pool_summary.max_cameras_per_pool or 8 }}</div>
+                            {% if pool.assigned_camera_ids %}
+                                <div class="compact muted">IDs {{ pool.assigned_camera_ids | join(', ') }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ pool.queue_size or 0 }}</td>
+                        <td>{% if pool.active_camera_id %}camera {{ pool.active_camera_id }}{% else %}-{% endif %}</td>
+                        <td>
+                            <div class="compact">ok {{ pool.completed or 0 }} | enviados {{ pool.submitted or 0 }}</div>
+                            <div class="compact muted">repostos {{ pool.replaced or 0 }}</div>
+                        </td>
+                        <td>
+                            <div class="compact">total {{ pool.last_total_latency_ms or 0 }}ms</div>
+                            <div class="compact muted">espera {{ pool.last_wait_ms or 0 }}ms | infer {{ pool.last_infer_ms or 0 }}ms</div>
+                        </td>
+                        <td>
+                            <div class="compact">timeout {{ pool.timed_out or 0 }} | rejeitado {{ pool.rejected or 0 }}</div>
+                            <div class="compact muted">drop {{ pool.dropped_oldest or 0 }} | vencido {{ pool.stale_dropped or 0 }}</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="7" class="diagnostics-empty">Resumo por pool ainda indisponivel. Ative backend central e reinicie os workers para popular.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px;">
+        <div>
+            <h2 style="margin-bottom:4px;">Estado por câmera</h2>
+            <div class="muted">Saúde operacional, últimos timestamps, métricas e último evento em uma única tabela.</div>
+        </div>
+        <div class="diagnostics-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">
+            <span id="diagWindowLabel">Janela de dedupe: {{ summary.dedupe_window_seconds if summary.dedupe_window_seconds is not none else '-' }}s</span>
+        </div>
+    </div>
+
+    <div class="diagnostics-table-wrap" id="diagnosticsTableWrap">
+        <table class="diagnostics-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Câmera</th>
+                    <th>Local / grupo</th>
+                    <th>Saúde</th>
+                    <th>Estabilidade</th>
+                    <th>Diagnostico</th>
+                    <th>Worker</th>
+                    <th>Pool IA</th>
+                    <th>Fonte captura</th>
+                    <th>Gateway recover</th>
+                    <th>Legado</th>
+                    <th>Running</th>
+                    <th>Último frame</th>
+                    <th>Último proc.</th>
+                    <th>Última inf.</th>
+                    <th>Última métrica</th>
+                    <th>Restarts</th>
+                    <th>Último restart</th>
+                    <th>Motivo restart</th>
+                    <th>Stall</th>
+                    <th>Último evento</th>
+                    <th>Tipo evento</th>
+                    <th>Status evento</th>
+                    <th>Severidade</th>
+                    <th>FPS</th>
+                    <th>Read</th>
+                    <th>Infer</th>
+                    <th>Loop</th>
+                    <th>CPU proc</th>
+                    <th>RAM proc</th>
+                    <th>CPU sys</th>
+                    <th>RAM sys</th>
+                    <th>Dedupe</th>
+                </tr>
+            </thead>
+            <tbody id="diagnosticsTableBody">
+                {% if cameras %}
+                    {% for camera in cameras %}
+                    <tr class="diagnostics-row row-{{ camera.health_status_display or camera.health_status or camera.status }}">
+                        <td>{{ camera.id }}</td>
+                        <td><strong>{{ camera.name }}</strong></td>
+                        <td>{{ (camera.site_name or 'Sem local') }} · {{ (camera.group_name or 'Sem grupo') }}</td>
+                        <td><span class="status status-{{ camera.health_status_display or camera.health_status }}">{{ camera.health_status_display or camera.health_status }}</span></td>
+                        <td><span class="status status-{{ camera.stability_class or 'idle' }}">{{ camera.stability_label or '-' }}</span></td>
+                        <td>
+                            <strong>{{ camera.diagnosis_label or '-' }}</strong>
+                            <div class="compact muted">{{ camera.diagnosis_reason or '-' }}</div>
+                        </td>
+                        <td>{{ camera.worker_mode }}</td>
+                        <td>
+                            <strong>{{ camera.inference_pool_mode or '-' }}</strong>
+                            <div class="compact muted">backend {{ camera.inference_pool_backend or '-' }}{% if camera.inference_pool_id is not none %} | pool {{ camera.inference_pool_id + 1 }}/{{ camera.inference_pool_count or 1 }}{% endif %}{% if camera.inference_pool_central_http_ms %} | http {{ camera.inference_pool_central_http_ms }}ms{% endif %}</div>
+                            <div class="compact muted">cameras {{ camera.inference_pool_assigned_cameras or 0 }}/{{ camera.inference_pool_max_cameras_per_pool or 8 }} na pool</div>
+                            <div class="compact muted">total {{ camera.inference_pool_last_total_latency_ms or 0 }}ms | infer {{ camera.inference_pool_last_infer_ms or 0 }}ms | politica {{ camera.inference_pool_overflow_policy or '-' }}</div>
+                            {% if camera.inference_pool_dropped_oldest or camera.inference_pool_stale_dropped %}
+                                <div class="compact muted">drop {{ camera.inference_pool_dropped_oldest or 0 }} | vencido {{ camera.inference_pool_stale_dropped or 0 }}</div>
+                            {% endif %}
+                            <div class="compact muted">fila {{ camera.inference_pool_queue_size or 0 }} · espera {{ camera.inference_pool_last_wait_ms or 0 }}ms</div>
+                            {% if camera.inference_pool_timed_out or camera.inference_pool_rejected %}
+                                <div class="compact muted">timeout {{ camera.inference_pool_timed_out or 0 }} · rejeitado {{ camera.inference_pool_rejected or 0 }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status {% if camera.capture_source == 'gateway frames' %}status-running{% elif camera.capture_source == 'rtsp' %}status-reconnecting{% else %}status-idle{% endif %}">
+                                {{ camera.capture_source_label or '-' }}
+                            </span>
+                            {% if camera.gateway_fallback_active %}
+                                <div class="compact muted">fallback desde {{ camera.gateway_fallback_started_label or '-' }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ camera.gateway_recovery_count or 0 }}{% if camera.gateway_recovery_last_success_label %}<div class="compact muted">{{ camera.gateway_recovery_last_success_label }}</div>{% endif %}</td>
+                        <td><span class="status status-{{ camera.status_legacy_display }}">{{ camera.status_legacy }}</span></td>
+                        <td><span class="status {% if camera.is_running %}status-running{% else %}status-idle{% endif %}">{{ 'sim' if camera.is_running else 'não' }}</span></td>
+                        <td>
+                            <div class="timestamp-cell">
+                                <span>{{ camera.last_frame_label or '-' }}</span>
+                                <span class="compact muted">{{ camera.last_frame_age_seconds if camera.last_frame_age_seconds is not none else '-' }}s</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="timestamp-cell">
+                                <span>{{ camera.last_processed_frame_label or '-' }}</span>
+                                <span class="compact muted">{{ camera.last_processed_frame_age_seconds if camera.last_processed_frame_age_seconds is not none else '-' }}s</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="timestamp-cell">
+                                <span>{{ camera.last_successful_inference_label or '-' }}</span>
+                                <span class="compact muted">{{ camera.last_successful_inference_age_seconds if camera.last_successful_inference_age_seconds is not none else '-' }}s</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="timestamp-cell">
+                                <span>{{ camera.last_metrics_label or '-' }}</span>
+                                <span class="compact muted">{{ camera.last_metrics_age_seconds if camera.last_metrics_age_seconds is not none else '-' }}s</span>
+                            </div>
+                        </td>
+                        <td>{{ camera.restart_count }}</td>
+                        <td>{{ camera.last_restart_label or '-' }}</td>
+                        <td>{{ camera.last_restart_reason or '-' }}</td>
+                        <td>
+                            <span class="status {% if camera.consecutive_stall_checks > 0 %}status-degraded{% else %}status-running{% endif %}">{{ camera.consecutive_stall_checks }}</span>
+                        </td>
+                        <td>
+                            <div class="timestamp-cell">
+                                <span>{{ camera.last_event_label or '-' }}</span>
+                                <span class="compact muted">{{ camera.last_event_age_seconds if camera.last_event_age_seconds is not none else '-' }}s</span>
+                            </div>
+                        </td>
+                        <td>{{ camera.last_event_type or '-' }}</td>
+                        <td><span class="status status-{{ camera.last_event_status or 'new' }}">{{ camera.last_event_status or '-' }}</span></td>
+                        <td><span class="status priority-{{ camera.last_event_severity or 'medium' }}">{{ camera.last_event_severity or '-' }}</span></td>
+                        <td>{{ camera.fps if camera.fps is not none else '-' }}</td>
+                        <td>{{ camera.read_ms if camera.read_ms is not none else '-' }}</td>
+                        <td>{{ camera.infer_ms if camera.infer_ms is not none else '-' }}</td>
+                        <td>{{ camera.loop_ms if camera.loop_ms is not none else '-' }}</td>
+                        <td>{{ camera.process_cpu_percent if camera.process_cpu_percent is not none else '-' }}</td>
+                        <td>{{ camera.process_rss_mb if camera.process_rss_mb is not none else '-' }}</td>
+                        <td>{{ camera.system_cpu_percent if camera.system_cpu_percent is not none else '-' }}</td>
+                        <td>{{ camera.system_ram_percent if camera.system_ram_percent is not none else '-' }}</td>
+                        <td>
+                            {% if camera.dedupe_recent_count and camera.dedupe_recent_count > 0 %}
+                            <span class="status status-deduplicated">{{ camera.dedupe_recent_count }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="33" class="diagnostics-empty">Carregando estado das cameras...</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card" id="diagnosticsLogsCard">
+    <div class="diagnostics-logs-head">
+        <div>
+            <h2 style="margin-bottom:4px;">Logs do sistema</h2>
+            <div class="muted">Últimas linhas de app.log, error.log e event_rules_debug.log.</div>
+        </div>
+        <div class="diagnostics-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">
+            <span id="diagLogFilesLabel">{{ diagnostics.logs.sources | join(', ') if diagnostics.logs.sources else 'nenhuma fonte encontrada' }}</span>
+        </div>
+    </div>
+    <div class="diagnostics-logs-toolbar">
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button id="diagTabLogs" class="btn btn-secondary active-tab" type="button">Logs do sistema</button>
+            <button id="diagTabGateway" class="btn btn-secondary" type="button">Gateway</button>
+            <div class="muted" style="margin-left:12px;">Se houver `cam=ID`, os logs da câmera aparecem destacados na leitura do arquivo.</div>
+        </div>
+        <a class="btn btn-secondary" href="/diagnostics">Recarregar diagnóstico</a>
+    </div>
+    <div class="diagnostics-logs-note">
+        Use este bloco para encontrar rapidamente falhas de worker, reconexões RTSP, erros de regra, exceções e mensagens de inicialização.
+    </div>
+    <div id="diagnosticsLogsBody">
+        <div class="diagnostics-empty">Logs serao carregados ao visualizar esta area.</div>
+    </div>
+
+    <div id="gatewayBody" style="display:none; margin-top:12px;">
+        <div style="margin-bottom:12px;">
+            <h3>Gateway health</h3>
+            <div class="muted">Estado do serviço gateway e endpoint /healthz</div>
+        </div>
+        <div id="gatewayHealthBlock" class="card" style="padding:12px; margin-bottom:12px;">
+            <pre id="gatewayHealthPre" style="white-space:pre-wrap; font-family: Consolas, monospace; font-size:12px;">Gateway sera carregado ao abrir esta aba.</pre>
+        </div>
+        <div>
+            <h3>Logs do gateway</h3>
+            <div id="gatewayLogsBlock">
+                <div class="diagnostics-empty">Logs do gateway serao carregados ao abrir esta aba.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const endpoint = "/diagnostics/data";
+    let detailSectionsLoaded = false;
+    const initialInferencePoolSummary = {{ (summary.inference_pool_summary or {}) | tojson }};
+    let lastInferencePoolSummary = (
+        initialInferencePoolSummary
+        && Array.isArray(initialInferencePoolSummary.pools)
+        && initialInferencePoolSummary.pools.length
+    ) ? initialInferencePoolSummary : null;
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function renderSummary(summary) {
+        if (!summary) return;
+        const fields = [
+            "running_count",
+            "degraded_count",
+            "reconnecting_count",
+            "offline_count",
+            "stopped_count",
+            "worker_count",
+            "capture_source_gateway_count",
+            "capture_source_python_count",
+            "capture_source_gateway_fps",
+            "capture_source_python_fps",
+            "restart_total",
+            "stalling_cameras",
+            "dedupe_recent_total",
+            "open_events_count",
+        ];
+        fields.forEach((field) => {
+            const el = document.querySelector(`[data-summary="${field}"]`);
+            if (el) el.textContent = summary[field] ?? 0;
+        });
+        const updatedAt = document.getElementById("diagUpdatedAt");
+        const generatedAt = document.getElementById("diagGeneratedAt");
+        if (updatedAt) updatedAt.textContent = summary.last_updated_at || "-";
+        if (generatedAt) generatedAt.textContent = summary.generated_at || "-";
+        const total = document.getElementById("diagTotalCameras");
+        if (total) total.textContent = summary.camera_total ?? 0;
+        updateGatewayModeUi(summary.gateway_capture_mode, summary.gateway_capture_mode_label);
+    }
+
+    function updateGatewayModeUi(mode, label) {
+        const normalized = mode || "";
+        const modeLabel = document.getElementById("gatewayModeLabel");
+        if (modeLabel) modeLabel.textContent = label || "So Gateway";
+        document.querySelectorAll(".gateway-mode-btn").forEach((button) => {
+            button.classList.toggle("active-mode", button.dataset.gatewayMode === normalized);
+        });
+    }
+
+    function renderRuntimeTuning(tuning) {
+        tuning = tuning || {};
+        const gpuMemory = document.getElementById("runtimeGpuMemory");
+        const gpuTotal = document.getElementById("runtimeGpuTotal");
+        const activeWorkers = document.getElementById("runtimeActiveWorkers");
+        const maxWorkers = document.getElementById("runtimeMaxWorkers");
+        const poolState = document.getElementById("runtimePoolState");
+        if (gpuMemory) gpuMemory.textContent = tuning.gpu_memory_used_mb ?? "-";
+        if (gpuTotal) gpuTotal.textContent = tuning.gpu_memory_total_mb ?? "-";
+        if (activeWorkers) activeWorkers.textContent = tuning.active_workers ?? "-";
+        if (maxWorkers) maxWorkers.textContent = tuning.max_active_workers ?? "-";
+        if (poolState) poolState.textContent = tuning.inference_pool_enabled ? "ativa" : "desativada";
+        const poolBackend = document.getElementById("runtimePoolBackend");
+        if (poolBackend) poolBackend.textContent = tuning.inference_pool_backend || "local";
+        const poolCount = document.getElementById("runtimePoolCount");
+        if (poolCount) poolCount.textContent = tuning.inference_pool_count || 1;
+        const poolMaxCameras = document.getElementById("runtimePoolMaxCameras");
+        if (poolMaxCameras) poolMaxCameras.textContent = tuning.inference_pool_max_cameras_per_pool || 8;
+    }
+
+    function renderDetectorEngine(engine) {
+        engine = engine || {};
+        const backend = document.getElementById("detectorEngineBackend");
+        const status = document.getElementById("detectorEngineStatus");
+        const autoBuild = document.getElementById("detectorEngineAutoBuild");
+        const reason = document.getElementById("detectorEngineReason");
+        const path = document.getElementById("detectorEnginePath");
+        if (backend) backend.textContent = engine.backend || "pytorch";
+        if (status) status.textContent = engine.status || "-";
+        if (autoBuild) autoBuild.textContent = engine.auto_build_enabled ? "ativo" : "desativado";
+        if (reason) reason.textContent = engine.reason || "-";
+        if (path) path.textContent = engine.engine_path || "-";
+    }
+
+    async function setGatewayMode(mode) {
+        const buttons = Array.from(document.querySelectorAll(".gateway-mode-btn"));
+        buttons.forEach((button) => { button.disabled = true; });
+        try {
+            const form = new FormData();
+            form.append("mode", mode);
+            const response = await fetch("/diagnostics/gateway-mode", {
+                method: "POST",
+                body: form,
+                cache: "no-store",
+            });
+            if (response.ok) {
+                const payload = await response.json();
+                updateGatewayModeUi(payload.mode, payload.label);
+                refreshDiagnostics();
+            }
+        } finally {
+            buttons.forEach((button) => { button.disabled = false; });
+        }
+    }
+
+    function timestampCell(label, ageSeconds) {
+        const ageLabel = ageSeconds === null || ageSeconds === undefined ? "-" : `${ageSeconds}s`;
+        return `
+            <div class="timestamp-cell">
+                <span>${escapeHtml(label || "-")}</span>
+                <span class="compact muted">${escapeHtml(ageLabel)}</span>
+            </div>
+        `;
+    }
+
+    function hasPoolRows(summary) {
+        return Boolean(summary && Array.isArray(summary.pools) && summary.pools.length);
+    }
+
+    function renderPoolSummary(summary) {
+        const incoming = summary || {};
+        if (incoming.enabled === false || (incoming.backend && String(incoming.backend).toLowerCase() !== "central")) {
+            lastInferencePoolSummary = null;
+        }
+        if (hasPoolRows(incoming)) {
+            lastInferencePoolSummary = incoming;
+        }
+        summary = hasPoolRows(incoming) || !lastInferencePoolSummary ? incoming : lastInferencePoolSummary;
+        const label = document.getElementById("poolSummaryLabel");
+        const body = document.getElementById("inferencePoolSummaryBody");
+        if (label) {
+            const backend = summary.backend || "local";
+            const poolCount = summary.pool_count || 0;
+            const assigned = summary.total_assigned_cameras || 0;
+            label.textContent = `${backend}${poolCount ? ` | ${poolCount} pools` : ''}${assigned ? ` | ${assigned} cameras` : ''}`;
+        }
+        if (!body) return;
+        const pools = Array.isArray(summary.pools) ? summary.pools : [];
+        if (!pools.length) {
+            body.innerHTML = '<tr><td colspan="7" class="diagnostics-empty">Resumo por pool ainda indisponivel. Ative backend central e reinicie os workers para popular.</td></tr>';
+            return;
+        }
+        body.innerHTML = pools.map((pool) => `
+            <tr>
+                <td><strong>${escapeHtml(Number(pool.pool_id || 0) + 1)}/${escapeHtml(summary.pool_count || 1)}</strong></td>
+                <td>
+                    <div class="compact">${escapeHtml(pool.assigned_cameras || 0)}/${escapeHtml(pool.max_cameras_per_pool || summary.max_cameras_per_pool || 8)}</div>
+                    ${Array.isArray(pool.assigned_camera_ids) && pool.assigned_camera_ids.length ? `<div class="compact muted">IDs ${escapeHtml(pool.assigned_camera_ids.join(', '))}</div>` : ''}
+                </td>
+                <td>${escapeHtml(pool.queue_size || 0)}</td>
+                <td>${pool.active_camera_id ? `camera ${escapeHtml(pool.active_camera_id)}` : '-'}</td>
+                <td>
+                    <div class="compact">ok ${escapeHtml(pool.completed || 0)} | enviados ${escapeHtml(pool.submitted || 0)}</div>
+                    <div class="compact muted">repostos ${escapeHtml(pool.replaced || 0)}</div>
+                </td>
+                <td>
+                    <div class="compact">total ${escapeHtml(pool.last_total_latency_ms || 0)}ms</div>
+                    <div class="compact muted">espera ${escapeHtml(pool.last_wait_ms || 0)}ms | infer ${escapeHtml(pool.last_infer_ms || 0)}ms</div>
+                </td>
+                <td>
+                    <div class="compact">timeout ${escapeHtml(pool.timed_out || 0)} | rejeitado ${escapeHtml(pool.rejected || 0)}</div>
+                    <div class="compact muted">drop ${escapeHtml(pool.dropped_oldest || 0)} | vencido ${escapeHtml(pool.stale_dropped || 0)}</div>
+                </td>
+            </tr>
+        `).join("");
+    }
+
+    function renderTable(cameras) {
+        const tbody = document.getElementById("diagnosticsTableBody");
+        if (!tbody) return;
+        if (!cameras || !cameras.length) {
+            tbody.innerHTML = '<tr><td colspan="33" class="diagnostics-empty">Nenhuma câmera cadastrada.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = cameras.map((camera) => `
+            <tr class="diagnostics-row row-${escapeHtml(camera.health_status_display || camera.health_status || camera.status || 'idle')}">
+                <td>${escapeHtml(camera.id)}</td>
+                <td><strong>${escapeHtml(camera.name)}</strong></td>
+                <td>${escapeHtml((camera.site_name || 'Sem local') + ' · ' + (camera.group_name || 'Sem grupo'))}</td>
+                <td><span class="status status-${escapeHtml(camera.health_status_display || camera.health_status || 'idle')}">${escapeHtml(camera.health_status_display || camera.health_status || 'idle')}</span></td>
+                <td><span class="status status-${escapeHtml(camera.stability_class || 'idle')}">${escapeHtml(camera.stability_label || '-')}</span></td>
+                <td><strong>${escapeHtml(camera.diagnosis_label || '-')}</strong><div class="compact muted">${escapeHtml(camera.diagnosis_reason || '-')}</div></td>
+                <td>${escapeHtml(camera.worker_mode || '-')}</td>
+                <td>
+                    <strong>${escapeHtml(camera.inference_pool_mode || '-')}</strong>
+                    <div class="compact muted">backend ${escapeHtml(camera.inference_pool_backend || '-')}${camera.inference_pool_id !== null && camera.inference_pool_id !== undefined ? ` | pool ${escapeHtml(Number(camera.inference_pool_id) + 1)}/${escapeHtml(camera.inference_pool_count || 1)}` : ''}${camera.inference_pool_central_http_ms ? ` | http ${escapeHtml(camera.inference_pool_central_http_ms)}ms` : ''}</div>
+                    <div class="compact muted">cameras ${escapeHtml(camera.inference_pool_assigned_cameras || 0)}/${escapeHtml(camera.inference_pool_max_cameras_per_pool || 8)} na pool</div>
+                    <div class="compact muted">total ${escapeHtml(camera.inference_pool_last_total_latency_ms ?? 0)}ms | infer ${escapeHtml(camera.inference_pool_last_infer_ms ?? 0)}ms | politica ${escapeHtml(camera.inference_pool_overflow_policy || '-')}</div>
+                    ${(Number(camera.inference_pool_dropped_oldest || 0) > 0 || Number(camera.inference_pool_stale_dropped || 0) > 0) ? `<div class="compact muted">drop ${escapeHtml(camera.inference_pool_dropped_oldest || 0)} | vencido ${escapeHtml(camera.inference_pool_stale_dropped || 0)}</div>` : ''}
+                    <div class="compact muted">fila ${escapeHtml(camera.inference_pool_queue_size ?? 0)} · espera ${escapeHtml(camera.inference_pool_last_wait_ms ?? 0)}ms</div>
+                    ${(Number(camera.inference_pool_timed_out || 0) > 0 || Number(camera.inference_pool_rejected || 0) > 0) ? `<div class="compact muted">timeout ${escapeHtml(camera.inference_pool_timed_out || 0)} · rejeitado ${escapeHtml(camera.inference_pool_rejected || 0)}</div>` : ''}
+                </td>
+                <td>
+                    <span class="status ${camera.capture_source === 'gateway frames' ? 'status-running' : (camera.capture_source === 'rtsp' ? 'status-reconnecting' : 'status-idle')}">
+                        ${escapeHtml(camera.capture_source_label || '-')}
+                    </span>
+                    ${camera.gateway_fallback_active ? `<div class="compact muted">fallback desde ${escapeHtml(camera.gateway_fallback_started_label || '-')}</div>` : ''}
+                </td>
+                <td>${escapeHtml(camera.gateway_recovery_count ?? 0)}${camera.gateway_recovery_last_success_label ? `<div class="compact muted">${escapeHtml(camera.gateway_recovery_last_success_label)}</div>` : ''}</td>
+                <td><span class="status status-${escapeHtml(camera.status_legacy_display || camera.status_legacy || 'idle')}">${escapeHtml(camera.status_legacy || 'idle')}</span></td>
+                <td><span class="status ${camera.is_running ? 'status-running' : 'status-idle'}">${camera.is_running ? 'sim' : 'não'}</span></td>
+                <td>${timestampCell(camera.last_frame_label, camera.last_frame_age_seconds)}</td>
+                <td>${timestampCell(camera.last_processed_frame_label, camera.last_processed_frame_age_seconds)}</td>
+                <td>${timestampCell(camera.last_successful_inference_label, camera.last_successful_inference_age_seconds)}</td>
+                <td>${timestampCell(camera.last_metrics_label, camera.last_metrics_age_seconds)}</td>
+                <td>${escapeHtml(camera.restart_count ?? 0)}</td>
+                <td>${escapeHtml(camera.last_restart_label || '-')}</td>
+                <td>${escapeHtml(camera.last_restart_reason || '-')}</td>
+                <td><span class="status ${Number(camera.consecutive_stall_checks || 0) > 0 ? 'status-degraded' : 'status-running'}">${escapeHtml(camera.consecutive_stall_checks ?? 0)}</span></td>
+                <td>${timestampCell(camera.last_event_label, camera.last_event_age_seconds)}</td>
+                <td>${escapeHtml(camera.last_event_type || '-')}</td>
+                <td><span class="status status-${escapeHtml(camera.last_event_status || 'new')}">${escapeHtml(camera.last_event_status || '-')}</span></td>
+                <td><span class="status priority-${escapeHtml(camera.last_event_severity || 'medium')}">${escapeHtml(camera.last_event_severity || '-')}</span></td>
+                <td>${camera.fps ?? '-'}</td>
+                <td>${camera.read_ms ?? '-'}</td>
+                <td>${camera.infer_ms ?? '-'}</td>
+                <td>${camera.loop_ms ?? '-'}</td>
+                <td>${camera.process_cpu_percent ?? '-'}</td>
+                <td>${camera.process_rss_mb ?? '-'}</td>
+                <td>${camera.system_cpu_percent ?? '-'}</td>
+                <td>${camera.system_ram_percent ?? '-'}</td>
+                <td>${Number(camera.dedupe_recent_count || 0) > 0 ? `<span class="status status-deduplicated">${escapeHtml(camera.dedupe_recent_count)}</span>` : '-'}</td>
+            </tr>
+        `).join("");
+    }
+
+    function renderLogs(logs) {
+        const container = document.getElementById("diagnosticsLogsBody");
+        const label = document.getElementById("diagLogFilesLabel");
+        if (label) {
+            label.textContent = (logs && logs.sources && logs.sources.length) ? logs.sources.join(", ") : "nenhuma fonte encontrada";
+        }
+        if (!container) return;
+        const entries = (logs && logs.entries) ? logs.entries : [];
+        if (!entries.length) {
+            container.innerHTML = '<div class="diagnostics-empty">Nenhum log encontrado.</div>';
+            return;
+        }
+        container.innerHTML = `
+            <div class="diagnostics-log-list">
+                ${entries.map((item) => `
+                    <div class="diagnostics-log-entry">
+                        <div class="diagnostics-log-entry-head">
+                            <span class="diagnostics-log-source">${escapeHtml(item.source || "-")}</span>
+                        </div>
+                        <pre class="diagnostics-log-line">${escapeHtml(item.line || "")}</pre>
+                    </div>
+                `).join("")}
+            </div>
+        `;
+    }
+
+    function renderGateway(gateway, logs) {
+        const healthPre = document.getElementById("gatewayHealthPre");
+        if (healthPre) {
+            try {
+                healthPre.textContent = gateway ? JSON.stringify(gateway, null, 2) : 'Gateway não configurado';
+            } catch (_) {
+                healthPre.textContent = String(gateway || 'Gateway não configurado');
+            }
+        }
+
+        const gatewayLogsContainer = document.getElementById("gatewayLogsBlock");
+        if (!gatewayLogsContainer) return;
+
+        const entries = (logs && logs.entries) ? logs.entries.filter(e => (e.source||'') === 'gateway') : [];
+        if (!entries.length) {
+            gatewayLogsContainer.innerHTML = '<div class="diagnostics-empty">Nenhum log do gateway encontrado.</div>';
+            return;
+        }
+
+        gatewayLogsContainer.innerHTML = `
+            <div class="diagnostics-log-list">
+                ${entries.map((item) => `
+                    <div class="diagnostics-log-entry">
+                        <div class="diagnostics-log-entry-head">
+                            <span class="diagnostics-log-source">${escapeHtml(item.source || '-')}</span>
+                        </div>
+                        <pre class="diagnostics-log-line">${escapeHtml(item.line || '')}</pre>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    async function refreshDiagnostics(options = {}) {
+        if (document.hidden) return;
+        const includeLogs = Boolean(options.includeLogs);
+        const includeGateway = Boolean(options.includeGateway);
+        try {
+            const params = new URLSearchParams();
+            if (includeLogs) params.set("include_logs", "1");
+            if (includeGateway) params.set("include_gateway", "1");
+            const url = params.toString() ? `${endpoint}?${params.toString()}` : endpoint;
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) return;
+            const payload = await response.json();
+            renderSummary(payload.summary || {});
+            renderRuntimeTuning(payload.runtime_tuning || (payload.summary && payload.summary.runtime_tuning) || {});
+            renderDetectorEngine(payload.detector_engine || (payload.summary && payload.summary.detector_engine) || {});
+            renderPoolSummary(payload.inference_pool_summary || (payload.summary && payload.summary.inference_pool_summary) || {});
+            renderTable(payload.cameras || []);
+            if (includeLogs) {
+                renderLogs(payload.logs || {});
+            }
+            if (includeGateway) {
+                renderGateway(payload.gateway || null, payload.logs || {});
+            }
+            const windowLabel = document.getElementById("diagWindowLabel");
+            if (windowLabel) {
+                const windowSeconds = payload.summary ? payload.summary.dedupe_window_seconds : null;
+                windowLabel.textContent = `Janela de dedupe: ${windowSeconds ?? "-"}s`;
+            }
+        } catch (_) {}
+    }
+
+    function refreshVisibleDiagnostics() {
+        const gatewayVisible = gatewayCard && gatewayCard.style.display !== 'none';
+        refreshDiagnostics({
+            includeLogs: detailSectionsLoaded,
+            includeGateway: detailSectionsLoaded && gatewayVisible,
+        });
+    }
+
+    refreshDiagnostics();
+    setInterval(refreshVisibleDiagnostics, 8000);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) refreshVisibleDiagnostics();
+    });
+    document.querySelectorAll(".gateway-mode-btn").forEach((button) => {
+        button.addEventListener("click", () => setGatewayMode(button.dataset.gatewayMode || "gateway_only"));
+    });
+    const tabLogs = document.getElementById('diagTabLogs');
+    const tabGateway = document.getElementById('diagTabGateway');
+    const logsCard = document.getElementById('diagnosticsLogsBody');
+    const gatewayCard = document.getElementById('gatewayBody');
+    function activateTabLogs() {
+        tabLogs.classList.add('active-tab');
+        tabGateway.classList.remove('active-tab');
+        logsCard.style.display = '';
+        gatewayCard.style.display = 'none';
+    }
+    function activateTabGateway() {
+        tabGateway.classList.add('active-tab');
+        tabLogs.classList.remove('active-tab');
+        logsCard.style.display = 'none';
+        gatewayCard.style.display = '';
+        if (!detailSectionsLoaded) {
+            detailSectionsLoaded = true;
+            refreshDiagnostics({ includeLogs: true, includeGateway: true });
+        }
+    }
+    if (tabLogs && tabGateway) {
+        tabLogs.addEventListener('click', activateTabLogs);
+        tabGateway.addEventListener('click', activateTabGateway);
+    }
+    const logsObserver = new IntersectionObserver((entries) => {
+        if (detailSectionsLoaded || !entries.some((entry) => entry.isIntersecting)) return;
+        detailSectionsLoaded = true;
+        refreshDiagnostics({ includeLogs: true, includeGateway: false });
+        logsObserver.disconnect();
+    }, { rootMargin: "160px 0px" });
+    const diagnosticsLogsCard = document.getElementById("diagnosticsLogsCard");
+    if (diagnosticsLogsCard) logsObserver.observe(diagnosticsLogsCard);
+})();
+</script>
+{% endblock %}

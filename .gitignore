@@ -1,0 +1,106 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc.*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Runtime data
+data/
+logs/
+runtime_state/
+event_snapshots/
+debug_frames/
+datasets/revalidator_feedback/
+# Crops e contexto gerados pela auditoria de revisao: dado de operacao, nao codigo
+datasets/revalidator_review_audit/
+.tmp_*/
+.tmp/
+.tmp_tests/
+
+# Databases and transient SQLite files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Models and heavy binaries
+models/
+!models/
+models/*
+!models/ia1_candidate/
+models/ia1_candidate/*
+!models/ia1_candidate/ia1_candidate_vms_hardneg_v3_2_1024.pt
+!models/revalidator/
+models/revalidator/*
+!models/revalidator/person_crop_revalidator_yolo11n_v5.pt
+*.pt
+!models/ia1_candidate/ia1_candidate_vms_hardneg_v3_2_1024.pt
+!models/revalidator/person_crop_revalidator_yolo11n_v5.pt
+*.onnx
+*.engine
+*.iso
+
+# Archives and release bundles
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+
+# Logs and scratch output
+*.log
+startup_error.log
+_scratch*
+reports/revalidator_review_audit*/
+reports/revalidator_rule_analysis*/
+reports/*/
+!reports/training_prompts/
+tmp_audit_analysis/
+tmp_render/udd*/
+Relatorio_Atividades_*.pdf
+
+# Lixo isolado para revisao manual (movido, nao excluido)
+/_lixo_revisar/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+.serena/
+
+# Native operator client build output
+operator-client/**/bin/
+operator-client/**/obj/
+operator-client/**/.vs/
+operator-client/**/config.local.json
+operator-client/dist/
+operator-client/publish/
+operator-client/publish-*/
+# Payload do Video Helper: gerado pelo build, so existe no modo offline
+operator-client/installer/**/Payload/*.zip
+# SDKs proprietarios e artefatos locais aceitos sob licenca do fabricante
+vendor-local/
+
+# Artefatos de build (PyInstaller) e distribuicao — nao versionar
+/dist/
+/build/

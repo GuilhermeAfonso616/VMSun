@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .st-head { text-align: center; max-width: 980px; margin: 8px auto 6px; }
+    .st-head h1 { margin-bottom: 4px; }
+    .st-head p { margin: 0; }
+    .st-toolbar { display: flex; justify-content: center; gap: 10px; margin: 0 auto 16px; }
+    .st-wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .st-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .st-kpi { border: 1px solid var(--line-soft); border-radius: 12px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 14px 16px; }
+    .st-kpi .label { color: var(--text-secondary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .st-kpi .value { font-size: 26px; line-height: 1.1; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; margin-top: 4px; }
+    .st-kpi .sub { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+    .st-kpi .value.ok { color: #166534; } .st-kpi .value.warn { color: #b45309; } .st-kpi .value.bad { color: #b91c1c; }
+    .st-card { border: 1px solid var(--line-soft); border-radius: 14px; background: #fff; box-shadow: var(--shadow-card); padding: 18px; }
+    .st-card h2 { margin: 0 0 4px; font-size: 16px; color: #0f172a; }
+    .st-card .st-muted { color: var(--text-secondary); font-size: 13px; margin-bottom: 14px; }
+    .st-disk-bar { position: relative; height: 22px; border-radius: 8px; background: #e2e8f0; overflow: hidden; }
+    .st-disk-bar > span { position: absolute; inset: 0 auto 0 0; border-radius: 8px; }
+    .st-disk-bar > span.ok { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .st-disk-bar > span.warn { background: linear-gradient(90deg, #fbbf24, #d97706); }
+    .st-disk-bar > span.bad { background: linear-gradient(90deg, #f87171, #dc2626); }
+    .st-disk-legend { display: flex; justify-content: space-between; margin-top: 8px; color: var(--text-secondary); font-size: 13px; font-weight: 700; }
+    .st-cat { padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+    .st-cat:last-child { border-bottom: 0; padding-bottom: 0; }
+    .st-cat-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .st-cat-name { font-weight: 700; color: #0f172a; }
+    .st-cat-name .st-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; background: #f1f5f9; border: 1px solid var(--line-soft); border-radius: 999px; padding: 2px 7px; margin-left: 8px; }
+    .st-cat-size { font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .st-cat-meta { color: var(--text-secondary); font-size: 12px; margin-top: 3px; }
+    .st-cat-bar { height: 8px; border-radius: 999px; background: #eef2f7; overflow: hidden; margin-top: 8px; }
+    .st-cat-bar > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #2563eb); }
+    .st-cat:first-child .st-cat-bar > span { background: linear-gradient(90deg, #818cf8, #4f46e5); }
+    .st-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .st-chip { background: #f8fafc; border: 1px solid var(--line-soft); border-radius: 999px; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); }
+    .st-chip strong { color: #0f172a; }
+    .st-empty { color: var(--text-secondary); padding: 10px 0; }
+    @media (max-width: 720px) { .st-kpis { grid-template-columns: repeat(2, 1fr); } }
+</style>
+
+<div class="st-head">
+    <h1>Armazenamento</h1>
+    <p class="muted">Uso de disco por pasta, espaco livre e projecao de enchimento com base no crescimento recente.</p>
+</div>
+
+<div class="st-toolbar">
+    <button class="btn btn-secondary btn-small" type="button" id="stRefresh">Atualizar</button>
+</div>
+
+<div class="st-wrap">
+    <div class="st-kpis" id="stKpis"></div>
+
+    <div class="st-card">
+        <h2>Disco</h2>
+        <div class="st-muted" id="stDiskPath">—</div>
+        <div class="st-disk-bar"><span id="stDiskFill" class="ok" style="width:0%"></span></div>
+        <div class="st-disk-legend">
+            <span id="stDiskUsed">Usado —</span>
+            <span id="stDiskFree">Livre —</span>
+        </div>
+    </div>
+
+    <div class="st-card">
+        <h2>Maiores consumidores</h2>
+        <div class="st-muted" id="stTracked">—</div>
+        <div id="stCats"><div class="st-empty">Carregando...</div></div>
+    </div>
+
+    <div class="st-card">
+        <h2>Retencao configurada</h2>
+        <div class="st-muted">Quanto tempo cada tipo de dado e mantido antes da limpeza automatica.</div>
+        <div class="st-chips" id="stRetention"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const endpoint = "/dashboard/storage";
+    let last = null;
+
+    function escapeHtml(v) {
+        return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+    function fmtBytes(b) {
+        if (b === null || b === undefined) return "—";
+        const u = ["B", "KB", "MB", "GB", "TB"];
+        let i = 0, n = Number(b);
+        while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+        return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${u[i]}`;
+    }
+    function fmtDays(d) {
+        if (d === null || d === undefined) return "sem estimativa";
+        if (d >= 365) return `${(d / 365).toFixed(1)} anos`;
+        if (d < 1) return "menos de 1 dia";
+        return `${Math.round(d)} dias`;
+    }
+    function diskClass(p) { return p >= 85 ? "bad" : (p >= 70 ? "warn" : "ok"); }
+    function daysClass(d) { if (d === null || d === undefined) return ""; return d < 30 ? "bad" : (d < 90 ? "warn" : "ok"); }
+
+    function render(r) {
+        last = r;
+        const disk = r.disk || {};
+        const growth = r.growth || {};
+        const pct = disk.used_percent;
+        const dclass = pct === null || pct === undefined ? "" : diskClass(pct);
+
+        document.getElementById("stKpis").innerHTML = `
+            <div class="st-kpi"><div class="label">Disco usado</div><div class="value ${dclass}">${pct === null || pct === undefined ? "—" : pct.toFixed(0) + "%"}</div><div class="sub">${fmtBytes(disk.used_bytes)} de ${fmtBytes(disk.total_bytes)}</div></div>
+            <div class="st-kpi"><div class="label">Espaco livre</div><div class="value">${fmtBytes(disk.free_bytes)}</div><div class="sub">rastreado: ${fmtBytes((r.totals || {}).tracked_bytes)}</div></div>
+            <div class="st-kpi"><div class="label">Crescimento/dia</div><div class="value">${growth.bytes_per_day ? fmtBytes(growth.bytes_per_day) : "—"}</div><div class="sub">pastas que crescem</div></div>
+            <div class="st-kpi"><div class="label">Enche em</div><div class="value ${daysClass(growth.days_until_full)}" style="font-size:22px;">${fmtDays(growth.days_until_full)}</div><div class="sub">no ritmo atual</div></div>
+        `;
+
+        document.getElementById("stDiskPath").textContent = disk.path ? `Volume: ${disk.path}` : "—";
+        const fill = document.getElementById("stDiskFill");
+        fill.style.width = `${pct || 0}%`;
+        fill.className = dclass;
+        document.getElementById("stDiskUsed").textContent = `Usado ${fmtBytes(disk.used_bytes)} (${pct === null || pct === undefined ? "—" : pct.toFixed(0) + "%"})`;
+        document.getElementById("stDiskFree").textContent = `Livre ${fmtBytes(disk.free_bytes)}`;
+
+        const cats = Array.isArray(r.categories) ? r.categories : [];
+        const maxSize = cats.reduce((m, c) => Math.max(m, c.size_bytes || 0), 0) || 1;
+        const tracked = (r.totals || {}).tracked_bytes || 0;
+        document.getElementById("stTracked").textContent = `Total rastreado: ${fmtBytes(tracked)} em ${cats.length} pastas.`;
+        document.getElementById("stCats").innerHTML = cats.length ? cats.map((c) => {
+            const share = tracked ? (c.size_bytes / tracked * 100) : 0;
+            const growthTxt = (c.growing && c.growth_bytes_per_day) ? ` · +${fmtBytes(c.growth_bytes_per_day)}/dia` : "";
+            const tag = c.growing ? "" : `<span class="st-tag">estatico</span>`;
+            return `
+                <div class="st-cat">
+                    <div class="st-cat-top">
+                        <div class="st-cat-name">${escapeHtml(c.label)}${tag}</div>
+                        <div class="st-cat-size">${fmtBytes(c.size_bytes)}</div>
+                    </div>
+                    <div class="st-cat-meta">${c.files.toLocaleString("pt-BR")} arquivos · ${share.toFixed(1)}% do rastreado${growthTxt}</div>
+                    <div class="st-cat-bar"><span style="width:${Math.max(1, c.size_bytes / maxSize * 100).toFixed(1)}%"></span></div>
+                </div>`;
+        }).join("") : '<div class="st-empty">Nenhuma pasta encontrada.</div>';
+
+        const ret = r.retention || {};
+        const unlimited = (v) => v <= 0 ? "ilimitado" : `${v} dias`;
+        document.getElementById("stRetention").innerHTML = `
+            <span class="st-chip">Eventos (snapshots/clips): <strong>${escapeHtml(unlimited(ret.event_retention_days))}</strong></span>
+            <span class="st-chip">Historico operacional: <strong>${escapeHtml(unlimited(ret.operational_history_retention_days))}</strong></span>
+            <span class="st-chip">Historico de recursos: <strong>${escapeHtml(unlimited(ret.resource_history_retention_days))}</strong></span>
+        `;
+    }
+
+    async function refresh() {
+        try {
+            const response = await fetch(endpoint, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            render(await response.json());
+        } catch (error) {
+            console.warn("Falha ao carregar armazenamento:", error);
+            const el = document.getElementById("stCats");
+            if (el) el.innerHTML = '<div class="st-empty">Nao foi possivel carregar agora.</div>';
+        }
+    }
+
+    const btn = document.getElementById("stRefresh");
+    if (btn) btn.addEventListener("click", refresh);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+    refresh();
+    setInterval(refresh, 60000);
+})();
+</script>
+{% endblock %}

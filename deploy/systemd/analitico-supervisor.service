@@ -1,0 +1,24 @@
+[Unit]
+Description=Supervisor externo do Analitico VMS
+After=network-online.target docker-analitico.service
+Wants=network-online.target
+Requires=docker-analitico.service
+RequiresMountsFor=/mnt/analitico_ssd
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=srv-sunshield
+Group=srv-sunshield
+EnvironmentFile=-/etc/default/analitico-supervisor
+WorkingDirectory=/mnt/analitico_ssd/Analitico_Go_V4
+ExecStart=/usr/bin/python3 /mnt/analitico_ssd/Analitico_Go_V4/scripts/analitico_supervisor.py
+Restart=always
+RestartSec=10
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

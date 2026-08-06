@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title if title else "SunOrus VMS" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            try {
+                const stored = localStorage.getItem("sunorus-theme");
+                const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+                const theme = stored === "dark" || stored === "light" ? stored : (systemDark ? "dark" : "light");
+                document.documentElement.setAttribute("data-theme", theme);
+            } catch (error) {
+                document.documentElement.setAttribute("data-theme", "light");
+            }
+        })();
+        
+        window.logClientAudit = function(action, details) {
+            fetch('/api/audit-logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ action: action, details: details })
+            }).catch(err => console.error('Failed to send client audit log:', err));
+        };
+    </script>
+    <style>
+        :root {
+            color-scheme: light;
+            --monitor-logo-height: clamp(72px, 5.64vw, 86.4px);
+            --monitor-logo-reserve: calc(var(--monitor-logo-height) + 8px);
+            --bg-base:#f4f7fb;
+            --bg-black:#020617;
+            --bg-panel:#ffffff;
+            --bg-panel-light:#f8fafc;
+            --bg-header:#ffffff;
+            --bg-page:#edf3f8;
+            --bg-surface:#ffffff;
+            --bg-soft:#f7f9fc;
+            --bg-elevated:#ffffff;
+            --bg-nav-start:#07111f;
+            --bg-nav-end:#0d1b2f;
+            --bg-table-head:#eef4fb;
+            --bg-row-alt:#f9fbfe;
+            --bg-row-hover:#edf6ff;
+            --field-bg:#ffffff;
+            --field-text:#111827;
+            --line-soft:#dbe5ef;
+            --line-strong:#bfccda;
+            --line-highlight:#8fb4db;
+            --text-primary:#102033;
+            --text-secondary:#526173;
+            --text-main:#526173;
+            --text-bright:#0f172a;
+            --text-muted:#718096;
+            --heading-color:#0b1b2e;
+            --metric-color:#07111f;
+            --blue-primary:#3b82f6;
+            --blue-glow:rgba(59,130,246,0.15);
+            --blue-glow-strong:rgba(59,130,246,0.3);
+            --blue-light:#7dd3fc;
+            --red:#ef4444;
+            --red-critical:#ef4444;
+            --red-glow:rgba(239,68,68,0.2);
+            --yellow-warn:#f59e0b;
+            --green-ok:#22c55e;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            --transition: all .25s cubic-bezier(.2,.8,.2,1);
+            --shadow-card:0 12px 28px rgba(15, 23, 42, 0.08);
+            --shadow-popover:0 18px 45px rgba(15, 23, 42, 0.18);
+            --brand-600:#2563eb;
+            --brand-700:#1d4ed8;
+            --warning-600:#b45309;
+            --danger-600:#b91c1c;
+            --success-600:#15803d;
+            --btn-secondary-bg:#334155;
+            --btn-secondary-text:#ffffff;
+            --code-bg:#0f172a;
+            --code-text:#e5e7eb;
+            --media-border:#cbd5e1;
+            --body-glow-primary:rgba(37, 99, 235, 0.10);
+            --body-glow-secondary:rgba(13, 27, 47, 0.08);
+            --scroll-track:rgba(15, 23, 42, 0.10);
+            --scroll-thumb:rgba(82, 97, 115, 0.35);
+            --scroll-thumb-hover:rgba(82, 97, 115, 0.55);
+            --loading-card-bg:rgba(255, 255, 255, 0.96);
+        }
+
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --bg-base:#05070d;
+            --bg-black:#000000;
+            --bg-panel:#0b111c;
+            --bg-panel-light:#111827;
+            --bg-header:#070b12;
+            --bg-page:#07101b;
+            --bg-surface:#0e1623;
+            --bg-soft:#111c2b;
+            --bg-elevated:#141f2e;
+            --bg-nav-start:#020611;
+            --bg-nav-end:#081322;
+            --bg-table-head:#101a2a;
+            --bg-row-alt:#0b1421;
+            --bg-row-hover:#12243a;
+            --field-bg:#0a1320;
+            --field-text:#e5edf7;
+            --line-soft:rgba(148, 163, 184, 0.18);
+            --line-strong:rgba(148, 163, 184, 0.30);
+            --line-highlight:rgba(125, 211, 252, 0.38);
+            --text-primary:#e6edf7;
+            --text-secondary:#a4b3c7;
+            --text-main:#a4b3c7;
+            --text-bright:#f8fafc;
+            --text-muted:#7d8da3;
+            --heading-color:#f8fafc;
+            --metric-color:#f8fafc;
+            --blue-primary:#60a5fa;
+            --blue-glow:rgba(96, 165, 250, 0.15);
+            --blue-glow-strong:rgba(96, 165, 250, 0.28);
+            --blue-light:#93c5fd;
+            --shadow-card:0 14px 30px rgba(0, 0, 0, 0.32);
+            --shadow-popover:0 22px 55px rgba(0, 0, 0, 0.42);
+            --brand-600:#3b82f6;
+            --brand-700:#2563eb;
+            --warning-600:#d97706;
+            --danger-600:#dc2626;
+            --success-600:#16a34a;
+            --btn-secondary-bg:#1f2b3d;
+            --btn-secondary-text:#e5edf7;
+            --code-bg:#050816;
+            --code-text:#dbeafe;
+            --media-border:#334155;
+            --body-glow-primary:rgba(59, 130, 246, 0.12);
+            --body-glow-secondary:rgba(125, 211, 252, 0.06);
+            --scroll-track:rgba(2, 6, 23, 0.65);
+            --scroll-thumb:rgba(148, 163, 184, 0.30);
+            --scroll-thumb-hover:rgba(148, 163, 184, 0.52);
+            --loading-card-bg:rgba(14, 22, 35, 0.96);
+        }
+
+        /* Custom scrollbar styled for premium dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--scroll-track);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--scroll-thumb-hover);
+            border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        * { box-sizing: border-box; }
+
+        html,
+        body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: "Plus Jakarta Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            color: var(--text-primary);
+            background:
+                radial-gradient(circle at top right, var(--body-glow-primary), transparent 34%),
+                radial-gradient(circle at left bottom, var(--body-glow-secondary), transparent 38%),
+                var(--bg-page);
+            line-height: 1.45;
+        }
+
+        nav {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 90;
+            display: flex;
+            width: 260px;
+            height: 100vh;
+            height: 100dvh;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 64px 12px 12px;
+            background: linear-gradient(90deg, var(--bg-nav-start), var(--bg-nav-end));
+            border-right: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 12px 0 32px rgba(15, 23, 42, 0.38);
+            transform: translateX(-100%);
+            transition: transform 0.2s ease;
+            overflow: hidden;
+        }
+
+        body.nav-drawer-open nav {
+            transform: translateX(0);
+        }
+
+        body.admin-nav-fixed nav {
+            transform: translateX(0);
+            padding-top: 18px;
+            padding-bottom: 12px;
+        }
+
+        .sunorus-nav-scroll {
+            display: flex;
+            min-height: 0;
+            flex: 1 1 auto;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+
+        .sunorus-nav-user-info {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            width: 100%;
+            flex: 0 0 auto;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            background: rgba(11, 18, 32, 0.95);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        nav a {
+            color: #e2e8f0;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .sunorus-nav-scroll > a svg {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+            opacity: 0.75;
+        }
+        .sunorus-main-nav > a.is-active svg { opacity: 1; }
+
+        .nav-drawer-toggle {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 100;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: 1px solid rgba(125, 211, 252, 0.34);
+            border-radius: 8px;
+            background: rgba(7, 13, 23, 0.96);
+            color: #e0f2fe;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+            transition: left 0.2s ease;
+        }
+
+        body.nav-drawer-open .nav-drawer-toggle {
+            left: 208px;
+        }
+
+        body.admin-nav-fixed .nav-drawer-toggle {
+            display: none;
+        }
+
+        .monitor-top-brand {
+            position: fixed;
+            top: 0;
+            left: 56px;
+            z-index: 70;
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            color: #f8fbff;
+            text-decoration: none;
+            font-family: Verdana, Geneva, sans-serif;
+            font-size: clamp(18px, 1.35vw, 22px);
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            height: var(--monitor-logo-height);
+        }
+
+        .monitor-top-brand img {
+            width: auto;
+            height: 100%;
+            flex: 0 0 auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
+        }
+
+        .nav-drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: none;
+            background: rgba(0, 0, 0, 0.42);
+        }
+
+        body.nav-drawer-open .nav-drawer-backdrop {
+            display: block;
+        }
+
+        body.admin-nav-fixed .nav-drawer-backdrop {
+            display: none;
+        }
+
+        .nav-drawer-action {
+            width: 100%;
+            padding: 8px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #e2e8f0;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .nav-drawer-action:hover {
+            background: rgba(148, 163, 184, 0.18);
+            color: #fff;
+        }
+
+        nav a:hover {
+            background: rgba(148, 163, 184, 0.18);
+            color: #ffffff;
+        }
+
+        nav a.is-active {
+            background: rgba(59, 130, 246, 0.24);
+            color: #ffffff;
+            box-shadow: inset 3px 0 0 rgba(125, 211, 252, 0.9);
+        }
+
+        .sunorus-main-nav {
+            background:
+                linear-gradient(90deg, rgba(2, 3, 5, 0.97), rgba(7, 13, 23, 0.97)),
+                radial-gradient(circle at 8% 20%, rgba(59, 130, 246, 0.22), transparent 28%);
+            border-bottom-color: rgba(125, 211, 252, 0.16);
+        }
+
+        .sunorus-nav-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 8px;
+            color: #f8fbff;
+            letter-spacing: 0.01em;
+        }
+
+        .sunorus-nav-mark {
+            display: inline-grid;
+            width: 28px;
+            height: 28px;
+            place-items: center;
+            border: 1px solid rgba(125, 211, 252, 0.55);
+            border-radius: 7px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.32), rgba(2, 6, 23, 0.96));
+            color: #e0f2fe;
+            font-size: 10px;
+            font-weight: 900;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.18);
+        }
+
+        .sunorus-nav-logo {
+            width: 30px;
+            height: 36px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.28));
+        }
+
+        .web-version-badge {
+            margin-top: 4px;
+            color: #93c5fd;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+            line-height: 1.15;
+        }
+
+        .theme-toggle {
+            margin-top: 6px;
+            width: 100%;
+            min-height: 28px;
+            border: 1px solid rgba(147, 197, 253, 0.30);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #dbeafe;
+            font: inherit;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(96, 165, 250, 0.16);
+            border-color: rgba(147, 197, 253, 0.56);
+        }
+
+        .container {
+            /* Area de conteudo utilizando 100% da largura util do monitor */
+            width: 100%;
+            max-width: 100%;
+            margin: 76px auto 28px;
+            padding: 0 24px;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        body.admin-nav-fixed .container {
+            width: calc(100% - 260px);
+            max-width: 100%;
+            margin: 76px 0 28px 260px;
+            padding: 0 28px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 1240px) {
+            body.admin-nav-fixed nav {
+                transform: translateX(-100%);
+                padding-top: 64px;
+            }
+            body.admin-nav-fixed.nav-drawer-open nav {
+                transform: translateX(0);
+            }
+            body.admin-nav-fixed .nav-drawer-toggle {
+                display: flex !important;
+            }
+            body.admin-nav-fixed .container {
+                width: 100%;
+                margin: 76px auto 28px;
+                padding: 0 16px;
+            }
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            color: var(--heading-color);
+            letter-spacing: 0.01em;
+        }
+
+        h1 { font-size: 1.65rem; margin-bottom: 14px; }
+        h2 { font-size: 1.2rem; margin-bottom: 12px; }
+        h3 { font-size: 1.03rem; margin-bottom: 10px; }
+
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--line-soft);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 18px;
+            min-width: 0;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+        .grid > * { min-width: 0; }
+        .metric { font-size: 30px; font-weight: 700; margin-top: 8px; color: var(--metric-color); }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--line-soft);
+            border-radius: 12px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid var(--line-soft);
+            text-align: left;
+            vertical-align: top;
+            overflow-wrap: break-word;
+        }
+
+        thead th {
+            background: var(--bg-table-head);
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        tbody tr:nth-child(even) { background: var(--bg-row-alt); }
+        tbody tr:hover { background: var(--bg-row-hover); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .btn {
+            display: inline-block;
+            padding: 9px 13px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn:hover { filter: brightness(0.98); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15); }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: var(--brand-600); color: white; }
+        .btn-primary:hover { background: var(--brand-700); }
+        .btn-danger { background: var(--danger-600); color: white; }
+        .btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); }
+        .btn-warning { background: var(--warning-600); color: white; }
+        .btn-success { background: var(--success-600); color: white; }
+        .btn-small { padding: 6px 10px; font-size: 12px; }
+
+        .status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            border: 1px solid transparent;
+        }
+
+        .status-idle { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+        .status-running { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .status-degraded { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .status-reconnecting { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+        .status-offline { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .status-stopped { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .status-deduplicated { background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
+        .status-error { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .status-pending { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+        .status-sent { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .status-new { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+        .status-acknowledged { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+        .status-closed { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .status-canceled { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+        .status-open { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+        .status-close { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .status-log_only { background: #e2e8f0; color: #334155; border-color: #cbd5e1; }
+        .priority-low { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
+        .priority-medium { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+        .priority-high { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+        .priority-critical { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+        input, textarea, select {
+            width: 100%;
+            min-width: 0;
+            padding: 10px;
+            margin-top: 6px;
+            margin-bottom: 14px;
+            border: 1px solid var(--line-strong);
+            border-radius: 8px;
+            background: var(--field-bg);
+            color: var(--field-text);
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        label { font-weight: 600; color: var(--text-primary); }
+        .error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; margin-bottom: 14px; }
+        .muted { color: var(--text-secondary); font-size: 14px; }
+        .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; margin-right: 6px; margin-bottom: 6px; font-size: 13px; font-weight: bold; }
+        .pill-roi { background: rgba(255,230,0,0.18); color: #8a6d00; border: 1px solid rgba(255,230,0,0.45); }
+        .pill-line-any { background: rgba(255,165,0,0.18); color: #9a5c00; border: 1px solid rgba(255,165,0,0.45); }
+        .pill-line-a { background: rgba(0,200,0,0.16); color: #166534; border: 1px solid rgba(0,200,0,0.35); }
+        .pill-line-b { background: rgba(220,38,38,0.14); color: #991b1b; border: 1px solid rgba(220,38,38,0.35); }
+        .pill-human { background: rgba(29,78,216,0.12); color: #1e3a8a; border: 1px solid rgba(29,78,216,0.30); }
+        .legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 18px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+        .legend-color { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line-strong); }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 14px; }
+        .toolbar .btn { padding: 8px 12px; }
+        .code-box { background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; min-height: 80px; }
+        .editor-stage { width: 100%; max-width: 1100px; border: 1px solid var(--media-border); border-radius: 12px; overflow: hidden; background: var(--code-bg); margin-top: 12px; }
+        .editor-surface { position: relative; width: 100%; line-height: 0; background: #000; }
+        .editor-image { display: block; width: 100%; height: auto; max-height: 72vh; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+        .editor-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
+        .stream-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .stream-box img { width: 100%; border-radius: 10px; border: 1px solid var(--media-border); background: var(--code-bg); }
+        .inline { display: inline-block; }
+        .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .alarm-board { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+        .note-form { min-width: 0; }
+        .event-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .compact { font-size: 13px; }
+        .nowrap { white-space: nowrap; }
+        .motion-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+        .global-clock {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 60;
+            background: var(--bg-nav-end);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 10px;
+            padding: 6px 10px;
+            min-width: 200px;
+            text-align: right;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.3);
+        }
+
+        .global-clock-date {
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.1;
+        }
+
+        .global-clock-time {
+            margin-top: 2px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #f8fafc;
+            line-height: 1.1;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background:
+                radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 30%),
+                rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-overlay.is-visible {
+            display: flex;
+        }
+
+        .loading-card {
+            width: min(440px, 100%);
+            padding: 26px 24px;
+            border-radius: 18px;
+            background: var(--loading-card-bg);
+            border: 1px solid var(--line-strong);
+            box-shadow: var(--shadow-popover);
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            border: 5px solid rgba(148, 163, 184, 0.28);
+            border-top-color: var(--brand-600);
+            animation: loading-spin 0.9s linear infinite;
+        }
+
+        .loading-title {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+        }
+
+        .loading-message {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .loading-progress {
+            margin-top: 18px;
+            text-align: left;
+        }
+
+        .loading-progress[hidden] {
+            display: none;
+        }
+
+        .loading-progress-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .loading-progress-head strong {
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .loading-progress-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.24);
+        }
+
+        .loading-progress-bar {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--brand-600), var(--green-ok));
+            box-shadow: 0 0 16px rgba(37, 99, 235, 0.28);
+            transition: width 0.45s ease;
+        }
+
+        body.loading-active {
+            overflow: hidden;
+        }
+
+        .global-media-backdrop[hidden] {
+            display: none !important;
+        }
+
+        .global-media-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10001;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            background: rgba(0, 0, 0, 0.62);
+            backdrop-filter: blur(5px);
+        }
+
+        .global-media-dialog {
+            width: min(980px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            background: #07090e;
+            color: #f8fafc;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+        }
+
+        .global-media-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+        }
+
+        .global-media-kicker {
+            color: #67e8f9;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .global-media-title {
+            margin: 2px 0 0;
+            color: #f8fafc;
+            font-size: 18px;
+            line-height: 1.25;
+        }
+
+        .global-media-close {
+            width: 34px;
+            height: 34px;
+            border: 1px solid rgba(226, 232, 240, 0.24);
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.92);
+            color: #fff;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .global-media-close:hover,
+        .global-media-close:focus-visible {
+            background: #2563eb;
+            outline: none;
+        }
+
+        .global-media-body {
+            min-height: 260px;
+            max-height: calc(100vh - 178px);
+            display: grid;
+            place-items: center;
+            background: #000;
+            overflow: auto;
+        }
+
+        .global-media-body img,
+        .global-media-body video {
+            display: block;
+            max-width: 100%;
+            max-height: calc(100vh - 190px);
+            object-fit: contain;
+        }
+
+        .global-media-empty {
+            padding: 28px;
+            color: #cbd5e1;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .global-media-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 10px 12px 12px;
+        }
+
+        @keyframes loading-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 900px) {
+            .alarm-board { grid-template-columns: 1fr; }
+            nav { padding: 64px 12px 12px; }
+            body.admin-nav-fixed nav {
+                transform: translateX(-100%);
+                padding: 64px 12px 12px;
+            }
+            body.admin-nav-fixed.nav-drawer-open nav {
+                transform: translateX(0);
+            }
+            body.admin-nav-fixed .nav-drawer-toggle {
+                display: block;
+            }
+            body.admin-nav-fixed.nav-drawer-open .nav-drawer-backdrop {
+                display: block;
+            }
+            .container { padding: 0 12px; }
+            body.admin-nav-fixed .container {
+                width: 100%;
+                max-width: 100%;
+                margin: 24px auto 28px;
+                padding: 0 12px;
+            }
+            h1 { font-size: 1.4rem; }
+            .global-clock {
+                display: none;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .container {
+                margin-top: 16px;
+                padding: 0 10px;
+            }
+            .card {
+                padding: 14px;
+                border-radius: 10px;
+            }
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+            .btn-small {
+                width: auto;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+
+        /* Estado vazio/carregando reutilizavel: icone + titulo + descricao,
+           centralizado e discreto, no lugar de texto solto. */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .empty-state svg {
+            width: 34px;
+            height: 34px;
+            opacity: 0.45;
+            margin-bottom: 2px;
+        }
+        .empty-state .empty-title {
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 14px;
+        }
+        .empty-state .empty-desc {
+            font-size: 12.5px;
+            max-width: 440px;
+            line-height: 1.5;
+        }
+        .empty-state.is-loading svg {
+            animation: empty-spin 1.1s linear infinite;
+        }
+        @keyframes empty-spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="{% if not request.url.path.startswith('/monitor') %}admin-nav-fixed{% endif %} {% block body_class %}{% endblock %}">
+    {% if request.state.dev_preview_mode %}
+    <div style="background: linear-gradient(90deg, #b45309, #d97706); color: #fff; padding: 10px 16px; font-weight: 800; font-size: 13px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 12px; position: sticky; top: 0; z-index: 99999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <span>⚠️ MODO SIMULAÇÃO DEV ATIVO: Visualizando a interface como <u>{{ request.state.effective_role.upper() }}</u></span>
+        <form method="post" action="/dev/preview-role" style="margin:0; display:inline;">
+            <button type="submit" name="target_role" value="" class="btn btn-small" style="background:#fff; color:#b45309; font-weight:800; padding:4px 10px; border-radius:6px; border:0; cursor:pointer;">Restaurar Visão DEV</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <button id="navDrawerToggle" class="nav-drawer-toggle" type="button" aria-label="Abrir menu" aria-controls="mainNavigation" aria-expanded="false">&#9776;</button>
+    {% if request.url.path == '/monitor' %}
+    <a class="monitor-top-brand" href="/monitor" title="SunOrus VMS + Analiticos Inteligentes">
+        <img src="/static/branding/sunorus-logo.png" alt="SunOrus">
+        <span>SunOrus</span>
+    </a>
+    {% endif %}
+    <nav class="sunorus-main-nav" id="mainNavigation">
+        <div class="sunorus-nav-scroll">
+        <!-- Navegacao principal do sistema: dashboard, monitoramento, cameras e eventos. -->
+        <a class="sunorus-nav-brand" href="/monitor" title="SunOrus VMS + Analiticos Inteligentes">
+            {% if request.url.path != '/monitor' %}
+            <img class="sunorus-nav-logo" src="/static/branding/sunorus-logo.png" alt="SunOrus">
+            {% endif %}
+            <span>SunOrus</span>
+        </a>
+
+        {% set cur_role = request.state.effective_role if request.state.effective_role is defined else (request.state.user.role if request.state.user is defined and request.state.user else "operator") %}
+
+        {% if request.state.user is defined and request.state.user and request.state.user.role == 'dev' %}
+        <a class="{% if request.url.path == '/dev/permissions' %}is-active{% endif %}" href="/dev/permissions" style="background: rgba(59, 130, 246, 0.15); border: 1px dashed rgba(96, 165, 250, 0.4); margin-bottom: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            <span style="color:#60a5fa; font-weight:800;">Permissões (DEV)</span>
+        </a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'dashboard') %}
+        <a class="{% if request.url.path == '/' %}is-active{% endif %}" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'health') %}
+        <a class="{% if request.url.path in ['/saude', '/health'] %}is-active{% endif %}" href="/saude"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Saude</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'alerts') %}
+        <a class="{% if request.url.path in ['/alertas', '/alerts'] %}is-active{% endif %}" href="/alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Alertas</span><span id="navAlertBadge" style="margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;">0</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'notifications') %}
+        <a class="{% if request.url.path in ['/notificacoes', '/notifications'] %}is-active{% endif %}" href="/notificacoes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg><span>Notificações</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'history') %}
+        <a class="{% if request.url.path in ['/recursos/historico', '/resources/history'] %}is-active{% endif %}" href="/recursos/historico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg><span>Historico</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'audit') %}
+        <a class="{% if request.url.path in ['/audit', '/auditoria'] %}is-active{% endif %}" href="/audit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Auditoria</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'availability') %}
+        <a class="{% if request.url.path in ['/relatorios/disponibilidade', '/reports/availability'] %}is-active{% endif %}" href="/relatorios/disponibilidade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="4" width="3" height="13"/></svg><span>Disponibilidade</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'cameras') %}
+        <a class="{% if request.url.path.startswith('/cameras') and request.url.path != '/cameras/new' %}is-active{% endif %}" href="/cameras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8z"/></svg><span>Câmeras</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'nvr') %}
+        <a class="{% if request.url.path.startswith('/video-sources') %}is-active{% endif %}" href="/video-sources/nvr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 8h.01"/><path d="M7 17h.01"/></svg><span>NVR</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'monitor') %}
+        <a class="{% if request.url.path.startswith('/monitor') %}is-active{% endif %}" href="/monitor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg><span>Monitoramento</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'mosaics') %}
+        <a class="{% if request.url.path == '/mosaicos' %}is-active{% endif %}" href="/mosaicos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span>Mosaicos</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'new_camera') %}
+        <a class="{% if request.url.path == '/cameras/new' %}is-active{% endif %}" href="/cameras/new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg><span>Nova câmera</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'events') %}
+        <a class="{% if request.url.path.startswith('/events') and request.url.path != '/events/review' %}is-active{% endif %}" href="/events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Eventos</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'event_review') %}
+        <a class="{% if request.url.path == '/events/review' %}is-active{% endif %}" href="/events/review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg><span>Validação</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'lockdown') %}
+        <a class="{% if request.url.path.startswith('/lockdown-deliveries') %}is-active{% endif %}" href="/lockdown-deliveries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>Envios Lockdown</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'storage') %}
+        <a class="{% if request.url.path in ['/armazenamento', '/storage'] %}is-active{% endif %}" href="/armazenamento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg><span>Armazenamento</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'diagnostics') %}
+        <a class="{% if request.url.path.startswith('/diagnostics') %}is-active{% endif %}" href="/diagnostics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M3.3 19a10 10 0 1 1 17.4 0"/></svg><span>Diagnóstico</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'sdk_test') %}
+        <a class="{% if request.url.path.startswith('/admin/teste-sdk') %}is-active{% endif %}" href="/admin/teste-sdk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3"/><path d="M16 3v3"/><rect x="5" y="6" width="14" height="15" rx="3"/><path d="M9 11h6"/><path d="M9 15h6"/></svg><span>Teste SDK</span></a>
+        {% endif %}
+
+        {% if is_nav_visible(cur_role, 'users') %}
+        <a class="{% if request.url.path.startswith('/usuarios') %}is-active{% endif %}" href="/usuarios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Usuários</span></a>
+        {% endif %}
+
+        {% if request.url.path == '/monitor' %}
+        <button type="button" class="nav-drawer-action" id="keyboardHelpBtn">Atalhos</button>
+        {% endif %}
+        </div>
+        
+        <!-- Divisor e Usuario Logado -->
+        {% if request.state.user is defined and request.state.user %}
+        <div class="sunorus-nav-user-info">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);">
+                    {{ (request.state.user.name or request.state.user.username)[:1].upper() }}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size:14px; font-weight:700; color:#f8fafc; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; line-height:1.2;" title="{{ request.state.user.name or request.state.user.username }}">
+                        {{ request.state.user.name or request.state.user.username }}
+                    </div>
+                    <div style="font-size:10px; font-weight:800; text-transform:uppercase; color:#60a5fa; letter-spacing: 0.5px; margin-top: 2px;">
+                        {{ request.state.user.role }}
+                    </div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px;">
+                <a href="/perfil" class="btn btn-secondary btn-small" style="text-align:center; display:block; padding:8px 4px; font-weight:700; font-size:12px; border-radius:6px; color:#f8fafc; text-decoration:none; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); transition: all 0.2s ease;">
+                    Perfil
+                </a>
+                <a href="/logout" class="btn btn-danger btn-small" style="text-align:center; display:block; padding:8px 4px; font-weight:700; font-size:12px; border-radius:6px; color:#fff; text-decoration:none; transition: all 0.2s ease;">
+                    Sair
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </nav>
+    <div id="navDrawerBackdrop" class="nav-drawer-backdrop" aria-hidden="true"></div>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="globalClock" class="global-clock" aria-live="polite" aria-label="Relógio do sistema">
+        <div id="globalClockDate" class="global-clock-date">--/--/----</div>
+        <div id="globalClockTime" class="global-clock-time">--:--:--</div>
+        <div class="web-version-badge" title="API operador v{{ analitico_build.operator_api_version }} | Cliente recomendado v{{ analitico_build.recommended_operator_client_version }}">
+            {{ analitico_web_version }}
+        </div>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">Tema claro</button>
+    </div>
+
+    <div id="globalAlarmPopup" style="display:none; position:fixed; right:18px; bottom:18px; z-index:9999; max-width:360px; background:#111827; color:#fff; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,0.35); overflow:hidden; border:1px solid rgba(255,255,255,0.08);">
+        <div id="globalAlarmPopupHeader" style="padding:12px 14px; font-weight:bold; background:#7f1d1d;">Novo alarme</div>
+        <div style="padding:14px;">
+            <div id="globalAlarmPopupTitle" style="font-size:16px; font-weight:bold; margin-bottom:6px;"></div>
+            <div id="globalAlarmPopupMeta" style="font-size:13px; color:#cbd5e1; margin-bottom:10px;"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a id="globalAlarmPopupLink" class="btn btn-warning btn-small" href="#">Abrir câmera</a>
+                <button id="globalAlarmPopupClose" class="btn btn-secondary btn-small" type="button">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="globalLoadingOverlay" class="loading-overlay" aria-live="polite" aria-hidden="true">
+        <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <h2 id="globalLoadingTitle" class="loading-title">Processando...</h2>
+            <p id="globalLoadingMessage" class="loading-message">Aguarde alguns segundos.</p>
+            <div id="globalLoadingProgress" class="loading-progress" hidden>
+                <div class="loading-progress-head">
+                    <span id="globalLoadingProgressText">Preparando...</span>
+                    <strong id="globalLoadingProgressPercent">0%</strong>
+                </div>
+                <div class="loading-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="globalLoadingProgressBar" class="loading-progress-bar"></div>
+                </div>
+            </div>
+            <div id="globalLoadingActions" class="loading-actions" style="display: flex; gap: 8px; justify-content: center; margin-top: 15px;" hidden></div>
+        </div>
+    </div>
+
+    <div id="globalMediaModal" class="global-media-backdrop" hidden>
+        <div class="global-media-dialog" role="dialog" aria-modal="true" aria-labelledby="globalMediaTitle">
+            <div class="global-media-head">
+                <div>
+                    <div class="global-media-kicker" id="globalMediaKind">Evidencia</div>
+                    <h2 class="global-media-title" id="globalMediaTitle">-</h2>
+                </div>
+                <button class="global-media-close" type="button" id="globalMediaClose" aria-label="Fechar">x</button>
+            </div>
+            <div class="global-media-body" id="globalMediaBody"></div>
+            <div class="global-media-actions">
+                <a class="btn btn-secondary btn-small" id="globalMediaOpen" href="#" target="_blank" rel="noopener">Abrir em nova aba</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const toggle = document.getElementById("navDrawerToggle");
+            const backdrop = document.getElementById("navDrawerBackdrop");
+            const nav = document.getElementById("mainNavigation");
+            if (!toggle || !nav) return;
+
+            function setDrawerOpen(open) {
+                document.body.classList.toggle("nav-drawer-open", open);
+                toggle.setAttribute("aria-expanded", open ? "true" : "false");
+                toggle.setAttribute("aria-label", open ? "Fechar menu" : "Abrir menu");
+                toggle.innerHTML = open ? "&times;" : "&#9776;";
+            }
+
+            toggle.addEventListener("click", function () {
+                setDrawerOpen(!document.body.classList.contains("nav-drawer-open"));
+            });
+            if (backdrop) backdrop.addEventListener("click", function () { setDrawerOpen(false); });
+            nav.addEventListener("click", function (event) {
+                if (event.target.closest("a, .nav-drawer-action")) setDrawerOpen(false);
+            });
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && document.body.classList.contains("nav-drawer-open")) {
+                    setDrawerOpen(false);
+                }
+            });
+        })();
+
+        function currentFullscreenElement() {
+            return document.fullscreenElement
+                || document.webkitFullscreenElement
+                || document.mozFullScreenElement
+                || document.msFullscreenElement
+                || null;
+        }
+
+        function ensureAlarmPopupHost() {
+            const popup = document.getElementById("globalAlarmPopup");
+            if (!popup) return null;
+            const fullscreenEl = currentFullscreenElement();
+            const targetHost = fullscreenEl || document.body;
+            if (popup.parentElement !== targetHost) {
+                targetHost.appendChild(popup);
+            }
+            return popup;
+        }
+
+        function showAlarmPopup(alarm) {
+            if (!alarm) return;
+            const popup = ensureAlarmPopupHost();
+            const title = document.getElementById("globalAlarmPopupTitle");
+            const meta = document.getElementById("globalAlarmPopupMeta");
+            const link = document.getElementById("globalAlarmPopupLink");
+            const header = document.getElementById("globalAlarmPopupHeader");
+            if (!popup || !title || !meta || !link || !header) return;
+            const eventLabel = alarm.event_type_label || alarm.event_type || 'Evento';
+            const severityLabel = alarm.severity_label || alarm.severity || 'medio';
+            const status = String(alarm.status || '').toLowerCase();
+            const statusLabel = alarm.status_label || alarm.status || '';
+            const isNotice = status === 'low_priority' || alarm.is_alarm_active === false;
+            title.textContent = `${alarm.camera_name} · ${eventLabel}`;
+            meta.textContent = `${severityLabel.toUpperCase()}${statusLabel ? ' · ' + statusLabel : ''} · ${alarm.created_at_label}`;
+            link.href = alarm.camera_url || "#";
+            header.textContent = isNotice ? "Evento detectado" : "Novo alarme";
+            header.style.background = alarm.severity === "critical" ? "#7f1d1d" : (alarm.severity === "high" ? "#9a3412" : "#1d4ed8");
+            popup.style.display = "block";
+        }
+
+        function hideAlarmPopup() {
+            const popup = document.getElementById("globalAlarmPopup");
+            if (popup) popup.style.display = "none";
+        }
+
+        function openGlobalMediaPopup(options) {
+            const modal = document.getElementById("globalMediaModal");
+            const body = document.getElementById("globalMediaBody");
+            const titleEl = document.getElementById("globalMediaTitle");
+            const kindEl = document.getElementById("globalMediaKind");
+            const openEl = document.getElementById("globalMediaOpen");
+            if (!modal || !body || !options || !options.url) return;
+
+            const kind = options.kind === "video" || options.kind === "clip" ? "video" : "image";
+            const title = options.title || (kind === "video" ? "Clipe do evento" : "Snapshot do evento");
+            if (titleEl) titleEl.textContent = title;
+            if (kindEl) kindEl.textContent = kind === "video" ? "Clipe do evento" : "Snapshot do evento";
+            if (openEl) openEl.href = options.url;
+
+            body.innerHTML = "";
+            if (kind === "video") {
+                const video = document.createElement("video");
+                video.controls = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.src = options.url;
+                body.appendChild(video);
+            } else {
+                const image = document.createElement("img");
+                image.alt = title;
+                image.src = options.url;
+                image.onerror = () => {
+                    body.innerHTML = '<div class="global-media-empty">Nao foi possivel carregar a imagem.</div>';
+                };
+                body.appendChild(image);
+            }
+
+            modal.hidden = false;
+            document.body.style.overflow = "hidden";
+            if (window.logClientAudit) {
+                window.logClientAudit("event_view", "Visualizou mídia do evento: " + title);
+            }
+        }
+
+        function closeGlobalMediaPopup() {
+            const modal = document.getElementById("globalMediaModal");
+            const body = document.getElementById("globalMediaBody");
+            if (!modal) return;
+            modal.hidden = true;
+            if (body) body.innerHTML = "";
+            document.body.style.overflow = "";
+        }
+
+        function inferGlobalMediaKind(element, url) {
+            const declared = element && element.getAttribute("data-media-kind");
+            if (declared === "video" || declared === "clip") return "video";
+            if (declared === "image" || declared === "snapshot") return "image";
+            if (element instanceof HTMLVideoElement) return "video";
+            return /\/clip\/video(?:[?#]|$)|\.(mp4|webm|mov|m4v)(?:[?#]|$)/i.test(url || "") ? "video" : "image";
+        }
+
+        function globalMediaTriggerFromTarget(target) {
+            const element = target instanceof Element
+                ? target
+                : (target && target.parentElement instanceof Element ? target.parentElement : null);
+            return element ? element.closest("[data-media-popup]") : null;
+        }
+
+        function updateGlobalLoadingProgress(percent, text, visible = true) {
+            const progress = document.getElementById("globalLoadingProgress");
+            const progressBar = document.getElementById("globalLoadingProgressBar");
+            const progressPercent = document.getElementById("globalLoadingProgressPercent");
+            const progressText = document.getElementById("globalLoadingProgressText");
+            const progressTrack = progress && progress.querySelector('[role="progressbar"]');
+            if (!progress || !progressBar || !progressPercent || !progressText) return;
+
+            const clamped = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+            progress.hidden = !visible;
+            progressBar.style.width = clamped + "%";
+            progressPercent.textContent = clamped + "%";
+            if (text) progressText.textContent = text;
+            if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(clamped));
+        }
+
+        window.updateGlobalLoadingProgress = updateGlobalLoadingProgress;
+
+        function showGlobalLoading(title, message, showProgress = false) {
+            const overlay = document.getElementById("globalLoadingOverlay");
+            const titleEl = document.getElementById("globalLoadingTitle");
+            const messageEl = document.getElementById("globalLoadingMessage");
+            if (!overlay || !titleEl || !messageEl) return;
+
+            titleEl.textContent = title || "Processando...";
+            messageEl.textContent = message || "Aguarde alguns segundos.";
+            if (showProgress) {
+                const progress = document.getElementById("globalLoadingProgress");
+                if (progress) progress.hidden = false;
+            } else {
+                updateGlobalLoadingProgress(0, "Preparando...", false);
+            }
+            overlay.classList.add("is-visible");
+            overlay.setAttribute("aria-hidden", "false");
+            document.body.classList.add("loading-active");
+        }
+
+        function bindLoadingForms() {
+            const forms = document.querySelectorAll("form[data-loading-title]");
+
+            forms.forEach((form) => {
+                if (form.dataset.loadingBound === "true") return;
+                form.dataset.loadingBound = "true";
+
+                form.addEventListener("submit", (event) => {
+                    const checkboxName = form.dataset.loadingCheckbox;
+                    if (checkboxName) {
+                        const checkbox = form.querySelector(`[name="${checkboxName}"]`);
+                        if (!checkbox || !checkbox.checked) {
+                            return;
+                        }
+                    }
+
+                    const submitButtons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+                    submitButtons.forEach((button) => {
+                        button.disabled = true;
+                    });
+
+                    showGlobalLoading(
+                        form.dataset.loadingTitle,
+                        form.dataset.loadingMessage,
+                        form.dataset.loadingProgress === "true",
+                    );
+                });
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const closeBtn = document.getElementById("globalAlarmPopupClose");
+            if (closeBtn) closeBtn.addEventListener("click", hideAlarmPopup);
+            const themeToggle = document.getElementById("themeToggle");
+            function applyThemeLabel() {
+                const currentTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+                if (!themeToggle) return;
+                themeToggle.textContent = currentTheme === "dark" ? "Tema escuro" : "Tema claro";
+                themeToggle.setAttribute("aria-pressed", currentTheme === "dark" ? "true" : "false");
+                themeToggle.setAttribute("title", currentTheme === "dark" ? "Alternar para tema claro" : "Alternar para tema escuro");
+            }
+            if (themeToggle) {
+                applyThemeLabel();
+                themeToggle.addEventListener("click", () => {
+                    const currentTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+                    const nextTheme = currentTheme === "dark" ? "light" : "dark";
+                    document.documentElement.setAttribute("data-theme", nextTheme);
+                    try {
+                        localStorage.setItem("sunorus-theme", nextTheme);
+                    } catch (error) {
+                        /* Ignore private browsing storage failures. */
+                    }
+                    applyThemeLabel();
+                });
+            }
+            const mediaCloseBtn = document.getElementById("globalMediaClose");
+            const mediaModal = document.getElementById("globalMediaModal");
+            if (mediaCloseBtn) mediaCloseBtn.addEventListener("click", closeGlobalMediaPopup);
+            if (mediaModal) {
+                mediaModal.addEventListener("click", (event) => {
+                    if (event.target === mediaModal) closeGlobalMediaPopup();
+                });
+            }
+            ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((eventName) => {
+                document.addEventListener(eventName, () => {
+                    const popup = document.getElementById("globalAlarmPopup");
+                    if (popup && popup.style.display !== "none") {
+                        ensureAlarmPopupHost();
+                    }
+                });
+            });
+            bindLoadingForms();
+        });
+
+        document.addEventListener("click", (event) => {
+            const trigger = globalMediaTriggerFromTarget(event.target);
+            if (!trigger) return;
+
+            const url = trigger.getAttribute("data-full-src")
+                || trigger.getAttribute("data-media-url")
+                || trigger.getAttribute("href")
+                || trigger.getAttribute("src");
+            if (!url) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            openGlobalMediaPopup({
+                url,
+                kind: inferGlobalMediaKind(trigger, url),
+                title: trigger.getAttribute("data-title")
+                    || trigger.getAttribute("title")
+                    || trigger.getAttribute("alt")
+                    || ""
+            });
+        }, true);
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                const modal = document.getElementById("globalMediaModal");
+                if (modal && !modal.hidden) {
+                    event.preventDefault();
+                    closeGlobalMediaPopup();
+                    return;
+                }
+            }
+
+            if (event.key !== "Enter" && event.key !== " ") return;
+            const trigger = event.target instanceof Element && event.target.matches("[data-media-popup]")
+                ? event.target
+                : null;
+            if (!trigger) return;
+
+            const url = trigger.getAttribute("data-full-src")
+                || trigger.getAttribute("data-media-url")
+                || trigger.getAttribute("href")
+                || trigger.getAttribute("src");
+            if (!url) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            openGlobalMediaPopup({
+                url,
+                kind: inferGlobalMediaKind(trigger, url),
+                title: trigger.getAttribute("data-title")
+                    || trigger.getAttribute("title")
+                    || trigger.getAttribute("alt")
+                    || ""
+            });
+        }, true);
+
+        function playAlarmTone() {
+            if (localStorage.getItem("alarmAudioMuted") === "true") return;
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+                const now = ctx.currentTime;
+                const gains = [0.0001, 0.08, 0.0001];
+                const freqs = [880, 660];
+                freqs.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.22);
+                    gain.gain.setValueAtTime(gains[0], now + idx * 0.22);
+                    gain.gain.exponentialRampToValueAtTime(gains[1], now + idx * 0.22 + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(gains[2], now + idx * 0.22 + 0.18);
+                    osc.connect(gain).connect(ctx.destination);
+                    osc.start(now + idx * 0.22);
+                    osc.stop(now + idx * 0.22 + 0.2);
+                });
+            } catch (_) {}
+        }
+
+        (function setupGlobalClock() {
+            const dateEl = document.getElementById("globalClockDate");
+            const timeEl = document.getElementById("globalClockTime");
+            if (!dateEl || !timeEl) return;
+
+            function updateClock() {
+                const now = new Date();
+                dateEl.textContent = now.toLocaleDateString("pt-BR");
+                timeEl.textContent = now.toLocaleTimeString("pt-BR", { hour12: false });
+            }
+
+            updateClock();
+            setInterval(updateClock, 1000);
+        })();
+    </script>
+    <script>
+        // Badge de alertas no menu: atualiza a contagem em qualquer pagina.
+        (function () {
+            const badge = document.getElementById("navAlertBadge");
+            if (!badge) return;
+            async function poll() {
+                try {
+                    const r = await fetch("/dashboard/alerts", { cache: "no-store" });
+                    if (!r.ok) return;
+                    const d = await r.json();
+                    const counts = d.counts || {};
+                    const total = counts.total || 0;
+                    if (total > 0) {
+                        badge.textContent = String(total);
+                        badge.style.background = (counts.critical || 0) > 0 ? "#dc2626" : "#d97706";
+                        badge.style.display = "inline-flex";
+                    } else {
+                        badge.style.display = "none";
+                    }
+                } catch (e) { /* silencioso */ }
+            }
+            poll();
+            setInterval(poll, 40000);
+        })();
+    </script>
+    <script>
+        // Monitor de Inatividade para Auto-Logout (30 minutos)
+        (function() {
+            // Apenas rodar se o usuario estiver logado
+            const userInfo = document.querySelector(".sunorus-nav-user-info");
+            if (!userInfo) return;
+
+            const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutos em ms
+            let idleTimer;
+
+            function resetIdleTimer() {
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(logoutUser, INACTIVITY_LIMIT);
+            }
+
+            function logoutUser() {
+                console.log("Inatividade detectada. Redirecionando para logout...");
+                window.location.href = "/logout?reason=inactivity";
+            }
+
+            // Eventos a monitorar
+            const activityEvents = ['mousemove', 'keydown', 'mousedown', 'click', 'scroll', 'touchstart'];
+            activityEvents.forEach(evt => {
+                document.addEventListener(evt, resetIdleTimer, { passive: true });
+            });
+
+            // Inicializa timer
+            resetIdleTimer();
+        })();
+    </script>
+</body>
+</html>

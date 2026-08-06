@@ -1,0 +1,732 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 20px 22px;
+        background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+        margin-bottom: 18px;
+    }
+
+    .hero h1,
+    .hero p { color: inherit; }
+    .hero h1 { margin-bottom: 8px; font-size: 1.9rem; }
+    .hero-copy { max-width: 760px; }
+    .hero-meta { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .hero-chip {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:7px 12px; border-radius:999px;
+        background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.12);
+        font-size:13px; font-weight:600;
+    }
+    .hero-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+    .subtle-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:18px; }
+    .kpi { display:flex; flex-direction:column; gap:8px; }
+    .kpi .metric { font-size:32px; line-height:1; }
+    .kpi .label { color: var(--text-secondary); font-size:14px; font-weight:600; }
+    .dash-grid { display:grid; grid-template-columns: 1.7fr 1fr; gap:16px; margin-bottom:18px; }
+    .chart-stack { display:grid; grid-template-rows: auto auto; gap:16px; }
+    .chart-panel {
+        border-radius: 14px;
+        border: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        padding: 16px;
+    }
+    .chart-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .chart-subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+    .chart-canvas {
+        width: 100%;
+        height: 220px;
+        display: block;
+        border-radius: 12px;
+        background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 40%), #0f172a;
+    }
+    .chart-canvas.small { height: 180px; }
+    .chart-legend { display:flex; flex-wrap:wrap; gap:10px 14px; margin-top:12px; color:var(--text-secondary); font-size:13px; }
+    .legend-item { display:inline-flex; align-items:center; gap:8px; }
+    .legend-dot { width:10px; height:10px; border-radius:999px; }
+    .metrics-table-wrap { overflow-x:auto; }
+    .table-tight th, .table-tight td { white-space: nowrap; }
+    .ai-health-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-bottom:18px; }
+    .ai-card { border-left:4px solid #64748b; }
+    .ai-card.status-ok { border-left-color:#22c55e; }
+    .ai-card.status-degraded { border-left-color:#f59e0b; }
+    .ai-card.status-critical { border-left-color:#ef4444; }
+    .ai-card.status-idle { border-left-color:#64748b; }
+    .ai-card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:10px; }
+    .ai-card-title { font-weight:800; font-size:16px; }
+    .ai-card-role { color:var(--text-secondary); font-size:12px; margin-top:2px; }
+    .ai-metrics { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin:12px 0; }
+    .ai-metric { background:#f8fafc; border:1px solid var(--line-soft); border-radius:8px; padding:8px; }
+    .ai-metric strong { display:block; font-size:18px; line-height:1; }
+    .ai-metric span { display:block; color:var(--text-secondary); font-size:11px; margin-top:4px; }
+    .ai-issue { background:#fff7ed; border:1px solid #fed7aa; color:#7c2d12; border-radius:8px; padding:10px; font-size:13px; }
+    .ai-reasons { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .ai-reason-chip { background:#eef2ff; color:#1e3a8a; border:1px solid #c7d2fe; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:700; }
+    .note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    @media (max-width: 1080px) {
+        .dash-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+        .hero { padding: 18px; }
+        .hero h1 { font-size: 1.55rem; }
+        .chart-canvas { height: 190px; }
+    }
+</style>
+
+<div class="hero">
+    <div class="hero-copy">
+        <h1>Dashboard de recursos e operacao</h1>
+        <p class="muted" style="color: rgba(255,255,255,0.88);">
+            Acompanhe CPU, RAM, GPU e a saude dos workers em tempo real. A pagina consulta o backend sem recarregar o monitor.
+        </p>
+        <div class="hero-meta">
+            <span class="hero-chip">Cameras: <strong id="heroCameraTotal">{{ total_cameras }}</strong></span>
+            <span class="hero-chip">Rodando: <strong id="heroRunningCameras">{{ running_cameras }}</strong></span>
+            <span class="hero-chip">Alarmes abertos: <strong id="heroOpenEvents">{{ open_events_count }}</strong></span>
+            <span class="hero-chip">Ultima coleta: <strong id="heroUpdatedAt">{{ metrics_snapshot.last_updated_at if metrics_snapshot else '-' }}</strong></span>
+        </div>
+    </div>
+    <div class="hero-actions">
+        <a class="btn btn-primary" href="/monitor">Abrir monitoramento</a>
+        <a class="btn btn-secondary" href="/events?only_open=1">Central de eventos</a>
+    </div>
+</div>
+
+<div class="subtle-grid">
+    <div class="card kpi"><div class="label">CPU dos workers</div><div class="metric" id="kpiWorkerCpu">{{ metrics_snapshot.worker_cpu_total_percent if metrics_snapshot else 0 }}</div><div class="compact muted">Soma dos processos de camera no container</div></div>
+    <div class="card kpi"><div class="label">RAM dos workers</div><div class="metric" id="kpiWorkerRam">{{ metrics_snapshot.worker_rss_total_mb if metrics_snapshot else 0 }}</div><div class="compact muted">RSS total estimado em MB</div></div>
+    <div class="card kpi"><div class="label">CPU do host</div><div class="metric" id="kpiHostCpu">{{ metrics_snapshot.host_cpu_percent if metrics_snapshot and metrics_snapshot.host_cpu_percent is not none else '-' }}</div><div class="compact muted">Visao geral do sistema operacional</div></div>
+    <div class="card kpi"><div class="label">RAM do host</div><div class="metric" id="kpiHostRam">{{ metrics_snapshot.host_ram_percent if metrics_snapshot and metrics_snapshot.host_ram_percent is not none else '-' }}</div><div class="compact muted">Uso total de memoria do sistema</div></div>
+    <div class="card kpi"><div class="label">GPU</div><div class="metric" id="kpiGpu">{{ metrics_snapshot.gpu.utilization_percent if metrics_snapshot and metrics_snapshot.gpu and metrics_snapshot.gpu.utilization_percent is not none else 'N/A' }}</div><div class="compact muted">Utilizacao atual do acelerador</div></div>
+    <div class="card kpi"><div class="label">FPS total</div><div class="metric" id="kpiFps">{{ metrics_snapshot.worker_fps_total if metrics_snapshot else 0 }}</div><div class="compact muted">Soma dos FPS de todas as cameras</div></div>
+</div>
+
+<div class="card" id="operational-health">
+    <div class="chart-head">
+        <div>
+            <h2 style="margin-bottom:4px;">Saude operacional IA2/IA3</h2>
+            <div class="chart-subtitle">Mostra se as revalidadoras estao prontas, se falharam recentemente e como os eventos foram decididos.</div>
+        </div>
+        <a class="btn btn-secondary btn-small" href="/health/operational" target="_blank">JSON tecnico</a>
+    </div>
+    <div class="ai-health-grid" id="aiHealthGrid"></div>
+    <div class="note" id="aiDecisionSummary">Aguardando diagnostico das revalidadoras.</div>
+</div>
+
+<div class="dash-grid">
+    <div class="chart-stack">
+        <div class="card chart-panel">
+            <div class="chart-head">
+                <div>
+                    <h2 style="margin-bottom:4px;">Tendencia de recursos</h2>
+                    <div class="chart-subtitle">CPU dos workers, RAM dos workers e GPU em uma linha do tempo.</div>
+                </div>
+                <div class="hero-chip" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;">
+                    <span id="trendWindowLabel">Ultimos 30 pontos</span>
+                </div>
+            </div>
+            <canvas id="resourceChart" class="chart-canvas"></canvas>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="legend-dot" style="background:#38bdf8;"></span>CPU workers</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span>RAM workers</span>
+                <span class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>GPU util.</span>
+            </div>
+        </div>
+
+        <div class="card chart-panel">
+            <div class="chart-head">
+                <div>
+                    <h2 style="margin-bottom:4px;">Throughput dos workers</h2>
+                    <div class="chart-subtitle">FPS total entregue pelos processos de camera.</div>
+                </div>
+            </div>
+            <canvas id="fpsChart" class="chart-canvas small"></canvas>
+        </div>
+    </div>
+
+    <div class="card chart-panel">
+        <div class="chart-head">
+            <div>
+                <h2 style="margin-bottom:4px;">GPU e ambiente</h2>
+                <div class="chart-subtitle">Mais detalhes do runtime dentro do Docker.</div>
+            </div>
+        </div>
+        <div id="gpuDetails">
+            {% if metrics_snapshot and metrics_snapshot.gpu and metrics_snapshot.gpu.available %}
+            <div class="grid" style="grid-template-columns:1fr; gap:12px;">
+                <div class="note">
+                    <strong>{{ metrics_snapshot.gpu.name or 'GPU detectada' }}</strong><br>
+                    {% if metrics_snapshot.gpu.utilization_percent is not none %}Utilizacao: {{ metrics_snapshot.gpu.utilization_percent }}%<br>{% endif %}
+                    {% if metrics_snapshot.gpu.memory_used_mb is not none %}Memoria usada: {{ metrics_snapshot.gpu.memory_used_mb }} MB{% endif %}
+                    {% if metrics_snapshot.gpu.memory_total_mb is not none %}<br>Total: {{ metrics_snapshot.gpu.memory_total_mb }} MB{% endif %}
+                </div>
+                <div class="note">
+                    <strong>Web process</strong><br>
+                    CPU: <span id="webProcessCpu">{{ metrics_snapshot.web_process_cpu_percent if metrics_snapshot.web_process_cpu_percent is not none else '-' }}</span>%<br>
+                    RSS: <span id="webProcessRss">{{ metrics_snapshot.web_process_rss_mb if metrics_snapshot.web_process_rss_mb is not none else '-' }}</span> MB
+                </div>
+            </div>
+            {% else %}
+            <div class="note">
+                Nenhuma GPU ativa foi detectada no container. Se voce esperava aceleracao, verifique se o Docker esta com o runtime NVIDIA habilitado e se o modelo/driver esta acessivel dentro do ambiente.
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top:14px;">
+            <h3>Metrica de processo</h3>
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="note">CPU estimada do container: <strong id="containerCpu">{{ (metrics_snapshot.worker_cpu_total_percent + (metrics_snapshot.web_process_cpu_percent or 0)) if metrics_snapshot else 0 }}</strong>%</div>
+                <div class="note">RAM estimada do container: <strong id="containerRss">{{ (metrics_snapshot.worker_rss_total_mb + (metrics_snapshot.web_process_rss_mb or 0)) if metrics_snapshot else 0 }}</strong> MB</div>
+            </div>
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+                <div class="note">Media inferencia: <strong id="avgInfer">{{ metrics_snapshot.worker_infer_avg_ms if metrics_snapshot else '-' }}</strong> ms</div>
+                <div class="note">Media do loop: <strong id="avgLoop">{{ metrics_snapshot.worker_loop_avg_ms if metrics_snapshot else '-' }}</strong> ms</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="chart-head">
+        <div>
+            <h2 style="margin-bottom:4px;">Saude por camera</h2>
+            <div class="chart-subtitle">Ultimos dados publicados por cada worker.</div>
+        </div>
+    </div>
+    <div class="metrics-table-wrap">
+        <table class="table-tight">
+            <thead>
+                <tr>
+                    <th>Camera</th>
+                    <th>Saude</th>
+                    <th>Estabilidade</th>
+                    <th>Diagnostico</th>
+                    <th>Worker</th>
+                    <th>FPS</th>
+                    <th>CPU %</th>
+                    <th>RAM MB</th>
+                    <th>Infer ms</th>
+                    <th>Loop ms</th>
+                    <th>Tracks</th>
+                    <th>Atualizado</th>
+                </tr>
+            </thead>
+            <tbody id="cameraMetricsBody">
+                {% if metrics_snapshot and metrics_snapshot.camera_metrics %}
+                    {% for item in metrics_snapshot.camera_metrics %}
+                    <tr>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td><span class="status status-{{ item.health_status_display or item.health_status }}">{{ item.health_status_display or item.health_status }}</span></td>
+                        <td><span class="status status-{{ item.stability_class or 'idle' }}">{{ item.stability_label or '-' }}</span></td>
+                        <td>
+                            <strong>{{ item.diagnosis_label or '-' }}</strong>
+                            <div class="compact muted">{{ item.diagnosis_reason or '-' }}</div>
+                        </td>
+                        <td>{{ item.worker_mode }}</td>
+                        <td>{{ item.fps if item.fps is not none else '-' }}</td>
+                        <td>{{ item.process_cpu_percent if item.process_cpu_percent is not none else '-' }}</td>
+                        <td>{{ item.process_rss_mb if item.process_rss_mb is not none else '-' }}</td>
+                        <td>{{ item.infer_ms if item.infer_ms is not none else '-' }}</td>
+                        <td>{{ item.loop_ms if item.loop_ms is not none else '-' }}</td>
+                        <td>{{ item.tracks_count }}</td>
+                        <td>{{ item.updated_at or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="12">Ainda nao ha metricas publicadas. Inicie uma camera para preencher esta tabela.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="alarm-board">
+    <div class="card">
+        <h2>Ultimos eventos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Camera</th>
+                    <th>Evento</th>
+                    <th>Data</th>
+                    <th>Severidade</th>
+                    <th>Status</th>
+                    <th>Confianca</th>
+                    <th>Snapshot</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody id="dashboardRecentEventsBody">
+                {% for event in recent_events %}
+                <tr>
+                    <td>{{ event.id }}</td>
+                    <td>{{ event.camera_name }}</td>
+                    <td>{{ event.event_type }}</td>
+                    <td>{{ event.created_at_label }}</td>
+                    <td><span class="status priority-{{ event.severity_display }}">{{ event.severity_display }}</span></td>
+                    <td><span class="status status-{{ event.status_display }}">{{ event.status_display }}</span></td>
+                    <td>{{ event.confidence if event.confidence is not none else '-' }}</td>
+                    <td>{% if event.snapshot_path %}<a class="btn btn-secondary btn-small" href="/events/{{ event.id }}/snapshot" target="_blank">Abrir</a>{% else %}-{% endif %}</td>
+                    <td>
+                        <div class="event-actions">
+                            {% if event.status_display == 'new' %}
+                            <form method="post" action="/events/{{ event.id }}/ack"><button class="btn btn-warning btn-small" type="submit">Reconhecer</button></form>
+                            {% endif %}
+                            {% if event.status_display != 'closed' %}
+                            <form method="post" action="/events/{{ event.id }}/close"><button class="btn btn-danger btn-small" type="submit">Fechar</button></form>
+                            {% else %}
+                            <form method="post" action="/events/{{ event.id }}/reopen"><button class="btn btn-secondary btn-small" type="submit">Reabrir</button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Fila de alarmes abertos</h2>
+        <div id="dashboardOpenEventsList">
+            {% if open_events %}
+                {% for event in open_events %}
+                <div style="padding:10px 0; border-bottom:1px solid #e5e7eb;">
+                    <div><strong>#{{ event.id }}</strong> - {{ event.camera_name }}</div>
+                    <div class="compact muted">{{ event.event_type }}</div>
+                    <div style="margin-top:6px;">
+                        <span class="status priority-{{ event.severity_display }}">{{ event.severity_display }}</span>
+                        <span class="status status-{{ event.status_display }}">{{ event.status_display }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Nenhum alarme aberto.</p>
+            {% endif %}
+        </div>
+        <div style="margin-top:16px;"><a class="btn btn-primary" href="/events?only_open=1">Abrir central de eventos</a></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const initialSnapshot = {{ metrics_snapshot|tojson }};
+    const metricsEndpoint = "/dashboard/metrics";
+    const eventsEndpoint = "/dashboard/events";
+    const signature = {{ latest_alarm_signature|tojson }};
+    const allowSound = {{ 'true' if alarm_should_play else 'false' }};
+    const key = 'server_analiticos_last_alarm_signature';
+    const previous = localStorage.getItem(key);
+    if (signature && allowSound && previous && previous !== signature) {
+        playAlarmTone();
+    }
+    if (signature) {
+        localStorage.setItem(key, signature);
+    }
+
+    const state = {
+        history: { cpu: [], ram: [], gpu: [], fps: [] },
+        lastSnapshot: initialSnapshot || null,
+        openEventsCount: {{ open_events_count }},
+    };
+
+    const maxPoints = 30;
+
+    function toNumber(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function pushSample(series, value) {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return;
+        series.push(Number(value));
+        if (series.length > maxPoints) {
+            series.splice(0, series.length - maxPoints);
+        }
+    }
+
+    function resizeCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+        }
+        return dpr;
+    }
+
+    function drawSeries(canvas, seriesConfig, options) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const dpr = resizeCanvas(canvas);
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.fillRect(0, 0, width, height);
+
+        const padding = 18 * dpr;
+        const chartWidth = width - padding * 2;
+        const chartHeight = height - padding * 2;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = padding + (chartHeight / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(padding, y);
+            ctx.lineTo(width - padding, y);
+            ctx.stroke();
+        }
+
+        const allValues = seriesConfig.flatMap(item => item.values.filter(v => Number.isFinite(v)));
+        const minValue = options.minValue !== undefined ? options.minValue : (allValues.length ? Math.min(...allValues, 0) : 0);
+        const maxValue = options.maxValue !== undefined ? options.maxValue : (allValues.length ? Math.max(...allValues, 1) : 1);
+        const valueRange = Math.max(1, maxValue - minValue);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = `${12 * dpr}px "Segoe UI", sans-serif`;
+        ctx.fillText(options.title, padding, 14 * dpr);
+
+        seriesConfig.forEach((series) => {
+            if (!series.values.length) return;
+            ctx.strokeStyle = series.color;
+            ctx.lineWidth = 2.5 * dpr;
+            ctx.beginPath();
+            series.values.forEach((value, index) => {
+                const x = padding + (chartWidth * index) / Math.max(1, maxPoints - 1);
+                const safeValue = Number.isFinite(value) ? value : minValue;
+                const normalized = (safeValue - minValue) / valueRange;
+                const y = padding + chartHeight - normalized * chartHeight;
+                if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        });
+
+        const labelY = height - padding + 3 * dpr;
+        ctx.font = `${11 * dpr}px "Segoe UI", sans-serif`;
+        seriesConfig.forEach((series, index) => {
+            const x = padding + index * 140 * dpr;
+            ctx.fillStyle = series.color;
+            ctx.fillRect(x, labelY - 8 * dpr, 8 * dpr, 8 * dpr);
+            ctx.fillStyle = 'rgba(255,255,255,0.78)';
+            ctx.fillText(series.label, x + 14 * dpr, labelY);
+        });
+    }
+
+    function renderTable(cameras) {
+        const tbody = document.getElementById("cameraMetricsBody");
+        if (!tbody) return;
+        if (!cameras || !cameras.length) {
+            tbody.innerHTML = '<tr><td colspan="12">Ainda nao ha metricas publicadas. Inicie uma camera para preencher esta tabela.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = cameras.map((item) => {
+            const healthStatus = item.health_status_display || item.health_status || item.status || "idle";
+            const statusClass = healthStatus === "running" || healthStatus === "running_motion_test"
+                ? "running"
+                : (healthStatus === "offline" ? "offline" : (healthStatus === "degraded" ? "degraded" : (healthStatus === "reconnecting" ? "reconnecting" : (healthStatus === "stopped" ? "stopped" : "idle"))));
+            return `
+                <tr>
+                    <td><strong>${item.name || 'Camera'}</strong></td>
+                    <td><span class="status status-${statusClass}">${healthStatus || '-'}</span></td>
+                    <td><span class="status status-${item.stability_class || 'idle'}">${item.stability_label || '-'}</span></td>
+                    <td><strong>${item.diagnosis_label || '-'}</strong><div class="compact muted">${item.diagnosis_reason || '-'}</div></td>
+                    <td>${item.worker_mode || '-'}</td>
+                    <td>${item.fps ?? '-'}</td>
+                    <td>${item.process_cpu_percent ?? '-'}</td>
+                    <td>${item.process_rss_mb ?? '-'}</td>
+                    <td>${item.infer_ms ?? '-'}</td>
+                    <td>${item.loop_ms ?? '-'}</td>
+                    <td>${item.tracks_count ?? 0}</td>
+                    <td>${item.updated_at || '-'}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function statusClass(value) {
+        const status = String(value || "idle").toLowerCase();
+        if (["ok", "running", "ready"].includes(status)) return "ok";
+        if (["critical", "missing", "error"].includes(status)) return "critical";
+        if (["degraded", "attention", "warning"].includes(status)) return "degraded";
+        return "idle";
+    }
+
+    function renderAiCard(item) {
+        const cls = statusClass(item && item.status);
+        const lastIssue = item && item.last_issue;
+        const reasons = Array.isArray(item && item.reason_counts) ? item.reason_counts : [];
+        const model = item && item.model ? item.model : {};
+        return `
+            <div class="card ai-card status-${cls}">
+                <div class="ai-card-head">
+                    <div>
+                        <div class="ai-card-title">${escapeHtml(item && item.name || "IA")}</div>
+                        <div class="ai-card-role">${escapeHtml(item && item.role || "")}</div>
+                    </div>
+                    <span class="status status-${cls === "ok" ? "running" : (cls === "critical" ? "offline" : cls)}">${escapeHtml(item && item.status_label || "-")}</span>
+                </div>
+                <div class="compact muted">Modelo: ${escapeHtml(model.label || "-")}</div>
+                <div class="compact muted" title="${escapeHtml(model.path || "")}">${escapeHtml(model.path || "-")}</div>
+                <div class="ai-metrics">
+                    <div class="ai-metric"><strong>${(item && item.events_seen) ?? 0}</strong><span>eventos</span></div>
+                    <div class="ai-metric"><strong>${(item && item.ok) ?? 0}</strong><span>avaliados</span></div>
+                    <div class="ai-metric"><strong>${(item && item.errors) ?? 0}</strong><span>erros</span></div>
+                </div>
+                ${lastIssue ? `
+                    <div class="ai-issue">
+                        <strong>Ultimo problema:</strong> ${escapeHtml(lastIssue.title || "-")}<br>
+                        ${escapeHtml(lastIssue.detail || "")}
+                        ${lastIssue.event_id ? `<div class="compact">Evento #${escapeHtml(lastIssue.event_id)}</div>` : ""}
+                    </div>
+                ` : '<div class="note">Sem falhas recentes registradas.</div>'}
+                ${reasons.length ? `<div class="ai-reasons">${reasons.map((reason) => `<span class="ai-reason-chip">${escapeHtml(reason.reason)}: ${escapeHtml(reason.count)}</span>`).join("")}</div>` : ""}
+            </div>
+        `;
+    }
+
+    function renderAiDiagnostics(ai) {
+        const grid = document.getElementById("aiHealthGrid");
+        if (grid) {
+            if (!ai) {
+                grid.innerHTML = '<div class="note">Sem diagnostico IA disponivel.</div>';
+            } else {
+                grid.innerHTML = renderAiCard(ai.ia2 || {}) + renderAiCard(ai.ia3 || {});
+            }
+        }
+        const summary = document.getElementById("aiDecisionSummary");
+        if (summary) {
+            const decisions = ai && Array.isArray(ai.decisions) ? ai.decisions : [];
+            if (!decisions.length) {
+                summary.textContent = "Sem eventos recentes suficientes para classificar decisoes IA.";
+            } else {
+                summary.innerHTML = '<strong>Decisoes recentes:</strong> ' + decisions
+                    .map((item) => `${escapeHtml(item.label)}: ${escapeHtml(item.count)}`)
+                    .join(" · ");
+            }
+        }
+    }
+
+    function updateDom(snapshot) {
+        if (!snapshot) return;
+        const workerCpu = toNumber(snapshot.worker_cpu_total_percent);
+        const workerRam = toNumber(snapshot.worker_rss_total_mb);
+        const hostCpu = toNumber(snapshot.host_cpu_percent);
+        const hostRam = toNumber(snapshot.host_ram_percent);
+        const gpuUtil = toNumber(snapshot.gpu && snapshot.gpu.utilization_percent);
+        const webCpu = toNumber(snapshot.web_process_cpu_percent);
+        const webRss = toNumber(snapshot.web_process_rss_mb);
+        const fpsTotal = toNumber(snapshot.worker_fps_total);
+
+        document.getElementById("heroCameraTotal").textContent = snapshot.camera_total ?? '-';
+        document.getElementById("heroRunningCameras").textContent = snapshot.running_cameras ?? '-';
+        document.getElementById("heroOpenEvents").textContent = state.openEventsCount;
+        document.getElementById("heroUpdatedAt").textContent = snapshot.last_updated_at || '-';
+
+        document.getElementById("kpiWorkerCpu").textContent = workerCpu !== null ? workerCpu.toFixed(2) : '-';
+        document.getElementById("kpiWorkerRam").textContent = workerRam !== null ? workerRam.toFixed(2) : '-';
+        document.getElementById("kpiHostCpu").textContent = hostCpu !== null ? hostCpu.toFixed(2) : '-';
+        document.getElementById("kpiHostRam").textContent = hostRam !== null ? hostRam.toFixed(2) : '-';
+        document.getElementById("kpiGpu").textContent = gpuUtil !== null ? gpuUtil.toFixed(2) : 'N/A';
+        document.getElementById("kpiFps").textContent = fpsTotal !== null ? fpsTotal.toFixed(2) : '-';
+        document.getElementById("containerCpu").textContent = ((workerCpu || 0) + (webCpu || 0)).toFixed(2);
+        document.getElementById("containerRss").textContent = ((workerRam || 0) + (webRss || 0)).toFixed(2);
+        document.getElementById("avgInfer").textContent = snapshot.worker_infer_avg_ms ?? '-';
+        document.getElementById("avgLoop").textContent = snapshot.worker_loop_avg_ms ?? '-';
+
+        const webCpuEl = document.getElementById("webProcessCpu");
+        const webRssEl = document.getElementById("webProcessRss");
+        if (webCpuEl) webCpuEl.textContent = webCpu !== null ? webCpu.toFixed(2) : '-';
+        if (webRssEl) webRssEl.textContent = webRss !== null ? webRss.toFixed(2) : '-';
+
+        renderTable(snapshot.camera_metrics || []);
+        renderAiDiagnostics(snapshot.ai_diagnostics || null);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function renderRecentEvents(events) {
+        const tbody = document.getElementById("dashboardRecentEventsBody");
+        if (!tbody) return;
+            if (!events || !events.length) {
+            tbody.innerHTML = '<tr><td colspan="9">Sem eventos recentes.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = events.map((event) => {
+            const snapshotCell = event.snapshot_url
+                ? `<a class="btn btn-secondary btn-small" href="${event.snapshot_url}" target="_blank">Abrir</a>`
+                : "-";
+
+            let actions = "";
+            if (event.can_ack) {
+                actions += `<form method="post" action="/events/${event.id}/ack"><button class="btn btn-warning btn-small" type="submit">Reconhecer</button></form>`;
+            }
+            if (event.can_close) {
+                actions += `<form method="post" action="/events/${event.id}/close"><button class="btn btn-danger btn-small" type="submit">Fechar</button></form>`;
+            } else if (event.can_reopen) {
+                actions += `<form method="post" action="/events/${event.id}/reopen"><button class="btn btn-secondary btn-small" type="submit">Reabrir</button></form>`;
+            }
+
+            return `
+                <tr>
+                    <td>${event.id}</td>
+                    <td>${escapeHtml(event.camera_name)}</td>
+                    <td>${escapeHtml(event.event_type)}</td>
+                    <td>${escapeHtml(event.created_at_label || '-')}</td>
+                    <td><span class="status priority-${escapeHtml(event.severity)}">${escapeHtml(event.severity)}</span></td>
+                    <td><span class="status status-${escapeHtml(event.status)}">${escapeHtml(event.status)}</span></td>
+                    <td>${event.confidence ?? '-'}</td>
+                    <td>${snapshotCell}</td>
+                    <td><div class="event-actions">${actions}</div></td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function renderOpenEvents(events) {
+        const container = document.getElementById("dashboardOpenEventsList");
+        if (!container) return;
+        if (!events || !events.length) {
+            container.innerHTML = "<p>Nenhum alarme aberto.</p>";
+            return;
+        }
+
+        container.innerHTML = events.map((event) => `
+            <div style="padding:10px 0; border-bottom:1px solid #e5e7eb;">
+                <div><strong>#${event.id}</strong> - ${escapeHtml(event.camera_name)}</div>
+                <div class="compact muted">${escapeHtml(event.event_type)}</div>
+                <div style="margin-top:6px;">
+                    <span class="status priority-${escapeHtml(event.severity)}">${escapeHtml(event.severity)}</span>
+                    <span class="status status-${escapeHtml(event.status)}">${escapeHtml(event.status)}</span>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function processAlarmSignature(nextSignature, shouldPlay) {
+        const previousSignature = localStorage.getItem(key);
+        if (nextSignature && shouldPlay && previousSignature && previousSignature !== nextSignature) {
+            playAlarmTone();
+        }
+        if (nextSignature) {
+            localStorage.setItem(key, nextSignature);
+        }
+    }
+
+    function drawCharts() {
+        drawSeries(
+            document.getElementById("resourceChart"),
+            [
+                { label: "CPU workers", values: state.history.cpu, color: "#38bdf8" },
+                { label: "RAM workers", values: state.history.ram, color: "#f59e0b" },
+                { label: "GPU util.", values: state.history.gpu, color: "#22c55e" },
+            ],
+            { title: "Recursos do container", minValue: 0 }
+        );
+
+        drawSeries(
+            document.getElementById("fpsChart"),
+            [
+                { label: "FPS total", values: state.history.fps, color: "#a78bfa" },
+            ],
+            { title: "Vazao dos workers", minValue: 0 }
+        );
+    }
+
+    function captureSample(snapshot) {
+        if (!snapshot) return;
+        const workerCpu = toNumber(snapshot.worker_cpu_total_percent) || 0;
+        const workerRam = toNumber(snapshot.worker_rss_total_mb) || 0;
+        const gpuUtil = toNumber(snapshot.gpu && snapshot.gpu.utilization_percent);
+        const fpsTotal = toNumber(snapshot.worker_fps_total) || 0;
+
+        pushSample(state.history.cpu, workerCpu);
+        pushSample(state.history.ram, workerRam);
+        if (gpuUtil !== null) {
+            pushSample(state.history.gpu, gpuUtil);
+        }
+        pushSample(state.history.fps, fpsTotal);
+    }
+
+    async function refreshMetrics() {
+        if (document.hidden) return;
+        try {
+            const response = await fetch(metricsEndpoint, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const snapshot = await response.json();
+            state.lastSnapshot = snapshot;
+            captureSample(snapshot);
+            updateDom(snapshot);
+            drawCharts();
+        } catch (error) {
+            console.warn("Falha ao atualizar metricas:", error);
+            drawCharts();
+        }
+    }
+
+    async function refreshEvents() {
+        if (document.hidden) return;
+        try {
+            const ts = Date.now();
+            const response = await fetch(`${eventsEndpoint}?_ts=${ts}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const payload = await response.json();
+
+            state.openEventsCount = Number(payload.open_events_count) || 0;
+            if (state.lastSnapshot) {
+                document.getElementById("heroOpenEvents").textContent = state.openEventsCount;
+            }
+
+            renderRecentEvents(payload.recent_events || []);
+            renderOpenEvents(payload.open_events || []);
+            processAlarmSignature(payload.latest_alarm_signature || "", Boolean(payload.alarm_should_play));
+        } catch (error) {
+            console.warn("Falha ao atualizar eventos do dashboard:", error);
+        }
+    }
+
+    updateDom(state.lastSnapshot);
+    captureSample(state.lastSnapshot);
+    drawCharts();
+    refreshMetrics();
+    refreshEvents();
+    setInterval(refreshMetrics, 5000);
+    setInterval(refreshEvents, 3000);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            refreshMetrics();
+            refreshEvents();
+        }
+    });
+    window.addEventListener("resize", drawCharts);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% set values = form_values if form_values else {} %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #dbe3ec; padding-bottom: 10px;">
+    <h1 style="margin: 0;">Fontes de Vídeo</h1>
+    <div style="display: flex; gap: 8px;">
+        <a href="/video-sources/nvr" class="btn btn-secondary">NVR (RTSP/SDK)</a>
+        <a href="/video-sources/hikcentral" class="btn btn-secondary">HikCentral (OpenAPI)</a>
+        <a href="/video-sources/hikconnect" class="btn btn-primary">Hik-Connect (P2P Cloud)</a>
+    </div>
+</div>
+
+{% if error %}
+    <div class="error">{{ error }}</div>
+{% endif %}
+
+{% if message %}
+    <div class="card hcp2p-message">{{ message }}</div>
+{% endif %}
+
+{% if created is not none %}
+    <div class="card hcp2p-message">Câmeras Hik-Connect criadas: {{ created }}{% if skipped is not none %} · ignoradas: {{ skipped }}{% endif %}</div>
+{% endif %}
+
+<div class="card">
+    <h2>Conectar via Hik-Connect Cloud P2P</h2>
+    <form method="post" action="/video-sources/hikconnect/discover" id="hcp2pDiscoverForm" data-loading-title="Conectando ao Dispositivo" data-loading-message="Verificando canal e código de verificação via nuvem Hik-Connect P2P.">
+        <div class="grid">
+            <div>
+                <label>Nome base</label>
+                <input type="text" name="base_name" value="{{ values.base_name or 'Hik-Connect' }}" placeholder="Câmera Guarita">
+            </div>
+            <div>
+                <label>Número de Série (S/N / NS)</label>
+                <input type="text" name="serial_number" value="{{ values.serial_number or '' }}" placeholder="ex: E12345678" required>
+            </div>
+            <div>
+                <label>Código de Verificação (Verification Code / Encryption Key)</label>
+                <input type="text" name="verification_code" value="{{ values.verification_code or '' }}" placeholder="Código de 6 letras maiúsculas, ex: ABCDEF" required>
+            </div>
+            <div>
+                <label>Canal do Dispositivo</label>
+                <input type="number" name="channel_no" value="{{ values.channel_no or 1 }}" min="1" max="64" required>
+            </div>
+            <div>
+                <label>Usuário local do dispositivo</label>
+                <input type="text" name="username" value="{{ values.username or 'admin' }}" placeholder="admin" required autocomplete="username">
+            </div>
+            <div>
+                <label>Senha local do dispositivo</label>
+                <input type="password" name="password" value="" placeholder="senha do DVR/NVR" required autocomplete="current-password">
+            </div>
+        </div>
+
+        <div style="margin-top:14px; margin-bottom:14px; display:flex; gap:16px; align-items:center;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:normal; cursor:pointer;">
+                <input type="checkbox" name="simulate" value="true" {% if values.simulate %}checked{% endif %} style="width:auto; margin:0;">
+                <strong>Simular ambiente de teste (usar canal fictício se não tiver dispositivo Hikvision real ativo)</strong>
+            </label>
+        </div>
+
+        <button class="btn btn-primary" type="submit" id="hcp2pDiscoverSubmit">Verificar Canal Hik-Connect</button>
+    </form>
+</div>
+
+{% if profiles %}
+<div class="card">
+    <h2>Canal Hik-Connect verificado</h2>
+    <form method="post" action="/video-sources/hikconnect/create" id="hcp2pCreateForm">
+        <input type="hidden" name="serial_number" value="{{ values.serial_number or '' }}">
+        <input type="hidden" name="verification_code" value="{{ values.verification_code or '' }}">
+        <input type="hidden" name="channel_no" value="{{ values.channel_no or '1' }}">
+        <input type="hidden" name="username" value="{{ values.username or 'admin' }}">
+        <input type="hidden" name="credential_token" value="{{ credential_token or values.credential_token or '' }}">
+        <input type="hidden" name="base_name" value="{{ values.base_name or 'Hik-Connect' }}">
+        <input type="hidden" name="profile_count" value="{{ profiles|length }}">
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:50px;">Importar</th>
+                    <th>Identificador P2P</th>
+                    <th>Canal</th>
+                    <th>Status no VMS</th>
+                    <th>Status na Nuvem</th>
+                    <th>Nome da Câmera</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in profiles %}
+                <tr>
+                    <td>
+                        <input type="hidden" name="profile_serial_{{ item.index }}" value="{{ item.serial_number }}">
+                        <input type="hidden" name="profile_channel_{{ item.index }}" value="{{ item.channelNo }}">
+                        <label class="hcp2p-select" style="display:inline-flex; align-items:center; margin:0;">
+                            <input
+                                type="checkbox"
+                                name="selected_profile"
+                                value="{{ item.index }}"
+                                class="hcp2p-profile-checkbox"
+                                {% if item.existing_id %}disabled{% else %}checked{% endif %}
+                            >
+                        </label>
+                    </td>
+                    <td style="font-family:monospace; font-size:12px;">{{ item.cameraIndexCode }}</td>
+                    <td>{{ item.channelNo }}</td>
+                    <td>
+                        {% if item.existing_id %}
+                            <span class="status status-deduplicated">Já existe</span>
+                            <div class="muted">#{{ item.existing_id }} {{ item.existing_name }}</div>
+                        {% else %}
+                            <span class="status status-pending">Nova câmera</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'online' %}
+                            <span class="status status-running">Online</span>
+                        {% else %}
+                            <span class="status status-offline">Offline</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="text" name="profile_camera_name_{{ item.index }}" value="{{ item.cameraName }}" style="width:100%;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top:14px;">
+            <button class="btn btn-success" type="submit" id="hcp2pCreateSubmit">Criar câmera via P2P no VMS</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Câmeras Hik-Connect P2P Importadas</h2>
+    {% if channel_health %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Câmera</th>
+                    <th>Número de Série (NS)</th>
+                    <th>Canal</th>
+                    <th>Status VMS</th>
+                    <th>Worker</th>
+                    <th>Último Frame</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in channel_health %}
+                <tr>
+                    <td><a href="/cameras/{{ item.id }}"><strong>{{ item.name }}</strong></a></td>
+                    <td>{{ item.host }}</td>
+                    <td>{{ item.source_channel }}</td>
+                    <td>
+                        {% set status_class = 'status-idle' %}
+                        {% if item.health_status == 'running' %}
+                            {% set status_class = 'status-running' %}
+                        {% elif item.health_status == 'degraded' %}
+                            {% set status_class = 'status-degraded' %}
+                        {% elif item.health_status == 'reconnecting' %}
+                            {% set status_class = 'status-reconnecting' %}
+                        {% elif item.health_status == 'offline' %}
+                            {% set status_class = 'status-offline' %}
+                        {% endif %}
+                        <span class="status {{ status_class }}">{{ item.health_status }}</span>
+                    </td>
+                    <td>{{ item.worker_mode }}</td>
+                    <td>{{ item.last_frame_at or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="muted">Nenhuma câmera do Hik-Connect P2P cadastrada no momento.</p>
+    {% endif %}
+</div>
+
+<style>
+.hcp2p-message {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #c7d2fe;
+    margin-bottom: 18px;
+}
+@media (min-width: 768px) {
+    #hcp2pDiscoverForm .grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+#hcp2pDiscoverForm .grid label {
+    min-height: 38px;
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 6px;
+}
+</style>
+{% endblock %}

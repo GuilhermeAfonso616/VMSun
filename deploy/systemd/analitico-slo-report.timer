@@ -1,0 +1,11 @@
+[Unit]
+Description=Atualiza o relatorio SLO do Analitico a cada hora
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1h
+Persistent=true
+Unit=analitico-slo-report.service
+
+[Install]
+WantedBy=timers.target

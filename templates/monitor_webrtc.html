@@ -1,0 +1,664 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="webrtc-header">
+    <div>
+        <h1 style="margin-bottom:6px;">Monitor WebRTC beta</h1>
+        <div class="muted">Experimento isolado com MediaMTX para validar mosaico com video nativo no navegador.</div>
+    </div>
+    <div class="webrtc-actions">
+        <a class="btn btn-secondary" href="/monitor?grid={{ selected_grid }}">Voltar ao monitor VMS</a>
+        {% for value in [1,2,4,8,16] %}
+        <a class="btn btn-small {% if selected_grid == value %}btn-primary{% else %}btn-secondary{% endif %}" href="/monitor/webrtc?grid={{ value }}">{{ value }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+{% if not webrtc_enabled %}
+<div class="card">
+    <strong>WebRTC gateway desabilitado.</strong>
+    <div class="muted" style="margin-top:6px;">Ative o serviço webrtc-gateway no Docker Compose para testar esta tela.</div>
+</div>
+{% endif %}
+
+<div id="webrtcCodecFallbackNotice" class="webrtc-codec-fallback-notice" hidden>
+    <strong>Mosaico em modo limitado.</strong>
+    <span data-fallback-message>Algumas cameras nao estao em WebRTC completo neste navegador.</span>
+    <span>O sistema esta usando vídeo MJPEG automaticamente porque o cliente nao suporta HEVC/H265.</span>
+    <a href="https://support.microsoft.com/pt-br/windows/hardware/display-graphics/what-is-hdr-in-windows"
+       target="_blank" rel="noopener noreferrer">Instalar suporte HEVC no Windows</a>
+</div>
+
+<div class="card webrtc-diagnostics-card">
+    <div class="webrtc-diagnostics-head">
+        <strong>Log de diagnóstico</strong>
+        <button class="btn btn-small btn-secondary" type="button" id="webrtcLogToggle">Ocultar log</button>
+    </div>
+    <div class="muted" style="margin-top:6px;">
+        Mostra o que a página recebeu do backend e como cada tile foi resolvido antes de abrir o player.
+    </div>
+    <pre id="webrtcLog" class="webrtc-log" aria-live="polite"></pre>
+</div>
+
+<div class="webrtc-wall grid-{{ selected_grid }}" id="webrtcWall"></div>
+<div class="muted compact" style="margin-top:8px;">
+    Se o player carregar mas ficar sem vídeo em outro computador, reinicie pelo painel Docker ou por start-all.ps1 para redetectar o IP LAN.
+</div>
+
+<script type="application/json" id="webrtcBoot">
+{{ {
+    "enabled": webrtc_enabled,
+    "publicBaseUrl": webrtc_public_base_url,
+    "cameras": webrtc_cameras_payload,
+} | tojson }}
+</script>
+
+<style>
+.webrtc-header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.webrtc-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.webrtc-diagnostics-card { margin-bottom:12px; }
+.webrtc-diagnostics-head { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.webrtc-codec-fallback-notice {
+    margin:0 0 12px;
+    padding:10px 12px;
+    border:1px solid rgba(250,204,21,0.45);
+    border-left:4px solid #f59e0b;
+    border-radius:8px;
+    background:rgba(120,53,15,0.13);
+    color:#78350f;
+    font-size:13px;
+    line-height:1.4;
+}
+.webrtc-codec-fallback-notice strong {
+    margin-right:6px;
+}
+.webrtc-log {
+    margin:10px 0 0;
+    padding:12px;
+    max-height:220px;
+    overflow:auto;
+    border-radius:8px;
+    border:1px solid #334155;
+    background:#020617;
+    color:#cbd5e1;
+    font-size:12px;
+    line-height:1.5;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+.webrtc-log.hidden { display:none; }
+.webrtc-wall {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+    background:#050816;
+    border:1px solid #1e293b;
+    border-radius:10px;
+    padding:8px;
+    min-height:calc(100vh - 190px);
+}
+.webrtc-wall.grid-1 { grid-template-columns:1fr; }
+.webrtc-wall.grid-2 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.webrtc-wall.grid-4 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.webrtc-wall.grid-8 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+.webrtc-wall.grid-16 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+.webrtc-tile {
+    min-width:0;
+    min-height:220px;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    border:1px solid #263859;
+    border-radius:8px;
+    background:#000;
+}
+.webrtc-tile-head {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    min-height:36px;
+    padding:7px 9px;
+    background:#0f172a;
+    color:#e5eefc;
+    border-bottom:1px solid #1e2f4d;
+}
+.webrtc-title { min-width:0; font-size:12px; font-weight:750; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.webrtc-meta { font-size:10px; color:#94a3b8; margin-top:2px; }
+.webrtc-status {
+    flex:0 0 auto;
+    padding:3px 7px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:800;
+    background:#172554;
+    color:#bfdbfe;
+}
+.webrtc-status.bad { background:#3b1111; color:#fecaca; }
+.webrtc-status.warn { background:#3f2d0a; color:#fde68a; }
+.webrtc-frame-wrap { position:relative; flex:1 1 auto; min-height:0; background:#000; }
+.webrtc-frame {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+    background:#000;
+}
+.webrtc-snapshot-fallback {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:none;
+    background:#000;
+}
+.webrtc-tile.using-snapshot-fallback .webrtc-frame {
+    display:none;
+}
+.webrtc-tile.using-snapshot-fallback .webrtc-snapshot-fallback {
+    display:block;
+}
+.webrtc-placeholder {
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    color:#94a3b8;
+    text-align:center;
+    font-size:13px;
+}
+.webrtc-path-diag {
+    position:absolute;
+    left:8px;
+    right:8px;
+    bottom:8px;
+    z-index:3;
+    padding:7px 8px;
+    border-radius:6px;
+    border:1px solid rgba(148, 163, 184, 0.35);
+    background:rgba(2, 6, 23, 0.78);
+    color:#dbeafe;
+    font-size:11px;
+    line-height:1.35;
+    pointer-events:none;
+}
+.webrtc-path-diag.bad { border-color:rgba(248, 113, 113, 0.65); color:#fecaca; }
+.webrtc-path-diag.warn { border-color:rgba(250, 204, 21, 0.65); color:#fde68a; }
+@media (max-width: 1100px) {
+    .webrtc-wall.grid-8,
+    .webrtc-wall.grid-16 { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+    .webrtc-wall,
+    .webrtc-wall.grid-2,
+    .webrtc-wall.grid-4,
+    .webrtc-wall.grid-8,
+    .webrtc-wall.grid-16 { grid-template-columns:1fr; }
+    .webrtc-tile { min-height:240px; }
+}
+</style>
+
+<script>
+(function () {
+    var bootEl = document.getElementById("webrtcBoot");
+    var wallEl = document.getElementById("webrtcWall");
+    var logEl = document.getElementById("webrtcLog");
+    var logToggleEl = document.getElementById("webrtcLogToggle");
+    var codecFallbackNoticeEl = document.getElementById("webrtcCodecFallbackNotice");
+    var boot = {};
+    var clientHevcSupportKnown = false;
+    var clientHevcSupported = false;
+    var videoHelperBaseUrl = "http://127.0.0.1:34020";
+    var videoHelperAvailable = false;
+    var videoHelperRetryDelayMs = 3000;
+    try {
+        boot = JSON.parse(bootEl ? bootEl.textContent : "{}");
+    } catch (error) {
+        boot = {};
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+            return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch];
+        });
+    }
+
+    function publicBaseUrl() {
+        var configured = String(boot.publicBaseUrl || "").trim().replace(/\/+$/, "");
+        if (configured) return configured;
+        return window.location.protocol === "http:"
+            ?"http://" + window.location.hostname + ":8889"
+            : "";
+    }
+
+    function videoHelperStreamUrl(cameraId) {
+        return videoHelperBaseUrl
+            + "/stream/" + encodeURIComponent(String(cameraId)) + ".mjpeg"
+            + "?server=" + encodeURIComponent(window.location.hostname || "")
+            + "&width=960&fps=10";
+    }
+
+    // O helper pode subir depois da pagina; sem re-checagem so um F5 o encontrava.
+    function scheduleVideoHelperRecheck() {
+        if (videoHelperAvailable) return;
+        window.setTimeout(detectVideoHelper, videoHelperRetryDelayMs);
+        videoHelperRetryDelayMs = Math.min(videoHelperRetryDelayMs * 2, 30000);
+    }
+
+    function detectVideoHelper() {
+        if (!window.fetch) return;
+        var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        var timeoutId = window.setTimeout(function () {
+            if (controller) controller.abort();
+        }, 1200);
+
+        fetch(videoHelperBaseUrl + "/health", {
+            method: "GET",
+            cache: "no-store",
+            mode: "cors",
+            signal: controller ? controller.signal : undefined
+        }).then(function (response) {
+            if (!response.ok) throw new Error("helper_unavailable");
+            return response.json();
+        }).then(function (payload) {
+            videoHelperAvailable = !!(payload && payload.ok);
+        }).catch(function () {
+            videoHelperAvailable = false;
+        }).finally(function () {
+            window.clearTimeout(timeoutId);
+            appendLog("SunOrus Video Helper", { disponivel: videoHelperAvailable });
+            if (videoHelperAvailable) {
+                videoHelperRetryDelayMs = 3000;
+            } else {
+                scheduleVideoHelperRecheck();
+            }
+            refreshSnapshotFallbacks();
+            updateSnapshotFallbackNotice();
+        });
+    }
+
+    // Vale o que o WebRTC negocia, nao o que o browser abre em MP4: Chrome no
+    // Windows decodifica HEVC em arquivo por hardware e mesmo assim pode nao
+    // ofertar H.265 no SDP. Checar o MP4 dava falso positivo.
+    function detectWebrtcHevcSupport() {
+        try {
+            if (typeof RTCRtpReceiver === "undefined"
+                || typeof RTCRtpReceiver.getCapabilities !== "function") {
+                return null;
+            }
+            var capabilities = RTCRtpReceiver.getCapabilities("video");
+            var codecs = capabilities && capabilities.codecs;
+            if (!codecs || !codecs.length) return null;
+            return codecs.some(function (codec) {
+                return /h265|hevc/i.test(String((codec && codec.mimeType) || ""));
+            });
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function detectClientHevcSupport() {
+        var sampleCodec = 'video/mp4; codecs="hvc1.1.6.L93.B0"';
+        function finish(supported) {
+            clientHevcSupported = !!supported;
+            clientHevcSupportKnown = true;
+            appendLog("Suporte HEVC do cliente", { supported: clientHevcSupported });
+        }
+
+        var webrtcSupport = detectWebrtcHevcSupport();
+        if (webrtcSupport !== null) {
+            finish(webrtcSupport);
+            return;
+        }
+
+        if (navigator.mediaCapabilities && typeof navigator.mediaCapabilities.decodingInfo === "function") {
+            try {
+                navigator.mediaCapabilities.decodingInfo({
+                    type: "file",
+                    video: {
+                        contentType: sampleCodec,
+                        width: 640,
+                        height: 360,
+                        bitrate: 1200000,
+                        framerate: 15
+                    }
+                }).then(function (info) {
+                    finish(!!(info && info.supported));
+                }).catch(function () {
+                    finish(!!(window.MediaSource && MediaSource.isTypeSupported && MediaSource.isTypeSupported(sampleCodec)));
+                });
+                return;
+            } catch (error) {}
+        }
+        finish(!!(window.MediaSource && MediaSource.isTypeSupported && MediaSource.isTypeSupported(sampleCodec)));
+    }
+
+    function appendLog(message, details) {
+        if (!logEl) return;
+        var line = "[" + new Date().toLocaleTimeString() + "] " + message;
+        if (typeof details !== "undefined") {
+            if (typeof details === "string") {
+                line += " | " + details;
+            } else {
+                try {
+                    line += " | " + JSON.stringify(details);
+                } catch (error) {
+                    line += " | " + String(details);
+                }
+            }
+        }
+        logEl.textContent += (logEl.textContent ? "\n" : "") + line;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function logBootState() {
+        appendLog("Boot da página carregado", {
+            enabled: !!boot.enabled,
+            cameras: Array.isArray(boot.cameras) ? boot.cameras.length : 0,
+            publicBaseUrl: publicBaseUrl()
+        });
+    }
+
+    function resolvePlayerUrl(camera) {
+        var playerUrl = String(camera.player_url || "");
+        var configured = String(boot.publicBaseUrl || "").trim().replace(/\/+$/, "");
+        var path = String(camera.path || "");
+        var resolved = "";
+        if (configured && path) {
+            resolved = configured + "/" + encodeURIComponent(path);
+        } else if (playerUrl.indexOf("/__webrtc_public__/") === 0) {
+            resolved = publicBaseUrl() && path ?publicBaseUrl() + "/" + encodeURIComponent(path) : "";
+        } else {
+            resolved = playerUrl || (publicBaseUrl() && path ?publicBaseUrl() + "/" + encodeURIComponent(path) : "");
+        }
+
+        if (!resolved) return "";
+
+        try {
+            var url = new URL(resolved, window.location.href);
+            url.searchParams.set("controls", "false");
+            url.searchParams.set("muted", "true");
+            url.searchParams.set("autoplay", "true");
+            url.searchParams.set("playsInline", "true");
+            return url.toString();
+        } catch (error) {
+            var separator = resolved.indexOf("?") >= 0 ? "&" : "?";
+            return resolved + separator + "controls=false&muted=true&autoplay=true&playsInline=true";
+        }
+    }
+
+    function pickRuntimeObject(diagnostics) {
+        var runtime = diagnostics && diagnostics.runtime ? diagnostics.runtime : {};
+        return runtime.item || runtime.data || runtime;
+    }
+
+    function diagnosticSummary(diagnostics) {
+        if (diagnostics && diagnostics.reason === "camera_stopped") {
+            return {
+                status: "stopped",
+                text: "camera parada manualmente; WebRTC nao registrado",
+                raw: {},
+                fallback: ""
+            };
+        }
+
+        var runtime = pickRuntimeObject(diagnostics);
+        var config = diagnostics && diagnostics.config ? diagnostics.config : {};
+        var configItem = config.item || config.data || config;
+        var readers = Array.isArray(runtime.readers) ? runtime.readers.length : null;
+        var ready = runtime.ready;
+        if (typeof ready === "undefined") ready = runtime.sourceReady;
+        if (typeof ready === "undefined") ready = runtime.readyTime ? true : null;
+        var source = runtime.source || runtime.sourceType || configItem.source || "";
+        var bytesReceived = runtime.bytesReceived || runtime.bytes_received || null;
+        var tracks = Array.isArray(runtime.tracks) ? runtime.tracks.length : null;
+        var trackNames = Array.isArray(runtime.tracks) ? runtime.tracks : [];
+        var tracks2 = Array.isArray(runtime.tracks2) ? runtime.tracks2 : [];
+        var hasH264 = false;
+        var hasHevc = false;
+        var error = runtime.error || runtime.lastError || runtime.sourceError || config.error || "";
+        var status = "warn";
+        var parts = [];
+
+        trackNames.forEach(function (track) {
+            var name = String(track || "").toUpperCase();
+            if (name.indexOf("H264") >= 0 || name.indexOf("AVC") >= 0) hasH264 = true;
+            if (name.indexOf("H265") >= 0 || name.indexOf("HEVC") >= 0) hasHevc = true;
+        });
+        tracks2.forEach(function (track) {
+            var codec = String(track && track.codec || "").toUpperCase();
+            if (codec.indexOf("H264") >= 0 || codec.indexOf("AVC") >= 0) hasH264 = true;
+            if (codec.indexOf("H265") >= 0 || codec.indexOf("HEVC") >= 0) hasHevc = true;
+        });
+
+        if (diagnostics && diagnostics.ok === false) {
+            status = "bad";
+            parts.push("API MediaMTX sem status OK");
+        }
+        if (ready === true) {
+            status = "ok";
+            parts.push("source pronto");
+        } else if (ready === false) {
+            status = "bad";
+            parts.push("source nao pronto");
+        } else {
+            parts.push("source indefinido");
+        }
+        if (readers !== null) parts.push("readers " + readers);
+        if (tracks !== null) parts.push("tracks " + tracks);
+        if (bytesReceived !== null) parts.push("rx " + bytesReceived);
+        if (source) parts.push("source " + String(source).slice(0, 80));
+        if (error) {
+            status = "bad";
+            parts.push("erro " + String(error).slice(0, 120));
+        }
+        if (hasHevc && !hasH264 && clientHevcSupportKnown && !clientHevcSupported) {
+            status = "warn";
+            parts.push("cliente sem HEVC; fallback MJPEG");
+        }
+
+        return {
+            status: status,
+            text: parts.join(" | ") || "sem dados do MediaMTX",
+            raw: runtime,
+            fallback: hasHevc && !hasH264 && clientHevcSupportKnown && !clientHevcSupported ? "snapshot" : ""
+        };
+    }
+
+    function render() {
+        if (!wallEl) return;
+        var cameras = Array.isArray(boot.cameras) ? boot.cameras : [];
+        appendLog("Renderizando mosaico WebRTC", {
+            cameras: cameras.length,
+            grid: {{ selected_grid }}
+        });
+        if (!cameras.length) {
+            appendLog("Nenhuma câmera disponível para renderização.");
+            wallEl.innerHTML = '<div class="webrtc-placeholder">Nenhuma câmera disponível para este grid.</div>';
+            return;
+        }
+
+        wallEl.innerHTML = cameras.map(function (camera, index) {
+            var ok = !!camera.registration_ok;
+            var url = resolvePlayerUrl(camera);
+            appendLog("Câmera avaliada", {
+                slot: index + 1,
+                id: camera.id,
+                name: camera.name,
+                registration_ok: ok,
+                registration_reason: camera.registration_reason || null,
+                registration_cached: !!camera.registration_cached,
+                registration_source: camera.registration_masked_source || null,
+                registration_response: camera.registration_response || null,
+                path: camera.path || null,
+                path_diagnostics: camera.path_diagnostics || null,
+                player_url: url
+            });
+            var diag = diagnosticSummary(camera.path_diagnostics || {});
+            var statusClass = diag.status === 'stopped' ? 'warn' : (!ok ? 'bad' : (diag.status === 'bad' ? 'bad' : (diag.status === 'warn' ? 'warn' : '')));
+            var body = ok
+                ? '<iframe class="webrtc-frame" src="' + escapeHtml(url) + '" allow="autoplay; fullscreen; microphone; camera" loading="eager" referrerpolicy="no-referrer" scrolling="no"></iframe>'
+                    + '<img class="webrtc-snapshot-fallback" data-snapshot-base="/cameras/' + escapeHtml(camera.id) + '/stream" alt="Video alternativo da camera ' + escapeHtml(camera.name || camera.id) + '">'
+                : '<div class="webrtc-placeholder">' + (diag.status === "stopped" ? "Camera parada" : "Path WebRTC nao registrado para esta camera.") + '</div>';
+            return ''
+                + '<div class="webrtc-tile' + (diag.fallback === "snapshot" ? " using-snapshot-fallback" : "") + '" data-camera-id="' + escapeHtml(camera.id) + '" data-path="' + escapeHtml(camera.path || "") + '">'
+                + '  <div class="webrtc-tile-head">'
+                + '    <div style="min-width:0;">'
+                + '      <div class="webrtc-title">' + String(index + 1).padStart(2, "0") + ' · ' + escapeHtml(camera.name || ("Camera " + camera.id)) + '</div>'
+                + '      <div class="webrtc-meta">' + escapeHtml(camera.site_name || "Sem local") + ' · ' + escapeHtml(camera.group_name || "Sem grupo") + '</div>'
+                + '    </div>'
+                + '    <span class="webrtc-status ' + statusClass + '">' + (ok ? 'WebRTC' : (diag.status === "stopped" ? "Parada" : "Erro")) + '</span>'
+                + '  </div>'
+                + '  <div class="webrtc-frame-wrap">' + body + '<div class="webrtc-path-diag ' + (diag.status === 'bad' ? 'bad' : (diag.status === 'warn' ? 'warn' : '')) + '">' + escapeHtml(diag.text) + '</div></div>'
+                + '</div>';
+        }).join("");
+
+        Array.prototype.forEach.call(wallEl.querySelectorAll("iframe.webrtc-frame"), function (frameEl) {
+            frameEl.addEventListener("load", function () {
+                appendLog("Iframe WebRTC carregou", frameEl.src);
+            });
+        });
+        updateSnapshotFallbackNotice();
+    }
+
+    var lastDiagnosticsSignature = "";
+
+    function refreshTileSnapshot(tile) {
+        var image = tile ? tile.querySelector(".webrtc-snapshot-fallback") : null;
+        if (!image) return;
+        var base = image.getAttribute("data-snapshot-base") || "";
+        if (!base) return;
+        var cameraId = tile.getAttribute("data-camera-id") || "";
+        // Camera parada nao tem frame processado; o preview cru le o RTSP direto.
+        if (cameraId && tile.getAttribute("data-camera-stopped") === "1") {
+            base = "/cameras/" + encodeURIComponent(cameraId) + "/stream/raw";
+        }
+        // Com o helper local o tile recebe video H.265 decodificado em MJPEG;
+        // sem ele sobra o snapshot estatico do backend.
+        var useHelper = videoHelperAvailable
+            && cameraId
+            && image.getAttribute("data-helper-failed") !== cameraId;
+        var target = useHelper ? videoHelperStreamUrl(cameraId) : base;
+        tile.classList.toggle("using-video-helper", !!useHelper);
+        if (useHelper) {
+            image.onerror = function () {
+                image.setAttribute("data-helper-failed", cameraId);
+                image.onerror = null;
+                tile.classList.remove("using-video-helper");
+                appendLog("Helper falhou; voltando ao snapshot", { camera: cameraId });
+                image.setAttribute("src", base);
+            };
+        } else {
+            image.onerror = null;
+        }
+        if (image.getAttribute("src") !== target) {
+            image.setAttribute("src", target);
+        }
+    }
+
+    function refreshSnapshotFallbacks() {
+        if (!wallEl) return;
+        Array.prototype.forEach.call(wallEl.querySelectorAll(".webrtc-tile.using-snapshot-fallback"), refreshTileSnapshot);
+    }
+
+    function updateSnapshotFallbackNotice() {
+        if (!codecFallbackNoticeEl || !wallEl) return;
+        var count = wallEl.querySelectorAll(".webrtc-tile.using-snapshot-fallback").length;
+        codecFallbackNoticeEl.hidden = count <= 0;
+        var helperCount = wallEl.querySelectorAll(".webrtc-tile.using-video-helper").length;
+        var messageEl = codecFallbackNoticeEl.querySelector("[data-fallback-message]");
+        if (messageEl) {
+            if (helperCount > 0) {
+                messageEl.textContent = helperCount === 1
+                    ? "1 camera esta sendo decodificada pelo SunOrus Video Helper."
+                    : helperCount + " cameras estao sendo decodificadas pelo SunOrus Video Helper.";
+            } else {
+                messageEl.textContent = count === 1
+                    ? "1 camera nao esta em WebRTC completo neste navegador."
+                    : count + " cameras nao estao em WebRTC completo neste navegador.";
+            }
+        }
+    }
+
+    function updateTileDiagnostics(items) {
+        if (!Array.isArray(items)) return;
+        items.forEach(function (item) {
+            var tile = wallEl ? wallEl.querySelector('.webrtc-tile[data-camera-id="' + String(item.id) + '"]') : null;
+            if (!tile) return;
+            var summary = diagnosticSummary(item.diagnostics || {});
+            var diagEl = tile.querySelector(".webrtc-path-diag");
+            var statusEl = tile.querySelector(".webrtc-status");
+            if (diagEl) {
+                diagEl.textContent = summary.text;
+                diagEl.classList.toggle("bad", summary.status === "bad");
+                diagEl.classList.toggle("warn", summary.status === "warn");
+            }
+            if (statusEl) {
+                statusEl.classList.toggle("bad", summary.status === "bad");
+                statusEl.classList.toggle("warn", summary.status === "warn");
+                statusEl.textContent = summary.fallback === "snapshot" ? "MJPEG" : "WebRTC";
+            }
+            // Se o player nao esta entregando video (path on-demand frio, sem tracks,
+            // erro do MediaMTX) e existe helper local, ele assume em vez de deixar o
+            // tile vazio - o mesmo criterio por evidencia usado no mosaico principal.
+            tile.setAttribute("data-camera-stopped", summary.status === "stopped" ? "1" : "0");
+            var precisaFallback = summary.fallback === "snapshot"
+                || (videoHelperAvailable && (summary.status === "bad" || summary.status === "stopped"));
+            tile.classList.toggle("using-snapshot-fallback", precisaFallback);
+            if (precisaFallback) refreshTileSnapshot(tile);
+            if (statusEl && tile.classList.contains("using-video-helper")) {
+                statusEl.textContent = "HELPER";
+            }
+            updateSnapshotFallbackNotice();
+        });
+    }
+
+    function pollDiagnostics() {
+        var cameras = Array.isArray(boot.cameras) ? boot.cameras : [];
+        if (!cameras.length) return;
+        var ids = cameras.filter(function (camera) {
+            return !!camera.registration_ok;
+        }).map(function (camera) { return camera.id; }).filter(Boolean).join(",");
+        if (!ids) return;
+        fetch("/monitor/webrtc/diagnostics?camera_ids=" + encodeURIComponent(ids), { cache: "no-store" })
+            .then(function (response) { return response.json(); })
+            .then(function (payload) {
+                updateTileDiagnostics(payload.items || []);
+                var compact = (payload.items || []).map(function (item) {
+                    var summary = diagnosticSummary(item.diagnostics || {});
+                    return { id: item.id, path: item.path, status: summary.status, text: summary.text };
+                });
+                var signature = JSON.stringify(compact);
+                if (signature !== lastDiagnosticsSignature) {
+                    lastDiagnosticsSignature = signature;
+                    appendLog("Diagnostico MediaMTX atualizado", compact);
+                }
+            })
+            .catch(function (error) {
+                appendLog("Falha ao consultar diagnostico MediaMTX", String(error));
+            })
+            .finally(function () {
+                window.setTimeout(pollDiagnostics, 5000);
+            });
+    }
+
+    if (logToggleEl && logEl) {
+        logToggleEl.addEventListener("click", function () {
+            var hidden = logEl.classList.toggle("hidden");
+            logToggleEl.textContent = hidden ? "Mostrar log" : "Ocultar log";
+        });
+    }
+
+    logBootState();
+    detectClientHevcSupport();
+    detectVideoHelper();
+    render();
+    pollDiagnostics();
+    window.setInterval(refreshSnapshotFallbacks, 2500);
+})();
+</script>
+{% endblock %}

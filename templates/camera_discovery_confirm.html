@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{% if mode == 'edit' %}Escolher canal para atualizar a camera{% else %}Escolher canais da camera{% endif %}</h1>
+
+<div class="card">
+    <p class="muted">
+        {% if mode == 'edit' %}
+            Encontramos mais de um canal/profile para <strong>{{ ip }}</strong>. Selecione um canal para atualizar a camera atual.
+        {% else %}
+            Encontramos mais de um canal/profile para <strong>{{ ip }}</strong>. Selecione quais deseja adicionar e ajuste o nome de cada um antes de salvar.
+        {% endif %}
+    </p>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form
+        method="post"
+        action="{% if mode == 'edit' %}/cameras/{{ camera_id }}/edit/confirm{% else %}/cameras/new/confirm{% endif %}"
+        data-loading-title="{% if mode == 'edit' %}Atualizando camera...{% else %}Adicionando canais...{% endif %}"
+        data-loading-message="{% if mode == 'edit' %}Estamos salvando o canal escolhido e preparando a camera.{% else %}Estamos salvando os canais selecionados e preparando as entradas no sistema.{% endif %}"
+    >
+        <input type="hidden" name="base_name" value="{{ base_name }}">
+        <input type="hidden" name="ip" value="{{ ip }}">
+        <input type="hidden" name="manufacturer" value="{{ manufacturer }}">
+        <input type="hidden" name="model" value="{{ model or '' }}">
+        <input type="hidden" name="username" value="{{ username }}">
+        {% if credential_token %}
+            <input type="hidden" name="credential_token" value="{{ credential_token }}">
+        {% else %}
+            <input type="hidden" name="password" value="{{ password }}">
+        {% endif %}
+        <input type="hidden" name="onvif_port" value="{{ onvif_port }}">
+        <input type="hidden" name="profile_count" value="{{ profiles|length }}">
+        <input type="hidden" name="camera_family" value="{{ camera_family }}">
+        <input type="hidden" name="scene_category" value="{{ scene_category }}">
+        <input type="hidden" name="target_focus" value="{{ target_focus }}">
+        <input type="hidden" name="discovery_method" value="{{ discovery_method }}">
+        {% for item in nuisance_options %}
+            <input type="hidden" name="{{ item.key }}" value="{% if item.enabled %}true{% else %}false{% endif %}">
+        {% endfor %}
+        {% if mode == 'edit' %}
+            <input type="hidden" name="camera_id" value="{{ camera_id }}">
+        {% endif %}
+
+        <div style="display:grid; gap:14px;">
+            {% for profile in profiles %}
+                <div class="card" style="margin:0; background:#f8fafc;">
+                    {% if not credential_token %}
+                        <input type="hidden" name="profile_token_{{ profile.index }}" value="{{ profile.token }}">
+                        <input type="hidden" name="profile_label_{{ profile.index }}" value="{{ profile.profile_name }}">
+                        <input type="hidden" name="profile_rtsp_url_{{ profile.index }}" value="{{ profile.rtsp_url }}">
+                        <input type="hidden" name="profile_masked_rtsp_url_{{ profile.index }}" value="{{ profile.masked_rtsp_url }}">
+                        <input type="hidden" name="profile_encoding_{{ profile.index }}" value="{{ profile.encoding }}">
+                        <input type="hidden" name="profile_resolution_{{ profile.index }}" value="{{ profile.resolution_label }}">
+                    {% endif %}
+
+                    {% if mode == 'edit' %}
+                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                            <input
+                                type="radio"
+                                name="selected_profile"
+                                value="{{ profile.index }}"
+                                {% if profile.selected %}checked{% endif %}
+                                style="width:auto; margin:0;"
+                            >
+                            <span>
+                                <strong>{{ profile.profile_name }}</strong>
+                                {% if profile.resolution_label %}<span class="muted"> · {{ profile.resolution_label }}</span>{% endif %}
+                                {% if profile.encoding %}<span class="muted"> · {{ profile.encoding }}</span>{% endif %}
+                            </span>
+                        </label>
+                    {% else %}
+                        <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                            <input
+                                type="checkbox"
+                                name="profile_enabled_{{ profile.index }}"
+                                value="true"
+                                {% if profile.selected %}checked{% endif %}
+                                style="width:auto; margin:0;"
+                            >
+                            <span>
+                                <strong>{{ profile.profile_name }}</strong>
+                                {% if profile.resolution_label %}<span class="muted"> · {{ profile.resolution_label }}</span>{% endif %}
+                                {% if profile.encoding %}<span class="muted"> · {{ profile.encoding }}</span>{% endif %}
+                            </span>
+                        </label>
+                    {% endif %}
+
+                    {% if mode != 'edit' %}
+                        <label>Nome desta entrada</label>
+                        <input type="text" name="profile_name_{{ profile.index }}" value="{{ profile.suggested_name }}">
+                    {% endif %}
+
+                    <label>RTSP detectado</label>
+                    <div class="code-box">{{ profile.masked_rtsp_url or profile.rtsp_url }}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+            <button class="btn btn-primary" type="submit">
+                {% if mode == 'edit' %}Atualizar camera{% else %}Adicionar canais selecionados{% endif %}
+            </button>
+            {% if mode == 'edit' %}
+                <a class="btn btn-secondary" href="/cameras/{{ camera_id }}">Voltar</a>
+            {% else %}
+                <a class="btn btn-secondary" href="/cameras/new">Voltar</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

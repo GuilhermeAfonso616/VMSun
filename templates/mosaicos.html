@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .mosaicos-page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .mosaicos-page-head h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+    .mosaicos-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+    @media (max-width: 992px) {
+        .mosaicos-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    .mosaicos-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .card-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line-soft);
+        padding-bottom: 10px;
+    }
+    .mosaicos-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 480px;
+        overflow-y: auto;
+    }
+    .mosaico-item {
+        background: var(--bg-soft);
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+    .mosaico-item:hover {
+        background: var(--bg-row-hover);
+        border-color: var(--line-highlight);
+    }
+    .mosaico-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .mosaico-name {
+        font-weight: 600;
+        font-size: 15px;
+        color: var(--text-primary);
+    }
+    .mosaico-meta {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+    .mosaico-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+    }
+    .mosaico-share-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 30px;
+        padding: 0 8px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 700;
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .mosaico-share-control input {
+        width: 15px;
+        height: 15px;
+        accent-color: #2563eb;
+        cursor: pointer;
+    }
+    
+    /* Builder styles */
+    .builder-container {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 16px;
+        margin-top: 10px;
+    }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .form-group label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-secondary);
+    }
+    .form-control {
+        background: var(--field-bg);
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        padding: 10px 12px;
+        color: var(--text-primary);
+        font-size: 14.5px;
+    }
+    .form-control:focus {
+        border-color: #3b82f6;
+        outline: none;
+    }
+    .step-item {
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 10px;
+        align-items: center;
+        background: var(--bg-soft);
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid var(--line-soft);
+    }
+    .steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+</style>
+
+<div class="mosaicos-page-head">
+    <h1>Gerenciador de Mosaicos</h1>
+    <a href="/monitor" class="btn btn-secondary">Voltar ao Monitoramento</a>
+</div>
+
+<div class="mosaicos-grid">
+    <!-- Mosaicos Estáticos -->
+    <div class="mosaicos-card">
+        <h2 class="card-title">Mosaicos Salvos</h2>
+        <div id="staticViewsList" class="mosaicos-list">
+            <!-- Renderizado via JS -->
+            <div style="text-align:center; padding:20px; color:#94a3b8;">Nenhum mosaico salvo encontrado. Crie um mosaico clicando em "Salvar visão" no monitor principal.</div>
+        </div>
+    </div>
+
+    <!-- Mosaicos Sequenciais -->
+    <div class="mosaicos-card">
+        <h2 class="card-title">
+            <span>Sequências Temporais</span>
+            <button type="button" class="btn btn-primary btn-small" onclick="openNewSequenceBuilder()">+ Nova Sequência</button>
+        </h2>
+        
+        <div id="sequentialList" class="mosaicos-list">
+            <!-- Renderizado via JS -->
+            <div style="text-align:center; padding:20px; color:#94a3b8;">Nenhuma sequência cadastrada.</div>
+        </div>
+
+        <!-- Builder Modal/Form (Hidden by default) -->
+        <div id="sequenceBuilder" class="builder-container" style="display: none;">
+            <h3 id="builderTitle" style="margin: 0 0 10px 0; font-size:16px; color:#8b5cf6; font-weight:700;">Criar Nova Sequência</h3>
+            <input type="hidden" id="editingSeqId">
+            
+            <div class="form-group">
+                <label for="seqName">Nome da Sequência</label>
+                <input type="text" id="seqName" class="form-control" placeholder="Ex: Ronda Noturna de Galpões">
+            </div>
+
+            {% if can_share_mosaics %}
+            <label class="mosaico-share-control" title="Disponibiliza esta sequencia para os demais usuarios">
+                <input type="checkbox" id="shareSequenceCheckbox">
+                <span>Visível à equipe</span>
+            </label>
+            {% endif %}
+
+            <div class="form-group" style="margin-top: 10px;">
+                <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Passos da Sequência</span>
+                    <button type="button" class="btn btn-secondary btn-small" style="font-size:11px; padding:4px 8px;" onclick="addSequenceStepRow()">+ Adicionar Mosaico</button>
+                </label>
+                <div id="sequenceStepsContainer" class="steps-list">
+                    <!-- Dynamic rows here -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+                <button type="button" class="btn btn-secondary" onclick="closeSequenceBuilder()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveSequence()">Salvar Sequência</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const mosaicStorageSuffix = ":user:" + String({{ mosaic_storage_user_id|tojson }});
+    const savedViewsKey = "server_analiticos_vms_saved_views_v1" + mosaicStorageSuffix;
+    const temporalMosaicsKey = "vms_temporal_mosaics" + mosaicStorageSuffix;
+    const activeSequenceKey = "vms_active_sequence" + mosaicStorageSuffix;
+    const canShareMosaics = {{ "true" if can_share_mosaics else "false" }};
+
+    function normalizeServerView(view) {
+        const config = view && view.view_config && typeof view.view_config === "object" ? view.view_config : {};
+        return Object.assign({}, config, {
+            id: view.id,
+            name: view.name,
+            grid: Number(config.grid || view.grid_size || 16),
+            assignments: Array.isArray(config.assignments) ? config.assignments : (Array.isArray(view.camera_ids) ? view.camera_ids : []),
+            hideOffline: config.hideOffline === true || view.hide_offline === true,
+            boxesEnabled: config.boxesEnabled !== false && view.boxes_enabled !== false,
+            isShared: view.is_shared === true,
+            ownerUsername: view.owner_username || "",
+            canManage: view.can_manage === true
+        });
+    }
+
+    function viewPresetRequestPayload(view) {
+        return {
+            id: view.id,
+            name: view.name,
+            grid_size: Number(view.grid || 16),
+            camera_ids: Array.isArray(view.assignments) ? view.assignments : [],
+            hide_offline: view.hideOffline === true,
+            boxes_enabled: view.boxesEnabled !== false,
+            view_config: view,
+            is_shared: view.isShared === true
+        };
+    }
+
+    function temporalSequenceRequestPayload(sequence) {
+        return {
+            id: sequence.id,
+            name: sequence.name,
+            steps: (sequence.steps || []).map(step => ({
+                viewId: step.viewId,
+                duration: parseInt(step.duration) || 10
+            })),
+            is_shared: sequence.isShared === true
+        };
+    }
+
+    function loadSavedViews() {
+        try {
+            return JSON.parse(localStorage.getItem(savedViewsKey) || "[]");
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function loadTemporalMosaics() {
+        try {
+            return JSON.parse(localStorage.getItem(temporalMosaicsKey) || "[]");
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function saveTemporalMosaics(list) {
+        localStorage.setItem(temporalMosaicsKey, JSON.stringify(list));
+    }
+
+    function renderStaticViews() {
+        const listEl = document.getElementById("staticViewsList");
+        const views = loadSavedViews();
+        
+        if (!views.length) {
+            listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#94a3b8;">Nenhum mosaico salvo encontrado. Crie um mosaico clicando em "Salvar visão" no monitor principal.</div>`;
+            return;
+        }
+
+        listEl.innerHTML = views.map(view => {
+            const assignedCount = (view.assignments || []).filter(id => id).length;
+            const source = view.isShared && view.ownerUsername ? ` · Compartilhado por ${escapeHtml(view.ownerUsername)}` : "";
+            const deleteButton = view.canManage === false ? "" : `<button class="btn btn-danger btn-small" onclick="deleteStaticView('${view.id}')">Excluir</button>`;
+            const shareControl = canShareMosaics && view.canManage !== false ? `
+                        <label class="mosaico-share-control" title="Disponibiliza este mosaico para os demais usuários">
+                            <input type="checkbox" ${view.isShared ? "checked" : ""} onchange="setViewShared('${view.id}', this.checked)">
+                            <span>Visível à equipe</span>
+                        </label>` : "";
+            return `
+                <div class="mosaico-item">
+                    <div class="mosaico-info">
+                        <span class="mosaico-name">${escapeHtml(view.name)}</span>
+                        <span class="mosaico-meta">Grid ${view.grid}x${view.grid} · ${assignedCount} câmeras configuradas${source}</span>
+                    </div>
+                    <div class="mosaico-actions">
+                        ${shareControl}
+                        ${deleteButton}
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    function renderTemporalMosaics() {
+        const listEl = document.getElementById("sequentialList");
+        const sequences = loadTemporalMosaics();
+        const views = loadSavedViews();
+
+        if (!sequences.length) {
+            listEl.innerHTML = `<div style="text-align:center; padding:20px; color:#94a3b8;">Nenhuma sequência cadastrada.</div>`;
+            return;
+        }
+
+        listEl.innerHTML = sequences.map(seq => {
+            const totalDuration = seq.steps.reduce((acc, step) => acc + Number(step.duration || 0), 0);
+            const source = seq.isShared && seq.ownerUsername ? ` · Compartilhada por ${escapeHtml(seq.ownerUsername)}` : "";
+            const manageButtons = seq.canManage === false ? "" : `
+                        <button class="btn btn-secondary btn-small" onclick="editSequence('${seq.id}')">Editar</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteSequence('${seq.id}')">Excluir</button>`;
+            const shareControl = canShareMosaics && seq.canManage !== false ? `
+                        <label class="mosaico-share-control" title="Disponibiliza esta sequência para os demais usuários">
+                            <input type="checkbox" ${seq.isShared ? "checked" : ""} onchange="setSequenceShared('${seq.id}', this.checked)">
+                            <span>Visível à equipe</span>
+                        </label>` : "";
+            return `
+                <div class="mosaico-item" style="border-left: 3px solid #8b5cf6;">
+                    <div class="mosaico-info">
+                        <span class="mosaico-name">${escapeHtml(seq.name)}</span>
+                        <span class="mosaico-meta">${seq.steps.length} passos · Duração total: ${totalDuration}s${source}</span>
+                    </div>
+                    <div class="mosaico-actions">
+                        <button class="btn btn-primary btn-small" onclick="runSequence('${seq.id}')">Rodar</button>
+                        ${shareControl}
+                        ${manageButtons}
+                    </div>
+                </div>
+            `;
+        }).join("");
+    }
+
+    async function setViewShared(id, isShared) {
+        const views = loadSavedViews();
+        const view = views.find(item => item.id === id);
+        if (!canShareMosaics || !view || view.canManage === false) {
+            renderStaticViews();
+            return;
+        }
+
+        const previousValue = view.isShared === true;
+        view.isShared = isShared === true;
+        try {
+            const response = await fetch("/api/view-presets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(viewPresetRequestPayload(view))
+            });
+            if (!response.ok) throw new Error("Falha ao atualizar compartilhamento do mosaico");
+            localStorage.setItem(savedViewsKey, JSON.stringify(views));
+            renderStaticViews();
+        } catch (error) {
+            view.isShared = previousValue;
+            console.error("Erro ao atualizar compartilhamento do mosaico:", error);
+            alert("Não foi possível atualizar o compartilhamento do mosaico.");
+            renderStaticViews();
+        }
+    }
+
+    async function setSequenceShared(id, isShared) {
+        const sequences = loadTemporalMosaics();
+        const sequence = sequences.find(item => item.id === id);
+        if (!canShareMosaics || !sequence || sequence.canManage === false) {
+            renderTemporalMosaics();
+            return;
+        }
+
+        const previousValue = sequence.isShared === true;
+        sequence.isShared = isShared === true;
+        try {
+            const response = await fetch("/api/temporal-sequences", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(temporalSequenceRequestPayload(sequence))
+            });
+            if (!response.ok) throw new Error("Falha ao atualizar compartilhamento da sequência");
+            saveTemporalMosaics(sequences);
+            renderTemporalMosaics();
+        } catch (error) {
+            sequence.isShared = previousValue;
+            console.error("Erro ao atualizar compartilhamento da sequência:", error);
+            alert("Não foi possível atualizar o compartilhamento da sequência.");
+            renderTemporalMosaics();
+        }
+    }
+
+    async function deleteStaticView(id) {
+        const currentView = loadSavedViews().find(v => v.id === id);
+        if (!currentView || currentView.canManage === false) {
+            alert("Somente o dono do mosaico pode exclui-lo.");
+            return;
+        }
+        if (!confirm("Tem certeza que deseja excluir este mosaico? Se ele fizer parte de alguma sequência temporal, essa sequência poderá falhar.")) return;
+        let views = loadSavedViews();
+        const deletedView = views.find(v => v.id === id);
+        const name = deletedView ? deletedView.name : id;
+
+        try {
+            const response = await fetch("/api/view-presets/" + encodeURIComponent(id), { method: "DELETE" });
+            if (!response.ok) throw new Error("Falha ao excluir mosaico no servidor");
+            views = views.filter(v => v.id !== id);
+            localStorage.setItem(savedViewsKey, JSON.stringify(views));
+            if (window.logClientAudit) {
+                window.logClientAudit("mosaico_delete", "Excluiu o mosaico estático: " + name);
+            }
+            renderStaticViews();
+        } catch (error) {
+            console.error("Erro ao deletar mosaico no servidor:", error);
+            alert("Não foi possível excluir este mosaico.");
+        }
+    }
+
+    async function deleteSequence(id) {
+        const currentSequence = loadTemporalMosaics().find(s => s.id === id);
+        if (!currentSequence || currentSequence.canManage === false) {
+            alert("Somente o dono da sequência pode exclui-la.");
+            return;
+        }
+        if (!confirm("Deseja excluir esta sequência temporal?")) return;
+        let list = loadTemporalMosaics();
+        const deletedSeq = list.find(s => s.id === id);
+        const name = deletedSeq ? deletedSeq.name : id;
+
+        try {
+            const response = await fetch("/api/temporal-sequences/" + encodeURIComponent(id), { method: "DELETE" });
+            if (!response.ok) throw new Error("Falha ao excluir sequência no servidor");
+            list = list.filter(s => s.id !== id);
+            saveTemporalMosaics(list);
+            if (window.logClientAudit) {
+                window.logClientAudit("mosaico_sequence_delete", "Excluiu a sequência temporal: " + name);
+            }
+            renderTemporalMosaics();
+        } catch (error) {
+            console.error("Erro ao deletar sequência no servidor:", error);
+            alert("Não foi possível excluir esta sequência.");
+        }
+    }
+
+    function openNewSequenceBuilder() {
+        document.getElementById("editingSeqId").value = "";
+        document.getElementById("seqName").value = "";
+        document.getElementById("sequenceStepsContainer").innerHTML = "";
+        const shareCheckbox = document.getElementById("shareSequenceCheckbox");
+        if (shareCheckbox) shareCheckbox.checked = false;
+        document.getElementById("builderTitle").textContent = "Criar Nova Sequência";
+        document.getElementById("sequenceBuilder").style.display = "flex";
+        addSequenceStepRow();
+    }
+
+    function closeSequenceBuilder() {
+        document.getElementById("sequenceBuilder").style.display = "none";
+    }
+
+    function addSequenceStepRow(selectedViewId = "", duration = 10) {
+        const container = document.getElementById("sequenceStepsContainer");
+        const views = loadSavedViews();
+        
+        if (!views.length) {
+            alert("Você precisa ter pelo menos um mosaico estático salvo para criar uma sequência.");
+            return;
+        }
+
+        const optionsHtml = views.map(v => `<option value="${v.id}" ${v.id === selectedViewId ? "selected" : ""}>${escapeHtml(v.name)} (${v.grid}x${v.grid})</option>`).join("");
+        
+        const row = document.createElement("div");
+        row.className = "step-item";
+        row.innerHTML = `
+            <select class="form-control view-select" style="padding: 6px 8px;">
+                ${optionsHtml}
+            </select>
+            <div style="display:flex; align-items:center; gap:4px;">
+                <input type="number" class="form-control duration-input" min="2" value="${duration}" style="padding: 6px 8px; width: 60px;">
+                <span style="font-size:12px; color:#94a3b8;">s</span>
+            </div>
+            <button type="button" class="btn btn-danger btn-small" onclick="this.closest('.step-item').remove()" style="padding: 6px 10px;">X</button>
+        `;
+        container.appendChild(row);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function saveSequence() {
+        const name = document.getElementById("seqName").value.trim();
+        if (!name) {
+            alert("Insira um nome para a sequência.");
+            return;
+        }
+
+        const stepRows = document.querySelectorAll("#sequenceStepsContainer .step-item");
+        const steps = [];
+        stepRows.forEach(row => {
+            const viewId = row.querySelector(".view-select").value;
+            const duration = parseInt(row.querySelector(".duration-input").value) || 10;
+            if (viewId) {
+                steps.push({ viewId, duration });
+            }
+        });
+
+        if (!steps.length) {
+            alert("Adicione pelo menos um passo com um mosaico válido.");
+            return;
+        }
+
+        const list = loadTemporalMosaics();
+        const editingId = document.getElementById("editingSeqId").value;
+        let targetSeq = null;
+        
+        if (editingId) {
+            // Update
+            const index = list.findIndex(s => s.id === editingId);
+            if (index !== -1) {
+                list[index].name = name;
+                list[index].steps = steps;
+                targetSeq = list[index];
+            }
+        } else {
+            // Create
+            targetSeq = {
+                id: "seq_" + Date.now(),
+                name: name,
+                steps: steps
+            };
+            list.push(targetSeq);
+        }
+
+        if (targetSeq) {
+            const shareCheckbox = document.getElementById("shareSequenceCheckbox");
+            targetSeq.isShared = canShareMosaics && !!(shareCheckbox && shareCheckbox.checked);
+            targetSeq.canManage = true;
+        }
+
+        saveTemporalMosaics(list);
+        if (window.logClientAudit) {
+            if (editingId) {
+                window.logClientAudit("mosaico_sequence_update", "Alterou a sequência temporal: " + name);
+            } else {
+                window.logClientAudit("mosaico_sequence_create", "Criou a sequência temporal: " + name);
+            }
+        }
+        closeSequenceBuilder();
+        renderTemporalMosaics();
+
+        if (targetSeq) {
+            fetch("/api/temporal-sequences", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(temporalSequenceRequestPayload(targetSeq))
+            }).catch(err => console.error("Erro ao salvar sequência no servidor:", err));
+        }
+    }
+
+    function editSequence(id) {
+        const list = loadTemporalMosaics();
+        const seq = list.find(s => s.id === id);
+        if (!seq) return;
+        if (seq.canManage === false) {
+            alert("Somente o dono da sequência pode edita-la.");
+            return;
+        }
+
+        document.getElementById("editingSeqId").value = seq.id;
+        document.getElementById("seqName").value = seq.name;
+        const shareCheckbox = document.getElementById("shareSequenceCheckbox");
+        if (shareCheckbox) shareCheckbox.checked = seq.isShared === true;
+        document.getElementById("builderTitle").textContent = "Editar Sequência";
+        
+        const container = document.getElementById("sequenceStepsContainer");
+        container.innerHTML = "";
+        seq.steps.forEach(step => {
+            addSequenceStepRow(step.viewId, step.duration);
+        });
+
+        document.getElementById("sequenceBuilder").style.display = "flex";
+    }
+
+    function runSequence(id) {
+        const seqs = loadTemporalMosaics();
+        const seq = seqs.find(s => s.id === id);
+        if (!seq || !seq.steps.length) return;
+
+        // Salvar estado inicial da sequência ativa
+        localStorage.setItem(activeSequenceKey, JSON.stringify({
+            sequenceId: id,
+            stepIndex: 0,
+            lastUpdated: Date.now()
+        }));
+
+        // Redireciona para o monitoramento na primeira view
+        const views = loadSavedViews();
+        const firstStep = seq.steps[0];
+        const firstView = views.find(v => v.id === firstStep.viewId);
+        
+        if (firstView) {
+            // Redireciona aplicando o grid do primeiro mosaico
+            window.location.href = `/monitor?grid=${firstView.grid}`;
+        } else {
+            // Fallback se o mosaico não existir
+            window.location.href = "/monitor";
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    async function syncMosaicosFromServer() {
+        try {
+            // 1. Sincroniza visões estáticas
+            const resViews = await fetch("/api/view-presets");
+            if (resViews.ok) {
+                const views = (await resViews.json()).map(normalizeServerView);
+                localStorage.setItem(savedViewsKey, JSON.stringify(views));
+                renderStaticViews();
+            }
+            
+            // 2. Sincroniza sequências temporais
+            const resSeqs = await fetch("/api/temporal-sequences");
+            if (resSeqs.ok) {
+                const seqs = await resSeqs.json();
+                const parsedSeqs = seqs.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    steps: s.steps.map(st => ({ viewId: st.viewId, duration: st.duration })),
+                    isShared: s.is_shared === true,
+                    ownerUsername: s.owner_username || "",
+                    canManage: s.can_manage === true
+                }));
+                
+                localStorage.setItem(temporalMosaicsKey, JSON.stringify(parsedSeqs));
+                renderTemporalMosaics();
+            }
+        } catch (error) {
+            console.error("Erro ao sincronizar mosaicos do servidor:", error);
+        }
+    }
+
+    // Inicialização
+    document.addEventListener("DOMContentLoaded", () => {
+        renderStaticViews();
+        renderTemporalMosaics();
+        syncMosaicosFromServer();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .health-page-head {
+        text-align: center;
+        max-width: 980px;
+        margin: 0 auto 18px;
+    }
+    .health-page-head h1 { margin-bottom: 6px; }
+    .health-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+    .health-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        border-left: 4px solid #64748b;
+    }
+    .health-kpi strong {
+        font-size: 28px;
+        line-height: 1;
+    }
+    .health-kpi span {
+        color: var(--text-secondary);
+        font-weight: 700;
+        font-size: 13px;
+    }
+    .health-kpi.ok { border-left-color: #22c55e; }
+    .health-kpi.warn { border-left-color: #f59e0b; }
+    .health-kpi.bad { border-left-color: #ef4444; }
+    .health-grid {
+        display: grid;
+        grid-template-columns: 1.35fr 0.9fr;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    .health-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .health-subtitle {
+        color: var(--text-secondary);
+        font-size: 13px;
+        margin-top: 4px;
+    }
+    .ai-health-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+    .ai-card { border-left: 4px solid #64748b; }
+    .ai-card.status-ok { border-left-color: #22c55e; }
+    .ai-card.status-degraded { border-left-color: #f59e0b; }
+    .ai-card.status-critical { border-left-color: #ef4444; }
+    .ai-card.status-idle { border-left-color: #64748b; }
+    .ai-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+    .ai-card-title { font-weight: 800; font-size: 16px; }
+    .ai-card-role { color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+    .ai-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 12px 0;
+    }
+    .ai-metric {
+        background: #f8fafc;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 8px;
+    }
+    .ai-metric strong { display: block; font-size: 18px; line-height: 1; }
+    .ai-metric span { display: block; color: var(--text-secondary); font-size: 11px; margin-top: 4px; }
+    .ai-issue {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        color: #7c2d12;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 13px;
+    }
+    .ai-reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+    .ai-reason-chip {
+        background: #eef2ff;
+        color: #1e3a8a;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    .health-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .health-filter-row {
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .health-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 210px;
+    }
+    .health-field label {
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .health-field input,
+    .health-field select {
+        min-height: 38px;
+        border-radius: 8px;
+        border: 1px solid var(--line-soft);
+        padding: 7px 10px;
+        background: #fff;
+        color: var(--text-primary);
+    }
+    .metrics-table-wrap { overflow-x: auto; }
+    .table-tight th,
+    .table-tight td { white-space: nowrap; }
+    @media (max-width: 1120px) {
+        .health-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+        .health-page-head { text-align: left; }
+        .health-field { min-width: 100%; }
+    }
+</style>
+
+<div class="health-page-head">
+    <h1>Saude operacional</h1>
+    <p class="muted">Estado das cameras, revalidadoras IA2/IA3, GPU e workers em tempo real.</p>
+</div>
+
+<div class="health-summary">
+    <div class="card health-kpi"><span>Total de cameras</span><strong id="healthTotal">-</strong></div>
+    <div class="card health-kpi ok"><span>Rodando</span><strong id="healthRunning">-</strong></div>
+    <div class="card health-kpi warn"><span>Reconectando</span><strong id="healthReconnecting">-</strong></div>
+    <div class="card health-kpi warn"><span>Degradadas</span><strong id="healthDegraded">-</strong></div>
+    <div class="card health-kpi bad"><span>Offline</span><strong id="healthOffline">-</strong></div>
+    <div class="card health-kpi"><span>Paradas</span><strong id="healthStopped">-</strong></div>
+</div>
+
+<div class="health-grid">
+    <div class="card">
+        <div class="health-card-head">
+            <div>
+                <h2 style="margin-bottom:4px;">IA2 / IA3</h2>
+                <div class="health-subtitle">Prontidao das revalidadoras, falhas recentes e decisoes por periodo.</div>
+            </div>
+            <a class="btn btn-secondary btn-small" href="/health/operational" target="_blank">JSON tecnico</a>
+        </div>
+        <div class="ai-health-grid" id="aiHealthGrid"></div>
+        <div class="note" id="aiDecisionSummary">Aguardando diagnostico das revalidadoras.</div>
+        
+        <div style="margin-top:15px; border-top:1px solid var(--border-soft); padding-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+                <strong style="color:var(--text-main); font-size:13px; display:block;">Controle de Cancelamento IA2/IA3</strong>
+                <div class="muted compact" style="font-size:11px; margin-top:2px;">
+                    Modo atual: 
+                    {% if person_revalidator_cancel_enabled %}
+                    <span style="color:#0ea5e9; font-weight:bold;">cancelamento conservador habilitado</span>
+                    {% else %}
+                    <span style="color:#9ca3af; font-weight:bold;">somente auditoria</span>
+                    {% endif %}
+                </div>
+            </div>
+            <form method="post" action="/events/revalidator-mode">
+                {% if person_revalidator_cancel_enabled %}
+                <input type="hidden" name="mode" value="audit">
+                <button class="btn btn-secondary btn-small" type="submit">Desabilitar cancelamento IA2/IA3</button>
+                {% else %}
+                <input type="hidden" name="mode" value="block">
+                <button class="btn btn-warning btn-small" type="submit">Habilitar cancelamento IA2/IA3</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="health-card-head">
+            <div>
+                <h2 style="margin-bottom:4px;">GPU e runtime</h2>
+                <div class="health-subtitle">Leitura do container e do processo web.</div>
+            </div>
+        </div>
+        <div id="gpuDetails" class="note">Aguardando coleta do runtime.</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px;">
+            <div class="note">CPU container: <strong id="containerCpu">-</strong>%</div>
+            <div class="note">RAM container: <strong id="containerRss">-</strong> MB</div>
+            <div class="note">Inferencia media: <strong id="avgInfer">-</strong> ms</div>
+            <div class="note">Loop medio: <strong id="avgLoop">-</strong> ms</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="health-toolbar">
+        <div>
+            <h2 style="margin-bottom:4px;">Saude por camera</h2>
+            <div class="health-subtitle">Ultimos dados publicados por cada worker.</div>
+        </div>
+        <div class="health-filter-row">
+            <div class="health-field">
+                <label for="cameraHealthSearch">Buscar camera</label>
+                <input id="cameraHealthSearch" type="search" placeholder="Nome, worker ou diagnostico">
+            </div>
+            <div class="health-field">
+                <label for="cameraHealthStatus">Estado</label>
+                <select id="cameraHealthStatus">
+                    <option value="">Todos</option>
+                    <option value="running">Rodando</option>
+                    <option value="degraded">Degradadas</option>
+                    <option value="reconnecting">Reconectando</option>
+                    <option value="offline">Offline</option>
+                    <option value="stopped">Paradas</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary" type="button" id="refreshHealthBtn">Atualizar</button>
+        </div>
+    </div>
+    <div class="metrics-table-wrap">
+        <table class="table-tight">
+            <thead>
+                <tr>
+                    <th>Camera</th>
+                    <th>Saude</th>
+                    <th>Estabilidade</th>
+                    <th>Diagnostico</th>
+                    <th>Worker</th>
+                    <th>FPS</th>
+                    <th>CPU %</th>
+                    <th>RAM MB</th>
+                    <th>Infer ms</th>
+                    <th>Loop ms</th>
+                    <th>Tracks</th>
+                    <th>Atualizado</th>
+                </tr>
+            </thead>
+            <tbody id="cameraMetricsBody">
+                <tr><td colspan="12">Carregando metricas de saude.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const initialHealthSnapshot = {{ metrics_snapshot|tojson }};
+    const healthState = {
+        snapshot: initialHealthSnapshot,
+        cameras: [],
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function toNumber(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    }
+
+    function statusClass(value) {
+        const status = String(value || "idle").toLowerCase();
+        if (["ok", "running", "ready"].includes(status)) return "ok";
+        if (["critical", "missing", "error"].includes(status)) return "critical";
+        if (["degraded", "attention", "warning"].includes(status)) return "degraded";
+        return "idle";
+    }
+
+    function cameraStatusClass(value) {
+        const status = String(value || "idle").toLowerCase();
+        if (status.includes("running")) return "running";
+        if (status.includes("offline")) return "offline";
+        if (status.includes("degraded")) return "degraded";
+        if (status.includes("reconnecting")) return "reconnecting";
+        if (status.includes("stopped")) return "stopped";
+        return "idle";
+    }
+
+    function renderAiCard(item) {
+        const cls = statusClass(item && item.status);
+        const lastIssue = item && item.last_issue;
+        const reasons = Array.isArray(item && item.reason_counts) ? item.reason_counts : [];
+        const model = item && item.model ? item.model : {};
+        return `
+            <div class="card ai-card status-${cls}">
+                <div class="ai-card-head">
+                    <div>
+                        <div class="ai-card-title">${escapeHtml(item && item.name || "IA")}</div>
+                        <div class="ai-card-role">${escapeHtml(item && item.role || "")}</div>
+                    </div>
+                    <span class="status status-${cls === "ok" ? "running" : (cls === "critical" ? "offline" : cls)}">${escapeHtml(item && item.status_label || "-")}</span>
+                </div>
+                <div class="compact muted">Modelo: ${escapeHtml(model.label || "-")}</div>
+                <div class="compact muted" title="${escapeHtml(model.path || "")}">${escapeHtml(model.path || "-")}</div>
+                <div class="ai-metrics">
+                    <div class="ai-metric"><strong>${(item && item.events_seen) ?? 0}</strong><span>eventos</span></div>
+                    <div class="ai-metric"><strong>${(item && item.ok) ?? 0}</strong><span>avaliados</span></div>
+                    <div class="ai-metric"><strong>${(item && item.errors) ?? 0}</strong><span>erros</span></div>
+                </div>
+                ${lastIssue ? `
+                    <div class="ai-issue">
+                        <strong>Ultimo problema:</strong> ${escapeHtml(lastIssue.title || "-")}<br>
+                        ${escapeHtml(lastIssue.detail || "")}
+                        ${lastIssue.event_id ? `<div class="compact">Evento #${escapeHtml(lastIssue.event_id)}</div>` : ""}
+                    </div>
+                ` : '<div class="note">Sem falhas recentes registradas.</div>'}
+                ${reasons.length ? `<div class="ai-reasons">${reasons.map((reason) => `<span class="ai-reason-chip">${escapeHtml(reason.reason)}: ${escapeHtml(reason.count)}</span>`).join("")}</div>` : ""}
+            </div>
+        `;
+    }
+
+    function renderAiDiagnostics(ai) {
+        const grid = document.getElementById("aiHealthGrid");
+        if (grid) {
+            if (!ai) {
+                grid.innerHTML = '<div class="note">Sem diagnostico IA disponivel.</div>';
+            } else {
+                grid.innerHTML = renderAiCard(ai.ia2 || {}) + renderAiCard(ai.ia3 || {});
+            }
+        }
+        const summary = document.getElementById("aiDecisionSummary");
+        const decisions = ai && Array.isArray(ai.decisions) ? ai.decisions : [];
+        if (!summary) return;
+        if (!decisions.length) {
+            summary.textContent = "Sem eventos recentes suficientes para classificar decisoes IA.";
+            return;
+        }
+        summary.innerHTML = '<strong>Decisoes recentes:</strong> ' + decisions
+            .map((item) => `${escapeHtml(item.label)}: ${escapeHtml(item.count)}`)
+            .join(" - ");
+    }
+
+    function renderGpuDetails(snapshot) {
+        const container = document.getElementById("gpuDetails");
+        if (!container) return;
+        const gpu = snapshot && snapshot.gpu ? snapshot.gpu : {};
+        if (gpu && gpu.available) {
+            const util = toNumber(gpu.utilization_percent);
+            const used = toNumber(gpu.memory_used_mb);
+            const total = toNumber(gpu.memory_total_mb);
+            const temp = toNumber(gpu.temperature_c);
+            container.innerHTML = `
+                <strong>${escapeHtml(gpu.name || "GPU detectada")}</strong><br>
+                Utilizacao: ${util !== null ? util.toFixed(2) + "%" : "-"}<br>
+                Memoria: ${used !== null ? used.toFixed(0) + " MB" : "-"}${total !== null ? " / " + total.toFixed(0) + " MB" : ""}
+                ${temp !== null ? "<br>Temperatura: " + temp.toFixed(0) + " C" : ""}
+            `;
+        } else {
+            container.textContent = "Nenhuma GPU ativa foi detectada no container. Verifique runtime NVIDIA, driver e acesso do modelo dentro do Docker.";
+        }
+    }
+
+    function renderSummary(snapshot) {
+        const health = snapshot && snapshot.camera_health ? snapshot.camera_health : {};
+        setText("healthTotal", snapshot && snapshot.camera_total !== undefined ? snapshot.camera_total : "-");
+        setText("healthRunning", health.running ?? snapshot?.running_cameras ?? "-");
+        setText("healthReconnecting", health.reconnecting ?? "-");
+        setText("healthDegraded", health.degraded ?? "-");
+        setText("healthOffline", health.offline ?? "-");
+        setText("healthStopped", health.stopped ?? "-");
+
+        const workerCpu = toNumber(snapshot && snapshot.worker_cpu_total_percent);
+        const workerRam = toNumber(snapshot && snapshot.worker_rss_total_mb);
+        const webCpu = toNumber(snapshot && snapshot.web_process_cpu_percent);
+        const webRss = toNumber(snapshot && snapshot.web_process_rss_mb);
+        setText("containerCpu", ((workerCpu || 0) + (webCpu || 0)).toFixed(2));
+        setText("containerRss", ((workerRam || 0) + (webRss || 0)).toFixed(2));
+        setText("avgInfer", snapshot && snapshot.worker_infer_avg_ms !== null ? snapshot.worker_infer_avg_ms : "-");
+        setText("avgLoop", snapshot && snapshot.worker_loop_avg_ms !== null ? snapshot.worker_loop_avg_ms : "-");
+    }
+
+    function renderCameraTable() {
+        const tbody = document.getElementById("cameraMetricsBody");
+        if (!tbody) return;
+        const search = document.getElementById("cameraHealthSearch")?.value.trim().toLowerCase() || "";
+        const statusFilter = document.getElementById("cameraHealthStatus")?.value || "";
+        const cameras = healthState.cameras.filter((item) => {
+            const healthStatus = item.health_status_display || item.health_status || item.status || "idle";
+            const statusOk = !statusFilter || cameraStatusClass(healthStatus) === statusFilter;
+            const haystack = [
+                item.name,
+                item.worker_mode,
+                item.diagnosis_label,
+                item.diagnosis_reason,
+                item.health_status_display,
+                item.health_status,
+            ].join(" ").toLowerCase();
+            return statusOk && (!search || haystack.includes(search));
+        });
+
+        if (!cameras.length) {
+            tbody.innerHTML = '<tr><td colspan="12">Nenhuma camera encontrada com esses filtros.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = cameras.map((item) => {
+            const healthStatus = item.health_status_display || item.health_status || item.status || "idle";
+            const cls = cameraStatusClass(healthStatus);
+            return `
+                <tr>
+                    <td><strong>${escapeHtml(item.name || "Camera")}</strong></td>
+                    <td><span class="status status-${cls}">${escapeHtml(healthStatus || "-")}</span></td>
+                    <td><span class="status status-${escapeHtml(item.stability_class || "idle")}">${escapeHtml(item.stability_label || "-")}</span></td>
+                    <td><strong>${escapeHtml(item.diagnosis_label || "-")}</strong><div class="compact muted">${escapeHtml(item.diagnosis_reason || "-")}</div></td>
+                    <td>${escapeHtml(item.worker_mode || "-")}</td>
+                    <td>${escapeHtml(item.fps ?? "-")}</td>
+                    <td>${escapeHtml(item.process_cpu_percent ?? "-")}</td>
+                    <td>${escapeHtml(item.process_rss_mb ?? "-")}</td>
+                    <td>${escapeHtml(item.infer_ms ?? "-")}</td>
+                    <td>${escapeHtml(item.loop_ms ?? "-")}</td>
+                    <td>${escapeHtml(item.tracks_count ?? 0)}</td>
+                    <td>${escapeHtml(item.updated_at || "-")}</td>
+                </tr>
+            `;
+        }).join("");
+    }
+
+    function renderHealth(snapshot) {
+        if (!snapshot) return;
+        healthState.snapshot = snapshot;
+        healthState.cameras = Array.isArray(snapshot.camera_metrics) ? snapshot.camera_metrics : [];
+        renderSummary(snapshot);
+        renderGpuDetails(snapshot);
+        renderAiDiagnostics(snapshot.ai_diagnostics || null);
+        renderCameraTable();
+    }
+
+    async function refreshHealth() {
+        const response = await fetch("/dashboard/metrics", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Falha ao carregar metricas: ${response.status}`);
+        renderHealth(await response.json());
+    }
+
+    document.getElementById("refreshHealthBtn")?.addEventListener("click", () => refreshHealth().catch(console.error));
+    document.getElementById("cameraHealthSearch")?.addEventListener("input", renderCameraTable);
+    document.getElementById("cameraHealthStatus")?.addEventListener("change", renderCameraTable);
+
+    if (initialHealthSnapshot) renderHealth(initialHealthSnapshot);
+    refreshHealth().catch(console.error);
+    setInterval(() => refreshHealth().catch(console.error), 10000);
+</script>
+{% endblock %}

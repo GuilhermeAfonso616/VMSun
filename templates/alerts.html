@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .al-head { text-align: center; max-width: 980px; margin: 8px auto 6px; }
+    .al-head h1 { margin-bottom: 4px; }
+    .al-head p { margin: 0; }
+    .al-wrap { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .al-banner {
+        display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 14px;
+        border: 1px solid transparent; font-weight: 700;
+    }
+    .al-banner .al-banner-icon { width: 34px; height: 34px; flex: 0 0 auto; }
+    .al-banner .al-banner-text { font-size: 17px; }
+    .al-banner .al-banner-sub { font-size: 13px; font-weight: 600; opacity: 0.85; margin-top: 2px; }
+    .al-banner.ok { background: #dcfce7; border-color: #86efac; color: #14532d; }
+    .al-banner.warn { background: #fef3c7; border-color: #fcd34d; color: #7c2d12; }
+    .al-banner.bad { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
+    .al-toolbar { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+    .al-count { display: inline-flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--text-secondary); font-weight: 700; }
+    .al-count b { font-size: 18px; }
+    .al-count .dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+    .al-count .dot.bad { background: #dc2626; } .al-count .dot.warn { background: #d97706; }
+    .al-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); font-weight: 700; cursor: pointer; }
+    .al-list { display: flex; flex-direction: column; gap: 10px; }
+    .al-card {
+        display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: #fff;
+        border: 1px solid var(--line-soft); border-left-width: 5px; border-radius: 12px; box-shadow: var(--shadow-card);
+    }
+    .al-card.bad { border-left-color: #dc2626; }
+    .al-card.warn { border-left-color: #d97706; }
+    .al-sev { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; }
+    .al-sev.bad { background: #fee2e2; color: #b91c1c; } .al-sev.warn { background: #fef3c7; color: #b45309; }
+    .al-body { flex: 1; min-width: 0; }
+    .al-cam { font-weight: 800; color: #0f172a; font-size: 15px; }
+    .al-reason { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+    .al-meta { color: #94a3b8; font-size: 12px; margin-top: 4px; }
+    .al-dur { flex: 0 0 auto; text-align: right; }
+    .al-dur .big { font-size: 18px; font-weight: 800; color: #0f172a; }
+    .al-dur .lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+    .al-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .al-badge.bad { background: #fee2e2; color: #b91c1c; } .al-badge.warn { background: #fef3c7; color: #b45309; }
+    .al-empty { text-align: center; padding: 20px; color: var(--text-secondary); }
+    .al-muted { text-align: center; color: #94a3b8; font-size: 12px; }
+</style>
+
+<div class="al-head">
+    <h1>Central de alertas</h1>
+    <p class="muted">Cameras offline, instaveis ou com a IA muda aparecem aqui em tempo real.</p>
+</div>
+
+<div class="al-wrap">
+    <div class="al-banner ok" id="alBanner">
+        <span class="al-banner-icon" id="alBannerIcon"></span>
+        <div><div class="al-banner-text" id="alBannerText">Carregando...</div><div class="al-banner-sub" id="alBannerSub"></div></div>
+    </div>
+
+    <div class="al-toolbar">
+        <span class="al-count"><span class="dot bad"></span>Criticos <b id="alCritical">0</b></span>
+        <span class="al-count"><span class="dot warn"></span>Atencao <b id="alWarning">0</b></span>
+        <button class="btn btn-secondary btn-small" type="button" id="alRefresh">Atualizar</button>
+        <label class="al-switch"><input type="checkbox" id="alSound"> Som ao surgir critico</label>
+    </div>
+
+    <div class="al-list" id="alList"></div>
+    <div class="al-muted" id="alUpdated"></div>
+</div>
+
+<script>
+(function () {
+    const endpoint = "/dashboard/alerts";
+    const SOUND_KEY = "alerts_sound_enabled";
+    let prevCritical = new Set();
+    let firstLoad = true;
+    let audioCtx = null;
+
+    function escapeHtml(v) {
+        return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+    function fmtDateTime(v) {
+        if (!v) return "-";
+        const d = new Date(String(v).endsWith("Z") ? v : `${v}Z`);
+        if (Number.isNaN(d.getTime())) return String(v);
+        return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function beep() {
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.connect(g); g.connect(audioCtx.destination);
+            o.type = "sine"; o.frequency.value = 880;
+            g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+            o.start(); o.stop(audioCtx.currentTime + 0.5);
+        } catch (e) { /* audio bloqueado ate interacao */ }
+    }
+
+    const sevMap = { critical: "bad", warning: "warn" };
+    const sevLabel = { critical: "Critico", warning: "Atencao" };
+    const iconBad = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+    const iconWarn = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>';
+
+    function render(data) {
+        const counts = data.counts || {};
+        const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+        document.getElementById("alCritical").textContent = counts.critical || 0;
+        document.getElementById("alWarning").textContent = counts.warning || 0;
+
+        const banner = document.getElementById("alBanner");
+        const text = document.getElementById("alBannerText");
+        const sub = document.getElementById("alBannerSub");
+        const icon = document.getElementById("alBannerIcon");
+        const bannerIcons = {
+            ok: '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg>',
+            bad: '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+            warn: '<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>',
+        };
+        if ((counts.critical || 0) > 0) {
+            banner.className = "al-banner bad";
+            icon.innerHTML = bannerIcons.bad;
+            text.textContent = `${counts.critical} camera(s) com falha critica`;
+            sub.textContent = "Verifique as cameras offline abaixo.";
+        } else if ((counts.warning || 0) > 0) {
+            banner.className = "al-banner warn";
+            icon.innerHTML = bannerIcons.warn;
+            text.textContent = `${counts.warning} alerta(s) de atencao`;
+            sub.textContent = "Cameras instaveis ou com IA muda.";
+        } else {
+            banner.className = "al-banner ok";
+            icon.innerHTML = bannerIcons.ok;
+            text.textContent = "Tudo operacional";
+            sub.textContent = "Nenhum alerta ativo no momento.";
+        }
+        if (data.runtime_error) {
+            banner.className = "al-banner warn";
+            text.textContent = "Runtime indisponivel";
+            sub.textContent = String(data.runtime_error);
+        }
+
+        const list = document.getElementById("alList");
+        list.innerHTML = alerts.length ? alerts.map((a) => {
+            const sv = sevMap[a.severity] || "warn";
+            const durLbl = { offline: "sem sinal", ia_inactive: "sem IA", degraded: "instavel", reconnecting: "reconectando" }[a.type] || "ativo";
+            const meta = [];
+            if (a.since) meta.push(`desde ${escapeHtml(fmtDateTime(a.since))}`);
+            if (a.restart_count) meta.push(`${a.restart_count} reinicios`);
+            return `
+                <div class="al-card ${sv}">
+                    <div class="al-sev ${sv}">${sv === "bad" ? iconBad : iconWarn}</div>
+                    <div class="al-body">
+                        <div class="al-cam">${escapeHtml(a.camera)} <span class="al-badge ${sv}">${sevLabel[a.severity] || a.severity}</span></div>
+                        <div class="al-reason">${escapeHtml(a.reason)}</div>
+                        <div class="al-meta">${meta.join(" &middot; ") || "&nbsp;"}</div>
+                    </div>
+                    <div class="al-dur">
+                        <div class="big">${escapeHtml(a.duration_label || "-")}</div>
+                        <div class="lbl">${durLbl}</div>
+                    </div>
+                </div>`;
+        }).join("") : '<div class="al-empty">Nenhum alerta ativo. Todas as cameras monitoradas estao saudaveis.</div>';
+
+        // Som quando um NOVO critico surge (nao no primeiro carregamento).
+        const nowCritical = new Set(alerts.filter((a) => a.severity === "critical").map((a) => `${a.camera_id}:${a.type}`));
+        if (!firstLoad && document.getElementById("alSound").checked) {
+            for (const sig of nowCritical) { if (!prevCritical.has(sig)) { beep(); break; } }
+        }
+        prevCritical = nowCritical;
+        firstLoad = false;
+        document.getElementById("alUpdated").textContent = `Atualizado em ${fmtDateTime(data.generated_at)}`;
+    }
+
+    async function refresh() {
+        try {
+            const r = await fetch(endpoint, { cache: "no-store" });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            render(await r.json());
+        } catch (e) {
+            console.warn("Falha ao carregar alertas:", e);
+        }
+    }
+
+    const sound = document.getElementById("alSound");
+    try { sound.checked = localStorage.getItem(SOUND_KEY) === "1"; } catch (e) { /* ignora */ }
+    sound.addEventListener("change", () => {
+        try { localStorage.setItem(SOUND_KEY, sound.checked ? "1" : "0"); } catch (e) { /* ignora */ }
+        if (sound.checked) beep(); // desbloqueia o audio no gesto do usuario
+    });
+    document.getElementById("alRefresh").addEventListener("click", refresh);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+    refresh();
+    setInterval(refresh, 15000);
+})();
+</script>
+{% endblock %}

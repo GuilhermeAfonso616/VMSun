@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Rastrear cameras na rede</h1>
+
+<div class="card network-scan-intro">
+    <p>
+        Localize cameras ONVIF por WS-Discovery e, opcionalmente, teste as portas ONVIF mais comuns
+        nos enderecos da faixa informada.
+    </p>
+    <p class="muted">
+        A busca aceita somente redes IPv4 privadas com ate 256 enderecos. Dentro do Docker, o multicast
+        pode nao atravessar a rede bridge; a varredura complementar cobre esse caso.
+    </p>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form
+        method="post"
+        action="/cameras/network-discovery"
+        data-loading-title="Rastreando cameras..."
+        data-loading-message="Consultando WS-Discovery e portas ONVIF da rede privada."
+    >
+        <div class="network-scan-controls">
+            <div>
+                <label>Faixa de rede</label>
+                <input type="text" name="network" value="{{ network }}" placeholder="192.168.1.0/24" required>
+            </div>
+            <label class="network-scan-checkbox">
+                <input type="checkbox" name="include_port_scan" value="true" {% if include_port_scan %}checked{% endif %}>
+                Complementar com varredura das portas 80, 8000, 8080 e 8899
+            </label>
+            <button class="btn btn-primary" type="submit">Rastrear agora</button>
+            <a class="btn btn-secondary" href="/cameras">Voltar</a>
+        </div>
+    </form>
+</div>
+
+{% if import_results %}
+<div class="card">
+    <h2>Resultado da importacao</h2>
+    <div class="network-import-results">
+        {% for item in import_results %}
+            <div class="network-import-result {% if item.ok %}is-ok{% elif item.status == 'ignored' %}is-ignored{% else %}is-error{% endif %}">
+                <strong>{{ item.ip }}</strong>
+                <span>{{ item.message }}</span>
+            </div>
+        {% endfor %}
+    </div>
+    <div style="margin-top:14px;">
+        <a class="btn btn-primary" href="/cameras">Ver cameras cadastradas</a>
+    </div>
+</div>
+{% endif %}
+
+{% if devices is not none %}
+<div class="card network-results-card">
+    <div class="network-results-header">
+        <div>
+            <h2>Dispositivos encontrados</h2>
+            {% if summary %}
+                <p class="muted">
+                    {{ summary.total }} dispositivo(s) em {{ summary.elapsed_seconds }}s.
+                    WS-Discovery: {{ summary.ws_discovery_count }}; varredura: {{ summary.port_scan_count }}.
+                </p>
+            {% endif %}
+        </div>
+        {% if devices %}
+            <button class="btn btn-secondary" type="button" id="selectAllDevices">Selecionar disponiveis</button>
+        {% endif %}
+    </div>
+
+    {% if devices %}
+    <form
+        method="post"
+        action="/cameras/network-discovery/import"
+        data-loading-title="Adicionando cameras..."
+        data-loading-message="Validando as credenciais ONVIF e obtendo o primeiro profile RTSP de cada camera."
+    >
+        <input type="hidden" name="network" value="{{ network }}">
+        <input type="hidden" name="device_count" value="{{ devices|length }}">
+
+        <div class="network-device-table-wrap">
+            <table class="network-device-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>IP</th>
+                        <th>Porta</th>
+                        <th>Nome</th>
+                        <th>Fabricante / modelo</th>
+                        <th>Origem</th>
+                        <th>Cadastro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <input
+                                class="device-selector"
+                                type="checkbox"
+                                name="selected_device"
+                                value="{{ device.index }}"
+                                {% if device.existing_name %}disabled{% endif %}
+                                style="width:auto;"
+                            >
+                            <input type="hidden" name="device_ip_{{ device.index }}" value="{{ device.ip }}">
+                            <input type="hidden" name="device_port_{{ device.index }}" value="{{ device.port }}">
+                            <input type="hidden" name="device_manufacturer_{{ device.index }}" value="{{ device.manufacturer }}">
+                            <input type="hidden" name="device_model_{{ device.index }}" value="{{ device.model }}">
+                            <input type="hidden" name="device_source_{{ device.index }}" value="{{ device.source }}">
+                        </td>
+                        <td><strong>{{ device.ip }}</strong></td>
+                        <td>{{ device.port }}</td>
+                        <td>
+                            <input type="text" name="device_name_{{ device.index }}" value="{{ device.suggested_name }}" maxlength="120">
+                        </td>
+                        <td>
+                            {{ device.manufacturer or '-' }}
+                            {% if device.model %}<div class="muted">{{ device.model }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if device.source == 'ws_discovery' %}
+                                <span class="status status-running">WS-Discovery</span>
+                            {% else %}
+                                <span class="status status-standby">Porta ONVIF</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if device.existing_name %}
+                                <span class="muted">Ja cadastrada: {{ device.existing_name }}</span>
+                            {% else %}
+                                <a class="btn btn-secondary btn-small" href="{{ device.add_url }}">Adicionar individualmente</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="network-import-panel">
+            <h3>Adicionar selecionadas</h3>
+            <p class="muted">
+                As credenciais abaixo serao testadas em todas as cameras selecionadas. Para credenciais diferentes,
+                use a acao individual de cada linha.
+            </p>
+            <div class="grid">
+                <div>
+                    <label>Usuario ONVIF</label>
+                    <input type="text" name="username" autocomplete="username" required>
+                </div>
+                <div>
+                    <label>Senha ONVIF</label>
+                    <input type="password" name="password" autocomplete="current-password" required>
+                </div>
+                <div>
+                    <label>Familia da camera</label>
+                    <select name="camera_family">
+                        {% for option in camera_family_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Categoria da cena</label>
+                    <select name="scene_category">
+                        {% for option in scene_category_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Foco do alvo</label>
+                    <select name="target_focus">
+                        {% for option in target_focus_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" type="submit">Validar e adicionar selecionadas</button>
+        </div>
+    </form>
+    {% else %}
+        <div class="network-empty-state">
+            <strong>Nenhuma camera ONVIF foi localizada.</strong>
+            <p class="muted">
+                Confirme a faixa, habilite ONVIF nas cameras e mantenha a varredura complementar marcada.
+                VLANs e firewalls podem bloquear tanto o multicast quanto as portas do equipamento.
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.network-scan-intro { margin-bottom: 16px; }
+.network-scan-controls {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr) auto auto;
+    gap: 12px;
+    align-items: end;
+}
+.network-scan-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    margin: 0;
+}
+.network-scan-checkbox input { width: auto; margin: 0; }
+.network-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.network-results-header h2 { margin-bottom: 4px; }
+.network-device-table-wrap { overflow-x: auto; }
+.network-device-table { min-width: 980px; }
+.network-device-table td { vertical-align: middle; }
+.network-device-table input[type="text"] { min-width: 190px; margin: 0; }
+.network-import-panel {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid #dbe3ec;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+.network-import-results { display: grid; gap: 8px; }
+.network-import-result {
+    display: grid;
+    grid-template-columns: minmax(130px, auto) 1fr;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #dbe3ec;
+}
+.network-import-result.is-ok { background: #ecfdf5; border-color: #86efac; }
+.network-import-result.is-ignored { background: #fffbeb; border-color: #fde68a; }
+.network-import-result.is-error { background: #fef2f2; border-color: #fca5a5; }
+.network-empty-state { padding: 24px; text-align: center; background: #f8fafc; border-radius: 8px; }
+@media (max-width: 900px) {
+    .network-scan-controls { grid-template-columns: 1fr; }
+    .network-results-header { align-items: flex-start; flex-direction: column; }
+}
+</style>
+
+<script>
+(function () {
+    const button = document.getElementById("selectAllDevices");
+    if (!button) return;
+    button.addEventListener("click", function () {
+        const boxes = Array.from(document.querySelectorAll(".device-selector:not(:disabled)"));
+        const shouldSelect = boxes.some((box) => !box.checked);
+        boxes.forEach((box) => { box.checked = shouldSelect; });
+        button.textContent = shouldSelect ? "Limpar selecao" : "Selecionar disponiveis";
+    });
+})();
+</script>
+{% endblock %}

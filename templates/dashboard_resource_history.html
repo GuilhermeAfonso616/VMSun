@@ -1,0 +1,896 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .rh-page-head {
+        text-align: center;
+        max-width: 980px;
+        margin: 8px auto 6px;
+    }
+    .rh-page-head h1 { margin-bottom: 4px; }
+    .rh-page-head p { margin: 0; }
+    .rh-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        gap: 8px 12px;
+        flex-wrap: wrap;
+        margin: 0 auto 14px;
+        max-width: 1120px;
+    }
+    .rh-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .rh-field select {
+        min-width: 148px;
+        height: 40px;
+        box-sizing: border-box;
+    }
+    .rh-toolbar > .btn { height: 40px; align-self: end; }
+    .rh-range-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        box-sizing: border-box;
+        padding: 4px 6px;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+    .rh-range-btn {
+        border: 0;
+        border-radius: 7px;
+        height: 32px;
+        padding: 0 12px;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .rh-range-btn.active {
+        background: #1d4ed8;
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(29, 78, 216, 0.22);
+    }
+    .rh-datetime-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 5px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+    .rh-date-control {
+        display: grid;
+        grid-template-columns: 1fr 34px;
+        align-items: center;
+        gap: 6px;
+        min-width: 190px;
+        height: 44px;
+        padding: 4px 5px 4px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .rh-date-control:hover,
+    .rh-date-control:focus-within {
+        border-color: #60a5fa;
+        background: #f8fbff;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+    .rh-date-label {
+        display: block;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 2px;
+    }
+    .rh-date-control input {
+        width: 100%;
+        height: 24px;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #0f172a;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: none;
+    }
+    .rh-date-control input:focus { border: 0; box-shadow: none; }
+    .rh-date-trigger {
+        display: inline-grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid #bfdbfe;
+        border-radius: 9px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+    .rh-date-trigger:hover { background: #dbeafe; border-color: #93c5fd; }
+    .rh-calendar-icon {
+        position: relative;
+        display: block;
+        width: 16px;
+        height: 15px;
+        border: 2px solid currentColor;
+        border-radius: 4px;
+    }
+    .rh-calendar-icon::before {
+        content: "";
+        position: absolute;
+        left: -2px; right: -2px; top: 3px;
+        border-top: 2px solid currentColor;
+    }
+    .rh-calendar-icon::after {
+        content: "";
+        position: absolute;
+        width: 3px; height: 3px; left: 4px; top: 7px;
+        background: currentColor;
+        box-shadow: 5px 0 0 currentColor;
+    }
+    .rh-datetime-sep {
+        color: var(--text-secondary);
+        font-weight: 700;
+        font-size: 11px;
+        padding: 0 2px;
+        white-space: nowrap;
+    }
+    .rh-summary {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin: 0 auto 14px;
+    }
+    .rh-chip {
+        background: #f8fafc;
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    .rh-chip strong { color: #0f172a; }
+    .rh-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+    .rh-card {
+        border-radius: 14px;
+        border: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        padding: 16px;
+    }
+    .rh-card-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+    }
+    .rh-card-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+    .rh-dot { width: 11px; height: 11px; border-radius: 999px; flex: none; }
+    .rh-stats { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rh-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 5px;
+        background: #f1f5f9;
+        border: 1px solid var(--line-soft);
+        border-radius: 9px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+    .rh-stat strong { font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -0.01em; }
+    .rh-canvas {
+        width: 100%;
+        height: 200px;
+        display: block;
+        border-radius: 12px;
+        background: radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 40%), #0f172a;
+    }
+    .rh-canvas { cursor: crosshair; }
+    .rh-tooltip {
+        position: fixed;
+        z-index: 2000;
+        display: none;
+        max-width: 240px;
+        padding: 9px 11px;
+        border: 1px solid rgba(147,197,253,0.42);
+        border-radius: 10px;
+        background: rgba(15,23,42,0.96);
+        color: #e2e8f0;
+        box-shadow: 0 12px 28px rgba(15,23,42,0.28);
+        pointer-events: none;
+        font-size: 12px;
+    }
+    .rh-tooltip strong { display: block; margin-bottom: 3px; color: #fff; }
+    .rh-tooltip span { display: block; color: #bfdbfe; font-weight: 700; }
+    .note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    @media (max-width: 900px) {
+        .rh-grid { grid-template-columns: 1fr; }
+        .rh-datetime-group { width: min(100%, 480px); flex-wrap: wrap; }
+        .rh-date-control { min-width: 100%; }
+        .rh-datetime-sep { width: 100%; text-align: center; }
+    }
+</style>
+
+<div class="rh-page-head">
+    <h1 data-i18n="title">Historico de recursos</h1>
+    <p class="muted" data-i18n="desc">CPU, RAM, GPU e FPS dos workers ao longo do tempo. Ctrl + scroll sobre os graficos ajusta a janela.</p>
+</div>
+
+<div class="rh-toolbar">
+    <div class="rh-field">
+        <span data-i18n="period">Periodo</span>
+        <div class="rh-range-group" id="rhRangeGroup" role="group" aria-label="Periodo">
+            <button class="rh-range-btn" type="button" data-hours="1">1h</button>
+            <button class="rh-range-btn" type="button" data-hours="6">6h</button>
+            <button class="rh-range-btn" type="button" data-hours="12">12h</button>
+            <button class="rh-range-btn active" type="button" data-hours="24">24h</button>
+            <button class="rh-range-btn" type="button" data-hours="48">48h</button>
+            <button class="rh-range-btn" type="button" data-hours="168">7d</button>
+        </div>
+    </div>
+    <div class="rh-field">
+        <span data-i18n="dayTime">Dia / horario</span>
+        <div class="rh-datetime-group">
+            <div class="rh-date-control" data-date-control="rhStart">
+                <div>
+                    <span class="rh-date-label" data-i18n="start">Inicio</span>
+                    <input type="datetime-local" id="rhStart" data-i18n-aria="startAria" aria-label="Inicio do intervalo">
+                </div>
+                <button class="rh-date-trigger" type="button" data-picker-target="rhStart" data-i18n-aria="openCalStart" aria-label="Abrir calendario de inicio">
+                    <span class="rh-calendar-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+            <span class="rh-datetime-sep" data-i18n="to">ate</span>
+            <div class="rh-date-control" data-date-control="rhEnd">
+                <div>
+                    <span class="rh-date-label" data-i18n="end">Fim</span>
+                    <input type="datetime-local" id="rhEnd" data-i18n-aria="endAria" aria-label="Fim do intervalo">
+                </div>
+                <button class="rh-date-trigger" type="button" data-picker-target="rhEnd" data-i18n-aria="openCalEnd" aria-label="Abrir calendario de fim">
+                    <span class="rh-calendar-icon" aria-hidden="true"></span>
+                </button>
+            </div>
+            <button class="btn btn-secondary btn-small" type="button" id="rhRangeClear" data-i18n="clear" data-i18n-title="clearTitle" title="Limpar intervalo e voltar para a janela relativa">Limpar</button>
+        </div>
+    </div>
+    <label class="rh-field">
+        <span data-i18n="granularity">Granularidade</span>
+        <select id="rhBucket">
+            <option value="auto" selected>Auto</option>
+            <option value="1">1 min</option>
+            <option value="5">5 min</option>
+            <option value="15">15 min</option>
+            <option value="30">30 min</option>
+            <option value="60">60 min</option>
+        </select>
+    </label>
+    <button class="btn btn-secondary btn-small" type="button" id="rhRefresh" data-i18n="refresh">Atualizar</button>
+    <button class="btn btn-secondary btn-small" type="button" id="rhExportJson" data-i18n="downloadJson">Baixar JSON</button>
+    <button class="btn btn-secondary btn-small" type="button" id="rhLangToggle" title="Switch to English">EN</button>
+</div>
+
+<div class="rh-summary" id="rhSummary">
+    <span class="rh-chip" data-i18n="loading">Carregando historico...</span>
+</div>
+
+<div class="rh-grid" id="rhGrid">
+    <div class="rh-card">
+        <div class="rh-card-head">
+            <div class="rh-card-title"><span class="rh-dot" style="background:#38bdf8;"></span><span data-i18n="cpu">CPU workers</span></div>
+            <div class="rh-stats" data-stats="cpu"></div>
+        </div>
+        <canvas class="rh-canvas" data-metric="cpu"></canvas>
+    </div>
+    <div class="rh-card">
+        <div class="rh-card-head">
+            <div class="rh-card-title"><span class="rh-dot" style="background:#f59e0b;"></span><span data-i18n="ram">RAM workers</span></div>
+            <div class="rh-stats" data-stats="ram_mb"></div>
+        </div>
+        <canvas class="rh-canvas" data-metric="ram_mb"></canvas>
+    </div>
+    <div class="rh-card">
+        <div class="rh-card-head">
+            <div class="rh-card-title"><span class="rh-dot" style="background:#22c55e;"></span><span data-i18n="gpu">GPU utilizacao</span></div>
+            <div class="rh-stats" data-stats="gpu"></div>
+        </div>
+        <canvas class="rh-canvas" data-metric="gpu"></canvas>
+    </div>
+    <div class="rh-card">
+        <div class="rh-card-head">
+            <div class="rh-card-title"><span class="rh-dot" style="background:#a78bfa;"></span><span data-i18n="fps">FPS processado</span></div>
+            <div class="rh-stats" data-stats="fps"></div>
+        </div>
+        <canvas class="rh-canvas" data-metric="fps"></canvas>
+    </div>
+</div>
+
+<div class="rh-tooltip" id="rhTooltip" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+    const historyEndpoint = "/dashboard/resource-history";
+    const state = {
+        hours: 24,
+        lastPayload: null,
+    };
+
+    // Configuracao por metrica: cor, transformacao de unidade e formatadores.
+    const METRICS = {
+        cpu:    { label: "CPU workers",    color: "#38bdf8", scale: 1,      unit: "%",   fmt: (v) => `${Math.round(v)}%`,              axis: (v) => String(Math.round(v)) },
+        ram_mb: { label: "RAM workers",    color: "#f59e0b", scale: 1/1024, unit: "GB",  fmt: (v) => `${v.toFixed(1)} GB`,              axis: (v) => (Number.isInteger(v) ? String(v) : v.toFixed(1)) },
+        gpu:    { label: "GPU utilizacao", color: "#22c55e", scale: 1,      unit: "%",   fmt: (v) => `${Math.round(v)}%`,              axis: (v) => String(Math.round(v)) },
+        fps:    { label: "FPS processado", color: "#a78bfa", scale: 1,      unit: "fps", fmt: (v) => `${v.toFixed(v >= 100 ? 0 : 1)}`,  axis: (v) => String(Math.round(v)) },
+    };
+
+    // Idioma da tela (PT/EN). O PT ja traz a acentuacao correta e e aplicado por
+    // JS sobre o HTML (que fica sem acento so como fallback antes do script rodar).
+    const I18N = {
+        pt: {
+            title: "Histórico de recursos",
+            desc: "CPU, RAM, GPU e FPS dos workers ao longo do tempo. Ctrl + scroll sobre os gráficos ajusta a janela.",
+            period: "Período", dayTime: "Dia / horário", start: "Início", end: "Fim", to: "até",
+            clear: "Limpar", clearTitle: "Limpar intervalo e voltar para a janela relativa",
+            granularity: "Granularidade", refresh: "Atualizar", downloadJson: "Baixar JSON",
+            loading: "Carregando histórico...",
+            cpu: "CPU workers", ram: "RAM workers", gpu: "GPU utilização", fps: "FPS processado",
+            current: "Atual", avg: "Média", peak: "Pico",
+            samples: "Amostras", bucket: "Bucket", workersPeak: "Workers (pico)", first: "Primeira", last: "Última",
+            noSamplesWindow: "Sem amostras nesta janela", noSample: "sem amostra",
+            loadError: "Não foi possível carregar o histórico agora.", min: "min",
+            startAria: "Início do intervalo", endAria: "Fim do intervalo",
+            openCalStart: "Abrir calendário de início", openCalEnd: "Abrir calendário de fim",
+            langBtn: "EN", langTitle: "Switch to English",
+        },
+        en: {
+            title: "Resource history",
+            desc: "Workers' CPU, RAM, GPU and FPS over time. Ctrl + scroll over the charts adjusts the window.",
+            period: "Period", dayTime: "Day / time", start: "Start", end: "End", to: "to",
+            clear: "Clear", clearTitle: "Clear the range and return to the relative window",
+            granularity: "Granularity", refresh: "Refresh", downloadJson: "Download JSON",
+            loading: "Loading history...",
+            cpu: "CPU workers", ram: "RAM workers", gpu: "GPU usage", fps: "Processed FPS",
+            current: "Current", avg: "Avg", peak: "Peak",
+            samples: "Samples", bucket: "Bucket", workersPeak: "Workers (peak)", first: "First", last: "Last",
+            noSamplesWindow: "No samples in this window", noSample: "no sample",
+            loadError: "Could not load the history right now.", min: "min",
+            startAria: "Range start", endAria: "Range end",
+            openCalStart: "Open start calendar", openCalEnd: "Open end calendar",
+            langBtn: "PT", langTitle: "Mudar para Português",
+        },
+    };
+    let LANG = "pt";
+    function t(key) { return (I18N[LANG] && I18N[LANG][key]) || (I18N.pt[key] ?? key); }
+
+    function applyLanguage(lang) {
+        LANG = lang === "en" ? "en" : "pt";
+        try { localStorage.setItem("rh_lang", LANG); } catch (e) { /* ignora */ }
+        const dict = I18N[LANG];
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+            const k = el.getAttribute("data-i18n");
+            if (dict[k] !== undefined) el.textContent = dict[k];
+        });
+        document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+            const k = el.getAttribute("data-i18n-title");
+            if (dict[k] !== undefined) el.setAttribute("title", dict[k]);
+        });
+        document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+            const k = el.getAttribute("data-i18n-aria");
+            if (dict[k] !== undefined) el.setAttribute("aria-label", dict[k]);
+        });
+        const btn = document.getElementById("rhLangToggle");
+        if (btn) { btn.textContent = dict.langBtn; btn.title = dict.langTitle; }
+        if (state.lastPayload) renderHistory(state.lastPayload);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+
+    function formatDateTime(value, options) {
+        if (!value) return "-";
+        const date = new Date(String(value).endsWith("Z") ? value : `${value}Z`);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("pt-BR", options || {
+            day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+        });
+    }
+
+    function bucketForHours(hours) {
+        const value = Number(hours) || 24;
+        if (value <= 3) return 1;
+        if (value <= 12) return 5;
+        if (value <= 24) return 5;
+        if (value <= 48) return 15;
+        return 60;
+    }
+
+    function getSelectedHours() {
+        const active = document.querySelector(".rh-range-btn.active");
+        return Number(active && active.dataset.hours) || state.hours || 24;
+    }
+
+    function getSelectedBucket(hours) {
+        const el = document.getElementById("rhBucket");
+        const raw = el ? el.value : "auto";
+        if (raw === "auto") return bucketForHours(hours);
+        return Number(raw) || bucketForHours(hours);
+    }
+
+    function openDatePicker(input, allowFallbackClick = true) {
+        if (!input) return;
+        input.focus();
+        if (typeof input.showPicker === "function") {
+            try { input.showPicker(); return; } catch (error) { /* bloqueado fora do gesto */ }
+        }
+        if (allowFallbackClick) input.click();
+    }
+
+    // Inputs datetime-local sao horario local; converte para ISO UTC (o historico
+    // e gravado em UTC).
+    function getCustomRange() {
+        const startEl = document.getElementById("rhStart");
+        const endEl = document.getElementById("rhEnd");
+        if (!startEl || !endEl || !startEl.value || !endEl.value) return null;
+        const startDate = new Date(startEl.value);
+        const endDate = new Date(endEl.value);
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) return null;
+        return { start: startDate.toISOString(), end: endDate.toISOString() };
+    }
+
+    function clearCustomRange() {
+        const startEl = document.getElementById("rhStart");
+        const endEl = document.getElementById("rhEnd");
+        if (startEl) startEl.value = "";
+        if (endEl) endEl.value = "";
+    }
+
+    function buildRequestParams() {
+        const hours = getSelectedHours();
+        const bucket = getSelectedBucket(hours);
+        const params = new URLSearchParams({ hours: String(hours), bucket_minutes: String(bucket) });
+        const customRange = getCustomRange();
+        if (customRange) {
+            params.set("start", customRange.start);
+            params.set("end", customRange.end);
+        }
+        return { params, hours, bucket, customRange };
+    }
+
+    function syncRangeButtons(hours) {
+        state.hours = Number(hours) || 24;
+        document.querySelectorAll(".rh-range-btn").forEach((button) => {
+            button.classList.toggle("active", Number(button.dataset.hours) === state.hours);
+        });
+    }
+
+    function resizeCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+        if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+        }
+        return dpr;
+    }
+
+    function niceMax(value) {
+        if (!Number.isFinite(value) || value <= 0) return 1;
+        const pow = Math.pow(10, Math.floor(Math.log10(value)));
+        const n = value / pow;
+        const steps = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10];
+        const nice = steps.find((s) => s >= n - 1e-9) || 10;
+        return nice * pow;
+    }
+
+    function hexToRgba(hex, alpha) {
+        const h = hex.replace("#", "");
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Desenha uma serie temporal (uma metrica) com eixo Y em unidade real, eixo de
+    // tempo no rodape e lacunas onde nao houve amostra.
+    function drawMetricChart(canvas, points, cfg, hoverIndex = -1) {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const dpr = resizeCanvas(canvas);
+        const W = canvas.width;
+        const H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, "rgba(15, 23, 42, 0.96)");
+        bg.addColorStop(1, "rgba(15, 23, 42, 0.86)");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        const padL = 50 * dpr;
+        const padR = 14 * dpr;
+        const padT = 12 * dpr;
+        const padB = 24 * dpr;
+        const cw = W - padL - padR;
+        const ch = H - padT - padB;
+
+        // Geometria em pixels-CSS para o hover mapear cursor -> indice do ponto.
+        canvas._chart = { points, cfg, padLcss: padL / dpr, cwCss: cw / dpr, n: points.length };
+
+        const finite = points.filter((p) => Number.isFinite(p.v));
+        if (!finite.length) {
+            ctx.fillStyle = "rgba(148, 163, 184, 0.75)";
+            ctx.font = `${13 * dpr}px "Segoe UI", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(t("noSamplesWindow"), W / 2, H / 2);
+            ctx.textAlign = "start";
+            return;
+        }
+
+        const maxV = niceMax(Math.max(1, ...finite.map((p) => p.v)));
+        const n = points.length;
+        const xFor = (i) => padL + (n <= 1 ? cw / 2 : (cw * i) / (n - 1));
+        const yFor = (v) => padT + ch - (Math.max(0, Math.min(v, maxV)) / maxV) * ch;
+
+        // Grade + rotulos do eixo Y.
+        const ticks = 4;
+        ctx.textAlign = "end";
+        ctx.textBaseline = "middle";
+        ctx.font = `${11 * dpr}px "Segoe UI", sans-serif`;
+        for (let i = 0; i <= ticks; i++) {
+            const t = i / ticks;
+            const y = padT + ch * t;
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.14)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + cw, y);
+            ctx.stroke();
+            ctx.fillStyle = "rgba(148, 163, 184, 0.7)";
+            ctx.fillText(cfg.axis(maxV * (1 - t)), padL - 8 * dpr, y);
+        }
+        ctx.textAlign = "start";
+        ctx.textBaseline = "alphabetic";
+
+        // Segmentos continuos (quebra em lacunas de amostra).
+        const segments = [];
+        let current = [];
+        points.forEach((p, i) => {
+            if (Number.isFinite(p.v)) {
+                current.push({ x: xFor(i), y: yFor(p.v) });
+            } else if (current.length) {
+                segments.push(current);
+                current = [];
+            }
+        });
+        if (current.length) segments.push(current);
+
+        segments.forEach((seg) => {
+            if (seg.length === 1) {
+                ctx.beginPath();
+                ctx.arc(seg[0].x, seg[0].y, 2.2 * dpr, 0, Math.PI * 2);
+                ctx.fillStyle = cfg.color;
+                ctx.fill();
+                return;
+            }
+            ctx.beginPath();
+            seg.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.lineTo(seg[seg.length - 1].x, padT + ch);
+            ctx.lineTo(seg[0].x, padT + ch);
+            ctx.closePath();
+            const fill = ctx.createLinearGradient(0, padT, 0, padT + ch);
+            fill.addColorStop(0, hexToRgba(cfg.color, 0.22));
+            fill.addColorStop(1, hexToRgba(cfg.color, 0.02));
+            ctx.fillStyle = fill;
+            ctx.fill();
+
+            ctx.beginPath();
+            seg.forEach((pt, i) => { if (i === 0) ctx.moveTo(pt.x, pt.y); else ctx.lineTo(pt.x, pt.y); });
+            ctx.strokeStyle = cfg.color;
+            ctx.lineWidth = 2.2 * dpr;
+            ctx.lineJoin = "round";
+            ctx.stroke();
+        });
+
+        // Ponto no ultimo valor.
+        const lastFinite = [...points].reverse().find((p) => Number.isFinite(p.v));
+        const lastIndex = points.lastIndexOf(lastFinite);
+        if (lastFinite && lastIndex >= 0) {
+            const x = xFor(lastIndex);
+            const y = yFor(lastFinite.v);
+            ctx.beginPath();
+            ctx.arc(x, y, 3.2 * dpr, 0, Math.PI * 2);
+            ctx.fillStyle = cfg.color;
+            ctx.fill();
+            ctx.strokeStyle = "rgba(15,23,42,0.9)";
+            ctx.lineWidth = 2 * dpr;
+            ctx.stroke();
+        }
+
+        // Eixo de tempo (rodape): ~5 rotulos.
+        const spanMs = (() => {
+            const a = new Date(`${points[0].t}Z`).getTime();
+            const b = new Date(`${points[n - 1].t}Z`).getTime();
+            return Number.isFinite(a) && Number.isFinite(b) ? b - a : 0;
+        })();
+        const withDay = spanMs > 24 * 3600 * 1000;
+        const labelOpts = withDay
+            ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }
+            : { hour: "2-digit", minute: "2-digit" };
+        const tickCount = Math.min(5, n);
+        ctx.fillStyle = "rgba(148, 163, 184, 0.7)";
+        ctx.font = `${10 * dpr}px "Segoe UI", sans-serif`;
+        ctx.textBaseline = "alphabetic";
+        for (let i = 0; i < tickCount; i++) {
+            const idx = tickCount <= 1 ? 0 : Math.round((i * (n - 1)) / (tickCount - 1));
+            const x = xFor(idx);
+            ctx.textAlign = i === 0 ? "start" : (i === tickCount - 1 ? "end" : "center");
+            ctx.fillText(formatDateTime(points[idx].t, labelOpts), x, H - 7 * dpr);
+        }
+        ctx.textAlign = "start";
+
+        // Crosshair + destaque no ponto sob o cursor.
+        if (hoverIndex >= 0 && hoverIndex < n) {
+            const hx = xFor(hoverIndex);
+            ctx.save();
+            ctx.strokeStyle = "rgba(226,232,240,0.4)";
+            ctx.lineWidth = 1 * dpr;
+            ctx.setLineDash([4 * dpr, 4 * dpr]);
+            ctx.beginPath();
+            ctx.moveTo(hx, padT);
+            ctx.lineTo(hx, padT + ch);
+            ctx.stroke();
+            ctx.restore();
+            const hv = points[hoverIndex].v;
+            if (Number.isFinite(hv)) {
+                const hy = yFor(hv);
+                ctx.beginPath();
+                ctx.arc(hx, hy, 4.5 * dpr, 0, Math.PI * 2);
+                ctx.fillStyle = cfg.color;
+                ctx.fill();
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 2 * dpr;
+                ctx.stroke();
+            }
+        }
+    }
+
+    function renderStats(key, metricSummary) {
+        const container = document.querySelector(`.rh-stats[data-stats="${key}"]`);
+        if (!container) return;
+        const cfg = METRICS[key];
+        const conv = (v) => (v === null || v === undefined ? null : v * cfg.scale);
+        const fmt = (v) => (v === null ? "—" : cfg.fmt(v));
+        const s = metricSummary || {};
+        container.innerHTML = `
+            <span class="rh-stat">${escapeHtml(t("current"))} <strong>${escapeHtml(fmt(conv(s.last)))}</strong></span>
+            <span class="rh-stat">${escapeHtml(t("avg"))} <strong>${escapeHtml(fmt(conv(s.avg)))}</strong></span>
+            <span class="rh-stat">${escapeHtml(t("peak"))} <strong>${escapeHtml(fmt(conv(s.peak)))}</strong></span>
+        `;
+    }
+
+    function renderHistory(payload) {
+        const summaryEl = document.getElementById("rhSummary");
+        const buckets = Array.isArray(payload && payload.buckets) ? payload.buckets : [];
+        const range = (payload && payload.range) || {};
+        const info = (payload && payload.summary) || {};
+        const metrics = (info && info.metrics) || {};
+
+        if (summaryEl) {
+            summaryEl.innerHTML = `
+                <span class="rh-chip">${escapeHtml(t("samples"))}: <strong>${escapeHtml(info.samples ?? 0)}</strong></span>
+                <span class="rh-chip">${escapeHtml(t("bucket"))}: <strong>${escapeHtml(range.bucket_minutes ?? "-")} ${escapeHtml(t("min"))}</strong></span>
+                <span class="rh-chip">${escapeHtml(t("workersPeak"))}: <strong>${escapeHtml((metrics.workers && metrics.workers.peak) ?? "-")}</strong></span>
+                <span class="rh-chip">${escapeHtml(t("first"))}: <strong>${escapeHtml(formatDateTime(info.first_sample_at))}</strong></span>
+                <span class="rh-chip">${escapeHtml(t("last"))}: <strong>${escapeHtml(formatDateTime(info.last_sample_at))}</strong></span>
+            `;
+        }
+
+        Object.keys(METRICS).forEach((key) => {
+            const cfg = METRICS[key];
+            renderStats(key, metrics[key]);
+            const canvas = document.querySelector(`.rh-canvas[data-metric="${key}"]`);
+            if (!canvas) return;
+            const points = buckets.map((b) => ({
+                t: b.start,
+                v: (b[key] === null || b[key] === undefined) ? null : b[key] * cfg.scale,
+            }));
+            drawMetricChart(canvas, points, cfg);
+        });
+    }
+
+    function redraw() {
+        if (state.lastPayload) renderHistory(state.lastPayload);
+    }
+
+    async function refreshHistory() {
+        const { params } = buildRequestParams();
+        try {
+            const response = await fetch(`${historyEndpoint}?${params.toString()}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            state.lastPayload = await response.json();
+            renderHistory(state.lastPayload);
+        } catch (error) {
+            console.warn("Falha ao carregar historico de recursos:", error);
+            const summaryEl = document.getElementById("rhSummary");
+            if (summaryEl) summaryEl.innerHTML = `<span class="rh-chip">${escapeHtml(t("loadError"))}</span>`;
+        }
+    }
+
+    function downloadJson() {
+        if (!state.lastPayload) {
+            refreshHistory().then(downloadJson).catch(() => {});
+            return;
+        }
+        const blob = new Blob([JSON.stringify(state.lastPayload, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = URL.createObjectURL(blob);
+        link.download = `historico_recursos_${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    // --- wiring ---
+    const rhRefresh = document.getElementById("rhRefresh");
+    const rhExport = document.getElementById("rhExportJson");
+    const rhBucket = document.getElementById("rhBucket");
+    if (rhRefresh) rhRefresh.addEventListener("click", refreshHistory);
+    if (rhExport) rhExport.addEventListener("click", downloadJson);
+    if (rhBucket) rhBucket.addEventListener("change", refreshHistory);
+
+    document.querySelectorAll(".rh-range-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            clearCustomRange();
+            syncRangeButtons(Number(button.dataset.hours) || 24);
+            refreshHistory();
+        });
+    });
+
+    document.querySelectorAll("[data-picker-target]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openDatePicker(document.getElementById(button.dataset.pickerTarget));
+        });
+    });
+    document.querySelectorAll("[data-date-control]").forEach((control) => {
+        control.addEventListener("click", (event) => {
+            if (event.target.closest("button")) return;
+            if (event.target.closest("input")) return;
+            openDatePicker(document.getElementById(control.dataset.dateControl));
+        });
+    });
+    document.querySelectorAll(".rh-date-control input").forEach((input) => {
+        input.addEventListener("click", () => openDatePicker(input, false));
+    });
+
+    function onCustomRangeChanged() {
+        if (!getCustomRange()) return;
+        document.querySelectorAll(".rh-range-btn").forEach((b) => b.classList.remove("active"));
+        refreshHistory();
+    }
+    const rhStart = document.getElementById("rhStart");
+    const rhEnd = document.getElementById("rhEnd");
+    const rhRangeClear = document.getElementById("rhRangeClear");
+    if (rhStart) rhStart.addEventListener("change", onCustomRangeChanged);
+    if (rhEnd) rhEnd.addEventListener("change", onCustomRangeChanged);
+    if (rhRangeClear) {
+        rhRangeClear.addEventListener("click", () => {
+            clearCustomRange();
+            syncRangeButtons(state.hours || 24);
+            refreshHistory();
+        });
+    }
+
+    // Ctrl + scroll ajusta a janela relativa.
+    const grid = document.getElementById("rhGrid");
+    if (grid) {
+        let wheelTimer = null;
+        grid.addEventListener("wheel", (event) => {
+            if (!event.ctrlKey) return;
+            event.preventDefault();
+            const options = Array.from(document.querySelectorAll(".rh-range-btn")).map((b) => Number(b.dataset.hours));
+            let index = options.indexOf(getSelectedHours());
+            if (index < 0) index = 0;
+            index = Math.max(0, Math.min(options.length - 1, index + (event.deltaY < 0 ? -1 : 1)));
+            if (options[index] === getSelectedHours()) return;
+            clearCustomRange();
+            syncRangeButtons(options[index]);
+            if (wheelTimer) clearTimeout(wheelTimer);
+            wheelTimer = setTimeout(refreshHistory, 120);
+        }, { passive: false });
+    }
+
+    // Tooltip de hora + valor ao passar o mouse sobre os graficos.
+    const rhTooltip = document.getElementById("rhTooltip");
+    function moveTooltip(evt) {
+        if (!rhTooltip) return;
+        rhTooltip.style.left = `${Math.min(window.innerWidth - 230, evt.clientX + 14)}px`;
+        rhTooltip.style.top = `${Math.max(12, evt.clientY - 12)}px`;
+    }
+    document.querySelectorAll(".rh-canvas").forEach((canvas) => {
+        canvas.addEventListener("mousemove", (evt) => {
+            const chart = canvas._chart;
+            if (!rhTooltip || !chart || !chart.n) {
+                if (rhTooltip) rhTooltip.style.display = "none";
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const denom = chart.cwCss <= 0 ? 1 : chart.cwCss;
+            let idx = Math.round(((evt.clientX - rect.left - chart.padLcss) / denom) * (chart.n - 1));
+            idx = Math.max(0, Math.min(chart.n - 1, idx));
+            drawMetricChart(canvas, chart.points, chart.cfg, idx);
+            const p = chart.points[idx];
+            const valTxt = (p.v === null || p.v === undefined) ? t("noSample") : chart.cfg.fmt(p.v);
+            const mkey = canvas.dataset.metric === "ram_mb" ? "ram" : canvas.dataset.metric;
+            rhTooltip.innerHTML = `<strong>${escapeHtml(formatDateTime(p.t))}</strong><span>${escapeHtml(t(mkey))}: ${escapeHtml(valTxt)}</span>`;
+            rhTooltip.style.display = "block";
+            moveTooltip(evt);
+        });
+        canvas.addEventListener("mouseleave", () => {
+            if (rhTooltip) rhTooltip.style.display = "none";
+            const chart = canvas._chart;
+            if (chart && chart.points) drawMetricChart(canvas, chart.points, chart.cfg, -1);
+        });
+    });
+
+    // Idioma (PT/EN): aplica o salvo e liga o botao de troca.
+    const rhLangToggle = document.getElementById("rhLangToggle");
+    if (rhLangToggle) rhLangToggle.addEventListener("click", () => applyLanguage(LANG === "pt" ? "en" : "pt"));
+    try { LANG = localStorage.getItem("rh_lang") === "en" ? "en" : "pt"; } catch (e) { /* ignora */ }
+    applyLanguage(LANG);
+
+    window.addEventListener("resize", redraw);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshHistory(); });
+    refreshHistory();
+    setInterval(refreshHistory, 60000);
+})();
+</script>
+{% endblock %}

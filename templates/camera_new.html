@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% set values = form_values if form_values else {} %}
+
+{% block content %}
+<h1>Nova camera</h1>
+
+<div class="card">
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form
+        method="post"
+        action="/cameras/new"
+        data-loading-title="Pesquisando camera..."
+        data-loading-message="Localizando ONVIF, profiles e stream RTSP."
+    >
+        <div class="grid">
+            <div>
+                <label>Nome</label>
+                <input type="text" name="name" value="{{ values.name or '' }}" required>
+            </div>
+            <div>
+                <label>IP ou host</label>
+                <input type="text" name="ip" value="{{ values.ip or '' }}" placeholder="192.168.1.50" required>
+            </div>
+            <div>
+                <label for="camera-manufacturer">Fabricante</label>
+                {% set current_manufacturer = (values.manufacturer or '')|lower %}
+                <select id="camera-manufacturer" name="manufacturer" required>
+                    <option value="Hikvision" {% if current_manufacturer == 'hikvision' %}selected{% endif %}>Hikvision</option>
+                    <option value="Dahua" {% if current_manufacturer == 'dahua' %}selected{% endif %}>Dahua</option>
+                    <option value="Intelbras" {% if current_manufacturer == 'intelbras' %}selected{% endif %}>Intelbras</option>
+                    <option value="Generico" {% if current_manufacturer not in ['hikvision', 'dahua', 'intelbras'] %}selected{% endif %}>Genérico (ONVIF)</option>
+                </select>
+                <button id="detect-camera-manufacturer" class="btn btn-secondary" type="button" style="margin-top:8px; width:100%;">
+                    Descobrir automaticamente
+                </button>
+                <div id="manufacturer-detection-status" class="muted" style="margin-top:6px;" aria-live="polite"></div>
+            </div>
+            <div>
+                <label>Modelo <span class="muted">(opcional)</span></label>
+                <input type="text" name="model" value="{{ values.model or '' }}" maxlength="120" placeholder="Ex.: DS-2DE4A425IW-DE">
+            </div>
+            <div>
+                <label>Usuario</label>
+                <input type="text" name="username" value="{{ values.username or '' }}" autocomplete="username" required>
+            </div>
+            <div>
+                <label>Senha</label>
+                <input type="password" name="password" autocomplete="current-password" required>
+            </div>
+            <div>
+                <label>Porta</label>
+                <input type="number" name="onvif_port" value="{{ values.onvif_port or '' }}" placeholder="auto">
+            </div>
+        </div>
+
+        <details style="margin-top:8px; margin-bottom:16px;">
+            <summary style="cursor:pointer; font-weight:700; color:#1e293b;">Configuracoes avancadas</summary>
+
+            <div style="margin-top:14px;">
+                <input type="hidden" name="allow_rtsp_fallback" value="false">
+                <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+                    <input
+                        type="checkbox"
+                        name="allow_rtsp_fallback"
+                        value="true"
+                        {% if values.allow_rtsp_fallback is not defined or values.allow_rtsp_fallback %}checked{% endif %}
+                        style="width:auto; margin:0;"
+                    >
+                    Tentar RTSP comum se ONVIF falhar
+                </label>
+            </div>
+
+            <label style="margin-top:14px; display:block;">RTSP manual</label>
+            <input
+                type="text"
+                name="rtsp_url"
+                value="{{ values.rtsp_url or '' }}"
+                placeholder="rtsp://usuario:senha@192.168.1.50:554/Streaming/Channels/101"
+            >
+
+            <div class="grid">
+                <div>
+                    <label>Familia da camera</label>
+                    <select name="camera_family">
+                        {% for option in camera_family_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Categoria da cena</label>
+                    <select name="scene_category">
+                        {% for option in scene_category_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Foco do alvo</label>
+                    <select name="target_focus">
+                        {% for option in target_focus_options %}
+                            <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-top:4px; padding:14px; border:1px solid #dbe3ec; border-radius:8px; background:#f8fafc;">
+                <strong style="display:block; margin-bottom:10px;">Ruidos operacionais</strong>
+                <div class="grid" style="gap:10px 16px;">
+                    {% for item in nuisance_options %}
+                        <label style="display:flex; align-items:center; gap:8px; font-weight:normal; margin:0;">
+                            <input type="checkbox" name="{{ item.key }}" value="true" {% if item.enabled %}checked{% endif %} style="width:auto; margin:0;">
+                            {{ item.label }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </details>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-primary" type="submit">Adicionar camera</button>
+            <button class="btn btn-secondary" type="submit" formaction="/cameras/rtsp-test" formmethod="post" formnovalidate>Testar RTSP</button>
+        </div>
+    </form>
+</div>
+
+{% if rtsp_test_results %}
+<div class="card" style="margin-top:14px;">
+    <h2>Resultados do teste RTSP</h2>
+    {% if rtsp_test_source %}
+        <p class="muted">Baseado em IP {{ rtsp_test_source.ip }} e usuario {{ rtsp_test_source.username }}.</p>
+    {% endif %}
+    <div style="display:grid; gap:10px;">
+        {% for item in rtsp_test_results %}
+            <div style="padding:12px; border:1px solid #dbe3ec; border-radius:8px; background:#fff;">
+                <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;">
+                    <strong>{{ item.masked_url or item.url }}</strong>
+                    <span class="status {% if item.ok %}status-running{% else %}status-offline{% endif %}">
+                        {% if item.ok %}OK{% else %}Falhou{% endif %}
+                    </span>
+                </div>
+                {% if item.error %}
+                    <div class="muted" style="margin-top:8px;">{{ item.error }}</div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+<script>
+(function () {
+    const form = document.querySelector('form[action="/cameras/new"]');
+    const select = document.getElementById("camera-manufacturer");
+    const button = document.getElementById("detect-camera-manufacturer");
+    const status = document.getElementById("manufacturer-detection-status");
+    if (!form || !select || !button || !status) return;
+
+    button.addEventListener("click", async function () {
+        const formData = new FormData(form);
+        button.disabled = true;
+        status.textContent = "Testando ONVIF, portas conhecidas e padrões RTSP...";
+        try {
+            const response = await fetch("/cameras/manufacturer/detect", {
+                method: "POST",
+                body: formData,
+                cache: "no-store"
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Não foi possível descobrir o fabricante.");
+            select.value = data.manufacturer || "Generico";
+            const confidence = data.confidence === "high"
+                ? "alta confiança"
+                : data.confidence === "medium" ? "confiança média" : "baixa confiança";
+            const sdkLabels = {
+                confirmed: "confirmado",
+                failed: "falhou",
+                unavailable: "SDK indisponível",
+                port_closed: "porta fechada"
+            };
+            const sdkSummary = (data.sdk_attempts || [])
+                .map(item => `${item.brand}: ${sdkLabels[item.status] || item.status}`)
+                .join(" · ");
+            status.textContent =
+                `Resultado: ${select.options[select.selectedIndex].text} (${confidence}). ${data.reason || ""}` +
+                (sdkSummary ? ` Testes: ${sdkSummary}.` : "");
+        } catch (error) {
+            status.textContent = error.message;
+        } finally {
+            button.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

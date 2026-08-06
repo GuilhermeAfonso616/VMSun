@@ -1,0 +1,43 @@
+api: yes
+apiAddress: :9997
+
+rtsp: yes
+rtspAddress: :8554
+rtspTransports: [tcp]
+
+hls: yes
+hlsAddress: :8888
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcAllowOrigins: ['*']
+webrtcIPsFromInterfaces: no
+# Enderecos acessiveis pelos navegadores devem ser informados por ambiente:
+# os inicializadores detectam o IPv4 LAN do host e preenchem
+# MTX_WEBRTCADDITIONALHOSTS antes de criar o container.
+webrtcAdditionalHosts: []
+
+paths:
+  all_others:
+    source: publisher
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+        path:
+      - action: read
+        path:
+      - action: playback
+        path:
+
+  - user: any
+    pass:
+    ips: ['127.0.0.1', '::1', '172.16.0.0/12']
+    permissions:
+      - action: api
+      - action: metrics
+      - action: pprof

@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dev-permissions-page">
+    <div class="dev-header-card card">
+        <div class="dev-title-group">
+            <div class="dev-badge">ÁREA EXCLUSIVA DEV</div>
+            <h1>Matriz de Permissões & Visibilidade por Perfil</h1>
+            <p class="muted">
+                Gerencie com precisão o que cada nível de usuário (inclusive Administradores) visualiza na navegação e quais ações operacionais pode executar no sistema.
+            </p>
+        </div>
+
+        <div class="dev-simulator-box">
+            <h3>👁️ Simulador de Visão na Interface</h3>
+            <p class="muted">Alterne sua visão em tempo real para testar a interface exatamente como a função selecionada a enxerga.</p>
+            <form method="post" action="/dev/preview-role" class="dev-simulator-form">
+                <select name="target_role" class="dev-role-select" onchange="this.form.submit()">
+                    <option value="" {% if not preview_role %}selected{% endif %}>🛠️ Visão Ativa: Desenvolvedor (DEV)</option>
+                    <option value="admin" {% if preview_role == "admin" %}selected{% endif %}>Simular como: Administrador (Admin)</option>
+                    <option value="supervisor" {% if preview_role == "supervisor" %}selected{% endif %}>Simular como: Supervisor</option>
+                    <option value="operator" {% if preview_role == "operator" %}selected{% endif %}>Simular como: Operador</option>
+                </select>
+                {% if preview_role %}
+                <button type="submit" name="target_role" value="" class="btn btn-secondary btn-small">Restaurar Visão DEV</button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if request.query_params.get("saved") %}
+    <div class="alert alert-success">
+        ✓ Matriz de permissões salva com sucesso! As alterações já estão aplicadas no sistema.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/dev/permissions" id="permissionsForm">
+        <!-- SEÇÃO 1: NAVEGAÇÃO & MÓDULOS -->
+        <div class="card perm-card">
+            <div class="perm-card-head">
+                <h2>1. Visibilidade de Módulos & Navegação Lateral</h2>
+                <span class="muted">Defina quais itens de menu aparecem no menu principal para cada perfil.</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="perm-table">
+                    <thead>
+                        <tr>
+                            <th>Módulo / Item de Menu</th>
+                            {% for r in roles %}
+                            <th class="text-center">{{ role_labels[r] }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in nav_items %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.label }}</strong>
+                                <span class="key-tag">{{ item.key }}</span>
+                            </td>
+                            {% for r in roles %}
+                            <td class="text-center">
+                                <label class="switch-container">
+                                    <input type="checkbox" name="nav_{{ item.key }}_{{ r }}" {% if item.roles[r] %}checked{% endif %} {% if r == "dev" %}disabled checked{% endif %}>
+                                    <span class="checkmark"></span>
+                                </label>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 2: AÇÕES OPERACIONAIS & RECURSOS -->
+        <div class="card perm-card" style="margin-top: 20px;">
+            <div class="perm-card-head">
+                <h2>2. Ações Operacionais & Permissões Especiais</h2>
+                <span class="muted">Controle quais botões e recursos avançados cada perfil pode acionar no sistema.</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="perm-table">
+                    <thead>
+                        <tr>
+                            <th>Ação / Funcionalidade Específica</th>
+                            {% for r in roles %}
+                            <th class="text-center">{{ role_labels[r] }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in action_items %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.label }}</strong>
+                                <span class="key-tag">{{ item.key }}</span>
+                            </td>
+                            {% for r in roles %}
+                            <td class="text-center">
+                                <label class="switch-container">
+                                    <input type="checkbox" name="action_{{ item.key }}_{{ r }}" {% if item.roles[r] %}checked{% endif %} {% if r == "dev" %}disabled checked{% endif %}>
+                                    <span class="checkmark"></span>
+                                </label>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="perm-actions-bar">
+            <button type="submit" class="btn btn-primary btn-large">
+                💾 Salvar Matriz de Permissões
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .dev-permissions-page {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .dev-header-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(13, 27, 47, 0.4) 100%);
+        border: 1px solid var(--line-strong);
+        padding: 24px;
+        border-radius: 16px;
+    }
+    .dev-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #3b82f6;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
+    .dev-title-group h1 {
+        margin: 0 0 6px 0;
+        font-size: 1.7rem;
+    }
+    .dev-simulator-box {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--line-soft);
+        padding: 16px 20px;
+        border-radius: 12px;
+        min-width: 300px;
+    }
+    .dev-simulator-box h3 {
+        margin: 0 0 4px 0;
+        font-size: 1.05rem;
+    }
+    .dev-simulator-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-top: 10px;
+    }
+    .dev-role-select {
+        margin: 0;
+        padding: 9px 12px;
+        font-weight: 700;
+        background: var(--bg-surface);
+        border: 1px solid var(--line-strong);
+    }
+    .alert-success {
+        padding: 14px 18px;
+        border-radius: 10px;
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+        font-weight: 700;
+    }
+    .perm-card-head {
+        margin-bottom: 16px;
+    }
+    .perm-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .perm-table th, .perm-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line-soft);
+    }
+    .perm-table th {
+        background: var(--bg-table-head);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .text-center { text-align: center; }
+    .key-tag {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+    .switch-container {
+        position: relative;
+        display: inline-block;
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+    }
+    .switch-container input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        margin: 0;
+    }
+    .checkmark {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 22px;
+        width: 22px;
+        background-color: var(--bg-panel);
+        border: 2px solid var(--line-strong);
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    .switch-container:hover input ~ .checkmark {
+        border-color: #3b82f6;
+    }
+    .switch-container input:checked ~ .checkmark {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+    .switch-container input:disabled ~ .checkmark {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    .checkmark:after {
+        content: "";
+        position: absolute;
+        display: none;
+        left: 6px;
+        top: 2px;
+        width: 6px;
+        height: 11px;
+        border: solid white;
+        border-width: 0 2.5px 2.5px 0;
+        transform: rotate(45deg);
+    }
+    .switch-container input:checked ~ .checkmark:after {
+        display: block;
+    }
+    .perm-actions-bar {
+        position: sticky;
+        bottom: 20px;
+        z-index: 50;
+        display: flex;
+        justify-content: flex-end;
+        padding: 16px;
+        background: rgba(11, 17, 28, 0.92);
+        border: 1px solid var(--line-strong);
+        border-radius: 14px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        margin-top: 20px;
+    }
+    .btn-large {
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 800;
+    }
+    .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}

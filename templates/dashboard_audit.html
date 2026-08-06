@@ -1,0 +1,1413 @@
+{% extends "base.html" %}
+
+{% block body_class %}audit-page{% endblock %}
+
+{% block content %}
+<style>
+    /* Tab Styling */
+    .audit-tabs {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 12px;
+        border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 8px;
+        flex: 0 0 auto;
+    }
+    .audit-tab-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 6px 12px;
+        transition: all 0.2s ease;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -11px;
+    }
+    .audit-tab-btn:hover {
+        color: var(--text-primary);
+    }
+    .audit-tab-btn.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+    }
+    .audit-content-pane {
+        display: none;
+    }
+    .audit-content-pane.active {
+        display: flex;
+    }
+    #paneUsers {
+        height: calc(100% - 40px);
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+        padding: 0 4px 16px 0;
+        box-sizing: border-box;
+    }
+    /* Action logs table style */
+    .action-logs-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        width: 100%;
+        box-sizing: border-box;
+        box-shadow: var(--shadow-card);
+    }
+    .action-logs-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .action-logs-table th {
+        padding: 12px;
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        border-bottom: 1.5px solid var(--line-soft);
+        text-align: left;
+    }
+    .action-logs-table td {
+        padding: 12px;
+        font-size: 14px;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--line-soft);
+    }
+    .action-logs-table tr:hover td {
+        background: var(--bg-row-hover);
+    }
+
+    body.audit-page {
+        overflow: hidden;
+    }
+    body.audit-page .container {
+        height: calc(100dvh - 32px);
+        margin-top: 16px;
+        margin-bottom: 16px;
+        min-height: 0;
+    }
+    body.audit-page.admin-nav-fixed .container {
+        height: calc(100dvh - 32px);
+        margin-top: 16px;
+        margin-bottom: 16px;
+    }
+    #operational-history {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        gap: 10px;
+    }
+    .audit-page-head {
+        text-align: center;
+        max-width: 980px;
+        margin: 0 auto 4px;
+        flex: 0 0 auto;
+    }
+    .audit-page-head h1 {
+        margin-bottom: 3px;
+    }
+    .audit-page-head p {
+        margin: 0;
+    }
+    .audit-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: flex-start;
+        gap: 8px 12px;
+        flex-wrap: wrap;
+        margin: 0 auto;
+        max-width: 1120px;
+        flex: 0 0 auto;
+    }
+    .audit-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .audit-field select {
+        min-width: 148px;
+        height: 40px;
+        box-sizing: border-box;
+    }
+    /* Botao Atualizar alinhado a altura dos controles (nao dos rotulos). */
+    .audit-toolbar > .btn {
+        height: 40px;
+        align-self: end;
+    }
+    .audit-field-wide select {
+        min-width: 240px;
+    }
+    .audit-range-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        box-sizing: border-box;
+        padding: 4px 6px;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+    .audit-range-btn {
+        border: 0;
+        border-radius: 7px;
+        height: 32px;
+        padding: 0 12px;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 800;
+        cursor: pointer;
+    }
+    .audit-range-btn.active {
+        background: #1d4ed8;
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(29, 78, 216, 0.22);
+    }
+    .audit-filter-group {
+        display: flex;
+        align-items: end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .audit-filter-group select {
+        min-width: 160px;
+    }
+    .audit-datetime-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 5px;
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+    .audit-date-control {
+        display: grid;
+        grid-template-columns: 1fr 34px;
+        align-items: center;
+        gap: 6px;
+        min-width: 190px;
+        height: 44px;
+        padding: 4px 5px 4px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+    .audit-date-control:hover,
+    .audit-date-control:focus-within {
+        border-color: #60a5fa;
+        background: #f8fbff;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+    .audit-date-label {
+        display: block;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        margin-bottom: 2px;
+    }
+    .audit-date-control input {
+        width: 100%;
+        height: 24px;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #0f172a;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: none;
+    }
+    .audit-date-control input:focus {
+        border: 0;
+        box-shadow: none;
+    }
+    .audit-date-trigger {
+        display: inline-grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid #bfdbfe;
+        border-radius: 9px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+    .audit-date-trigger:hover {
+        background: #dbeafe;
+        border-color: #93c5fd;
+    }
+    .audit-calendar-icon {
+        position: relative;
+        display: block;
+        width: 16px;
+        height: 15px;
+        border: 2px solid currentColor;
+        border-radius: 4px;
+    }
+    .audit-calendar-icon::before {
+        content: "";
+        position: absolute;
+        left: -2px;
+        right: -2px;
+        top: 3px;
+        border-top: 2px solid currentColor;
+    }
+    .audit-calendar-icon::after {
+        content: "";
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        left: 4px;
+        top: 7px;
+        background: currentColor;
+        box-shadow: 5px 0 0 currentColor;
+    }
+    .audit-datetime-sep {
+        color: var(--text-secondary);
+        font-weight: 700;
+        font-size: 11px;
+        padding: 0 2px;
+        white-space: nowrap;
+    }
+    .audit-datetime-group .btn {
+        height: 40px;
+        align-self: center;
+    }
+    .audit-camera-picker {
+        width: min(920px, 100%);
+        margin: 0 auto;
+        border: 1px solid var(--line-soft);
+        border-radius: 14px;
+        background: #f8fafc;
+        padding: 10px;
+        flex: 0 0 auto;
+    }
+    .audit-camera-picker-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+    .audit-camera-search {
+        min-width: 260px;
+        flex: 1;
+    }
+    .audit-camera-search input {
+        height: 40px;
+        box-sizing: border-box;
+    }
+    .audit-camera-actions {
+        display: flex;
+        align-items: end;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .audit-camera-actions .btn {
+        height: 40px;
+    }
+    .audit-camera-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        max-height: clamp(76px, 10dvh, 142px);
+        overflow: auto;
+    }
+    .audit-camera-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 800;
+        cursor: pointer;
+        min-width: 0;
+    }
+    .audit-camera-option input {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+    }
+    .audit-camera-option span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .audit-camera-option:has(input:checked) {
+        border-color: #1d4ed8;
+        background: #eff6ff;
+        box-shadow: inset 0 0 0 1px rgba(29, 78, 216, 0.2);
+    }
+    .audit-summary {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        margin: 0 auto;
+        flex: 0 0 auto;
+    }
+    .audit-chip {
+        background: #f8fafc;
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    .audit-chart {
+        border: 1px solid var(--line-soft);
+        border-radius: 14px;
+        overflow: hidden;
+        min-height: 0;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        background:
+            radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.14), transparent 30%),
+            #0b1220;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 16px 34px rgba(15, 23, 42, 0.12);
+    }
+    .audit-time-axis {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        flex: 0 0 auto;
+    }
+    .audit-axis-label {
+        padding: 10px 12px;
+        color: #e2e8f0;
+        font-size: 12px;
+        font-weight: 800;
+        background: rgba(15,23,42,0.96);
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .audit-axis-lines {
+        display: grid;
+        min-width: 560px;
+        background: rgba(15,23,42,0.72);
+    }
+    .audit-axis-tick {
+        color: transparent;
+        font-size: 11px;
+        padding: 10px 0;
+        white-space: nowrap;
+        overflow: visible;
+        min-width: 0;
+    }
+    /* So os ticks rotulados ganham marca + horario legivel; o texto transborda
+       sobre as colunas vazias seguintes (rotulos sao espacados ~1/8 da largura). */
+    .audit-axis-tick--label {
+        border-left: 1px solid rgba(147,197,253,0.28);
+        padding-left: 6px;
+        color: #dbeafe;
+        font-weight: 700;
+    }
+    .audit-scroll {
+        overflow: auto;
+        max-height: none;
+        min-height: 0;
+        flex: 1 1 auto;
+        scrollbar-color: #475569 #0f172a;
+    }
+    .audit-row {
+        display: grid;
+        grid-template-columns: 210px minmax(560px, 1fr);
+        border-bottom: 1px solid rgba(255,255,255,0.055);
+    }
+    .audit-row:last-child { border-bottom: 0; }
+    .audit-camera {
+        padding: 12px;
+        color: #e2e8f0;
+        background: rgba(15,23,42,0.96);
+        font-size: 12px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .audit-camera-meta {
+        display: block;
+        margin-top: 3px;
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 700;
+    }
+    .audit-cells {
+        display: grid;
+        gap: 2px;
+        min-height: 48px;
+        padding: 7px 6px;
+        background:
+            repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 32px),
+            rgba(2, 6, 23, 0.32);
+    }
+    .audit-row:hover .audit-camera { background: rgba(30,64,175,0.34); color: #fff; }
+    .audit-row:hover .audit-cells { background-color: rgba(30, 64, 175, 0.10); }
+    .audit-cell {
+        min-width: 4px;
+        min-height: 34px;
+        border-radius: 3px;
+        opacity: 0.94;
+        transition: transform .1s ease, filter .1s ease, opacity .1s ease;
+    }
+    .audit-cell:hover {
+        filter: brightness(1.28);
+        opacity: 1;
+        transform: scaleY(1.08);
+        outline: 1px solid rgba(255,255,255,0.8);
+        outline-offset: 0;
+        z-index: 1;
+    }
+    .audit-cell.state-ia { background: linear-gradient(180deg, #22c55e, #15803d); }
+    .audit-cell.state-online { background: linear-gradient(180deg, #3b82f6, #1d4ed8); }
+    .audit-cell.state-warming { background: linear-gradient(180deg, #fbbf24, #d97706); }
+    .audit-cell.state-degraded { background: linear-gradient(180deg, #fb923c, #ea580c); }
+    .audit-cell.state-reconnecting { background: linear-gradient(180deg, #22d3ee, #0891b2); }
+    .audit-cell.state-offline { background: linear-gradient(180deg, #f87171, #dc2626); }
+    .audit-cell.state-stopped { background: linear-gradient(180deg, #64748b, #334155); }
+    /* Sem amostra: hachurado discreto em vez de bloco preto, para nao parecer defeito. */
+    .audit-cell.state-unknown {
+        background:
+            repeating-linear-gradient(45deg, rgba(148,163,184,0.14) 0 4px, rgba(148,163,184,0.02) 4px 8px),
+            #111827;
+        opacity: 0.54;
+    }
+    .audit-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 0;
+        font-size: 12px;
+        color: var(--text-secondary);
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+    .audit-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 9px;
+        border: 1px solid var(--line-soft);
+        border-radius: 999px;
+        background: #f8fafc;
+    }
+    .audit-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        display: inline-block;
+        vertical-align: -2px;
+        margin-right: 0;
+        min-height: 12px;
+        opacity: 1;
+    }
+    .audit-dot:hover {
+        filter: none;
+        transform: none;
+        outline: 0;
+    }
+    .audit-tooltip {
+        position: fixed;
+        z-index: 2000;
+        display: none;
+        max-width: 280px;
+        padding: 9px 10px;
+        border: 1px solid rgba(147,197,253,0.42);
+        border-radius: 10px;
+        background: rgba(15,23,42,0.96);
+        color: #e2e8f0;
+        box-shadow: 0 12px 28px rgba(15,23,42,0.28);
+        pointer-events: none;
+        font-size: 12px;
+    }
+    .audit-tooltip strong {
+        display: block;
+        margin-bottom: 3px;
+        color: #fff;
+    }
+    .audit-tooltip span {
+        display: block;
+        color: #bfdbfe;
+    }
+    .note {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        padding: 12px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+    @media (max-width: 760px) {
+        body.audit-page {
+            overflow: auto;
+        }
+        body.audit-page .container,
+        body.audit-page.admin-nav-fixed .container {
+            height: auto;
+            min-height: 100dvh;
+        }
+        #paneUsers {
+            height: auto;
+            overflow: visible;
+            padding-right: 0;
+        }
+        #operational-history {
+            min-height: calc(100dvh - 24px);
+        }
+        .audit-datetime-group {
+            width: min(100%, 480px);
+            flex-wrap: wrap;
+        }
+        .audit-date-control {
+            min-width: 100%;
+        }
+        .audit-datetime-sep {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
+<div class="audit-tabs">
+    <button class="audit-tab-btn active" onclick="switchAuditTab('operational')">Auditoria de Câmeras</button>
+    <button class="audit-tab-btn" id="btnUserTab" onclick="switchAuditTab('users')">Ações de Usuários</button>
+</div>
+
+<div class="audit-content-pane active" id="paneOperational" style="height: calc(100% - 40px); display: flex; flex-direction: column; width: 100%;">
+    <div class="card" id="operational-history" style="height: 100%; display: flex; flex-direction: column; flex: 1 1 auto; overflow: hidden; width: 100%;">
+    <div class="audit-page-head">
+        <h1>Auditoria operacional</h1>
+        <p class="muted">Linha do tempo local com camera online, IA ativa e falhas por periodo. Ctrl + scroll sobre a timeline ajusta a janela.</p>
+    </div>
+
+    <div class="audit-toolbar">
+        <div class="audit-field">
+            <span>Periodo</span>
+            <div class="audit-range-group" id="auditRangeGroup" role="group" aria-label="Periodo da auditoria">
+                <button class="audit-range-btn" type="button" data-hours="1">1h</button>
+                <button class="audit-range-btn" type="button" data-hours="6">6h</button>
+                <button class="audit-range-btn" type="button" data-hours="12">12h</button>
+                <button class="audit-range-btn active" type="button" data-hours="24">24h</button>
+                <button class="audit-range-btn" type="button" data-hours="48">48h</button>
+                <button class="audit-range-btn" type="button" data-hours="168">7d</button>
+            </div>
+        </div>
+        <div class="audit-field">
+            <span>Dia / horario</span>
+            <div class="audit-datetime-group">
+                <div class="audit-date-control" data-date-control="auditStart">
+                    <div>
+                        <span class="audit-date-label">Inicio</span>
+                        <input type="datetime-local" id="auditStart" aria-label="Inicio do intervalo">
+                    </div>
+                    <button class="audit-date-trigger" type="button" data-picker-target="auditStart" aria-label="Abrir calendario de inicio">
+                        <span class="audit-calendar-icon" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <span class="audit-datetime-sep">ate</span>
+                <div class="audit-date-control" data-date-control="auditEnd">
+                    <div>
+                        <span class="audit-date-label">Fim</span>
+                        <input type="datetime-local" id="auditEnd" aria-label="Fim do intervalo">
+                    </div>
+                    <button class="audit-date-trigger" type="button" data-picker-target="auditEnd" aria-label="Abrir calendario de fim">
+                        <span class="audit-calendar-icon" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <button class="btn btn-secondary btn-small" type="button" id="auditRangeClear" title="Limpar intervalo e voltar para a janela relativa">Limpar</button>
+            </div>
+        </div>
+        <label class="audit-field">
+            Granularidade
+            <select id="auditBucket">
+                <option value="auto" selected>Auto</option>
+                <option value="1">1 min</option>
+                <option value="5">5 min</option>
+                <option value="15">15 min</option>
+                <option value="30">30 min</option>
+                <option value="60">60 min</option>
+            </select>
+        </label>
+        <div class="audit-field">
+            <span>Estado</span>
+            <div class="audit-filter-group">
+                <select id="auditStateFilter">
+                    <option value="">Todos os estados</option>
+                    <option value="ia">IA ativa</option>
+                    <option value="online">Online</option>
+                    <option value="warming">Inicializando</option>
+                    <option value="degraded">Degradada</option>
+                    <option value="reconnecting">Reconectando</option>
+                    <option value="offline">Offline</option>
+                    <option value="stopped">Parada</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn btn-secondary btn-small" type="button" id="auditRefresh">Atualizar</button>
+        <button class="btn btn-secondary btn-small" type="button" id="auditExportJson">Baixar JSON</button>
+    </div>
+
+    <div class="audit-camera-picker">
+        <div class="audit-camera-picker-head">
+            <label class="audit-field audit-camera-search">
+                Cameras
+                <input id="auditCameraSearch" type="search" placeholder="Buscar camera...">
+            </label>
+            <div class="audit-camera-actions">
+                <button class="btn btn-secondary btn-small" type="button" id="auditSelectAllCameras">Todas</button>
+                <button class="btn btn-secondary btn-small" type="button" id="auditClearCameras">Limpar</button>
+            </div>
+        </div>
+        <div class="audit-camera-grid" id="auditCameraSelector">
+            <div class="note">Carregando cameras...</div>
+        </div>
+    </div>
+
+    <div class="audit-summary" id="auditSummary">
+        <span class="audit-chip">Carregando historico...</span>
+    </div>
+    <div class="audit-chart" id="auditChart">
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            <div class="empty-title">Aguardando historico operacional</div>
+            <div class="empty-desc">A linha do tempo aparece aqui conforme o runtime coleta as amostras a partir desta versao.</div>
+        </div>
+    </div>
+    <div class="audit-legend">
+        <span><span class="audit-dot audit-cell state-ia"></span>IA ativa</span>
+        <span><span class="audit-dot audit-cell state-online"></span>Online</span>
+        <span><span class="audit-dot audit-cell state-warming"></span>Inicializando</span>
+        <span><span class="audit-dot audit-cell state-degraded"></span>Degradada</span>
+        <span><span class="audit-dot audit-cell state-reconnecting"></span>Reconectando</span>
+        <span><span class="audit-dot audit-cell state-offline"></span>Offline</span>
+        <span><span class="audit-dot audit-cell state-stopped"></span>Parada</span>
+        <span><span class="audit-dot audit-cell state-unknown"></span>Sem amostra</span>
+    </div>
+</div>
+</div> <!-- Close paneOperational -->
+
+<div class="audit-content-pane" id="paneUsers" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
+    <div class="action-logs-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">Histórico de Ações de Usuários</h3>
+                <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-secondary);">Registro de acessos, alterações de configuração e gerência de usuários.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="auditUserFilter" placeholder="Filtrar por Usuário" class="form-control" style="margin: 0; width: 150px; background: var(--field-bg); border: 1px solid var(--line-soft); border-radius: 6px; padding: 8px 12px; color: var(--text-primary); font-size: 13.5px;" oninput="loadActionLogs()">
+                <select id="auditActionFilter" class="form-control" style="margin: 0; width: 150px; background: var(--field-bg); border: 1px solid var(--line-soft); border-radius: 6px; padding: 8px 12px; color: var(--text-primary); font-size: 13.5px;" onchange="loadActionLogs()">
+                    <option value="">Todas as Ações</option>
+                    <option value="login_success">Login Sucesso</option>
+                    <option value="login_failed">Login Falhou</option>
+                    <option value="login_failed_lockout">Login Bloqueado</option>
+                    <option value="account_locked">Conta Bloqueada</option>
+                    <option value="user_create">Criar Usuário</option>
+                    <option value="user_update">Atualizar Usuário</option>
+                    <option value="user_delete">Excluir Usuário</option>
+                    <option value="user_unlock">Desbloquear Usuário</option>
+                    <option value="profile_update">Atualizar Perfil</option>
+                </select>
+                <div style="display:inline-flex; align-items:center; gap:4px;">
+                    <span style="font-size:11px; text-transform:uppercase; color:var(--text-secondary); font-weight:700;">De:</span>
+                    <input type="date" id="auditStartDate" class="form-control" style="margin: 0; width: 130px; padding: 6px 10px; font-size: 13px;" onchange="loadActionLogs()">
+                </div>
+                <div style="display:inline-flex; align-items:center; gap:4px;">
+                    <span style="font-size:11px; text-transform:uppercase; color:var(--text-secondary); font-weight:700;">Até:</span>
+                    <input type="date" id="auditEndDate" class="form-control" style="margin: 0; width: 130px; padding: 6px 10px; font-size: 13px;" onchange="loadActionLogs()">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="loadActionLogs()" style="padding: 8px 16px; font-size: 13.5px; height: 36px; display: inline-flex; align-items: center;">Atualizar</button>
+                <button type="button" class="btn btn-secondary" onclick="exportAuditCsv()" style="padding: 8px 16px; font-size: 13.5px; height: 36px; display: inline-flex; align-items: center; border-color: var(--success-600); color: var(--success-600);">📊 Exportar CSV</button>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto; width: 100%;">
+            <table class="action-logs-table">
+                <thead>
+                    <tr>
+                        <th style="width: 180px;">Data / Hora</th>
+                        <th style="width: 140px;">Usuário</th>
+                        <th style="width: 160px;">Ação</th>
+                        <th>Detalhes</th>
+                        <th style="width: 140px;">Endereço IP</th>
+                    </tr>
+                </thead>
+                <tbody id="actionLogsBody">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 24px;">Carregando histórico...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <button type="button" class="btn btn-secondary btn-small" id="auditPrevBtn" onclick="changeAuditPage(-1)" disabled>Anterior</button>
+            <span style="font-size: 13.5px; color: var(--text-secondary);" id="auditPageIndicator">Página 1</span>
+            <button type="button" class="btn btn-secondary btn-small" id="auditNextBtn" onclick="changeAuditPage(1)" disabled>Próxima</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentAuditPage = 0;
+    const auditLimit = 25;
+
+    window.switchAuditTab = function(tabName) {
+        document.querySelectorAll(".audit-tab-btn").forEach(btn => btn.classList.remove("active"));
+        document.querySelectorAll(".audit-content-pane").forEach(pane => {
+            pane.classList.remove("active");
+            pane.style.display = "none";
+        });
+
+        if (tabName === 'operational') {
+            document.querySelector(".audit-tab-btn[onclick*='operational']").classList.add("active");
+            const pane = document.getElementById("paneOperational");
+            pane.classList.add("active");
+            pane.style.display = "flex";
+        } else if (tabName === 'users') {
+            document.querySelector(".audit-tab-btn[onclick*='users']").classList.add("active");
+            const pane = document.getElementById("paneUsers");
+            pane.classList.add("active");
+            pane.style.display = "flex";
+            loadActionLogs();
+        }
+    };
+
+    window.loadActionLogs = async function() {
+        const userFilter = document.getElementById("auditUserFilter").value;
+        const actionFilter = document.getElementById("auditActionFilter").value;
+        const startDate = document.getElementById("auditStartDate").value;
+        const endDate = document.getElementById("auditEndDate").value;
+        const offset = currentAuditPage * auditLimit;
+
+        let url = `/api/audit-logs?limit=${auditLimit}&offset=${offset}`;
+        if (userFilter) url += `&username=${encodeURIComponent(userFilter)}`;
+        if (actionFilter) url += `&action=${encodeURIComponent(actionFilter)}`;
+        if (startDate) url += `&start_date=${encodeURIComponent(startDate + 'T00:00:00')}`;
+        if (endDate) url += `&end_date=${encodeURIComponent(endDate + 'T23:59:59')}`;
+
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Erro ao buscar histórico de auditoria.");
+            const logs = await res.json();
+
+            const tbody = document.getElementById("actionLogsBody");
+            tbody.innerHTML = "";
+
+            if (logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 24px;">Nenhum registro encontrado.</td></tr>`;
+                document.getElementById("auditNextBtn").disabled = true;
+                return;
+            }
+
+            logs.forEach(log => {
+                const tr = document.createElement("tr");
+                const formattedDate = formatDateTimeString(log.timestamp);
+                tr.innerHTML = `
+                    <td><strong>${formattedDate}</strong></td>
+                    <td><span style="font-weight: 700; color: var(--text-primary);">${escapeUserHtml(log.username || '-')}</span></td>
+                    <td><span class="badge ${getActionBadgeClass(log.action)}">${formatActionName(log.action)}</span></td>
+                    <td>${escapeUserHtml(log.details || '-')}</td>
+                    <td><code style="color: #3b82f6;">${escapeUserHtml(log.ip_address || '-')}</code></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById("auditPrevBtn").disabled = currentAuditPage === 0;
+            document.getElementById("auditNextBtn").disabled = logs.length < auditLimit;
+            document.getElementById("auditPageIndicator").innerText = `Página ${currentAuditPage + 1}`;
+        } catch (err) {
+            console.error(err);
+            document.getElementById("actionLogsBody").innerHTML = `
+                <tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 24px;">Erro ao carregar dados: ${err.message}</td></tr>
+            `;
+        }
+    };
+
+    window.exportAuditCsv = async function() {
+        const userFilter = document.getElementById("auditUserFilter").value;
+        const actionFilter = document.getElementById("auditActionFilter").value;
+        const startDate = document.getElementById("auditStartDate").value;
+        const endDate = document.getElementById("auditEndDate").value;
+
+        let url = `/api/audit-logs?limit=1000&offset=0`;
+        if (userFilter) url += `&username=${encodeURIComponent(userFilter)}`;
+        if (actionFilter) url += `&action=${encodeURIComponent(actionFilter)}`;
+        if (startDate) url += `&start_date=${encodeURIComponent(startDate + 'T00:00:00')}`;
+        if (endDate) url += `&end_date=${encodeURIComponent(endDate + 'T23:59:59')}`;
+
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Erro ao carregar dados de auditoria para exportação.");
+            const logs = await res.json();
+            if (!logs.length) {
+                alert("Nenhum registro encontrado para exportar.");
+                return;
+            }
+
+            let csvContent = "\uFEFF";
+            csvContent += "Data/Hora,Usuário,Ação,Detalhes,IP\n";
+
+            logs.forEach(log => {
+                const date = formatDateTimeString(log.timestamp);
+                const user = log.username || "-";
+                const action = formatActionName(log.action);
+                const details = (log.details || "-").replace(/"/g, '""');
+                const ip = log.ip_address || "-";
+
+                csvContent += `"${date}","${user}","${action}","${details}","${ip}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const urlBlob = URL.createObjectURL(blob);
+            link.setAttribute("href", urlBlob);
+            link.setAttribute("download", `auditoria_sunorus_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao exportar CSV: " + err.message);
+        }
+    };
+
+    window.changeAuditPage = function(direction) {
+        currentAuditPage = Math.max(0, currentAuditPage + direction);
+        loadActionLogs();
+    };
+
+    function formatDateTimeString(isoString) {
+        try {
+            const d = new Date(isoString);
+            return d.toLocaleString("pt-BR");
+        } catch (e) {
+            return isoString;
+        }
+    }
+
+    function getActionBadgeClass(action) {
+        if (action.includes("failed") || action.includes("locked")) return "inactive";
+        if (action.includes("success") || action.includes("unlock")) return "active";
+        return "supervisor";
+    }
+
+    function formatActionName(action) {
+        switch (action) {
+            case "login_success": return "Login Sucesso";
+            case "login_failed": return "Login Falhou";
+            case "login_failed_lockout": return "Tentativa Bloqueada";
+            case "account_locked": return "Conta Bloqueada";
+            case "user_create": return "Criou Usuário";
+            case "user_update": return "Alterou Usuário";
+            case "user_delete": return "Excluiu Usuário";
+            case "user_unlock": return "Desbloqueou Usuário";
+            case "profile_update": return "Perfil Atualizado";
+            default: return action.replace(/_/g, " ").toUpperCase();
+        }
+    }
+
+    function escapeUserHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+(function () {
+    const historyEndpoint = "/dashboard/operational-history";
+    const state = {
+        auditHours: 24,
+        auditCameraOptions: [],
+        auditSelectedCameraIds: null,
+        lastAuditPayload: null,
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    function formatDateTime(value, options) {
+        if (!value) return "-";
+        const date = new Date(String(value).endsWith("Z") ? value : `${value}Z`);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString("pt-BR", options || {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    }
+
+    function auditBucketForHours(hours) {
+        const value = Number(hours) || 24;
+        if (value <= 3) return 1;
+        if (value <= 12) return 2;
+        if (value <= 24) return 5;
+        if (value <= 48) return 15;
+        return 60;
+    }
+
+    function getSelectedAuditHours() {
+        const active = document.querySelector(".audit-range-btn.active");
+        return Number(active && active.dataset.hours) || state.auditHours || 24;
+    }
+
+    function openAuditDatePicker(input, allowFallbackClick = true) {
+        if (!input) return;
+        input.focus();
+        if (typeof input.showPicker === "function") {
+            try {
+                input.showPicker();
+                return;
+            } catch (error) {
+                // Alguns navegadores bloqueiam showPicker fora do gesto direto.
+            }
+        }
+        if (allowFallbackClick) input.click();
+    }
+
+    // Intervalo absoluto (dia/horario). Os inputs datetime-local sao horario
+    // local; converte para ISO UTC para casar com o historico gravado em UTC.
+    function getAuditCustomRange() {
+        const startEl = document.getElementById("auditStart");
+        const endEl = document.getElementById("auditEnd");
+        if (!startEl || !endEl || !startEl.value || !endEl.value) return null;
+        const startDate = new Date(startEl.value);
+        const endDate = new Date(endEl.value);
+        if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) return null;
+        return { start: startDate.toISOString(), end: endDate.toISOString() };
+    }
+
+    function clearAuditCustomRange() {
+        const startEl = document.getElementById("auditStart");
+        const endEl = document.getElementById("auditEnd");
+        if (startEl) startEl.value = "";
+        if (endEl) endEl.value = "";
+    }
+
+    function getSelectedAuditBucket(hours) {
+        const bucketEl = document.getElementById("auditBucket");
+        const rawValue = bucketEl ? bucketEl.value : "auto";
+        if (rawValue === "auto") return auditBucketForHours(hours);
+        return Number(rawValue) || auditBucketForHours(hours);
+    }
+
+    function buildAuditRequestParams() {
+        const hours = getSelectedAuditHours();
+        const bucket = getSelectedAuditBucket(hours);
+        const params = new URLSearchParams({
+            hours: String(hours),
+            bucket_minutes: String(bucket),
+        });
+        const customRange = getAuditCustomRange();
+        if (customRange) {
+            params.set("start", customRange.start);
+            params.set("end", customRange.end);
+        }
+        return { params, hours, bucket, customRange };
+    }
+
+    function syncAuditRangeButtons(hours) {
+        state.auditHours = Number(hours) || 24;
+        document.querySelectorAll(".audit-range-btn").forEach((button) => {
+            button.classList.toggle("active", Number(button.dataset.hours) === state.auditHours);
+        });
+    }
+
+    function getSelectedCameraIds() {
+        return state.auditSelectedCameraIds instanceof Set ? state.auditSelectedCameraIds : null;
+    }
+
+    function selectedCameraLabel() {
+        const selectedIds = getSelectedCameraIds();
+        if (selectedIds === null) return "Todas";
+        if (!selectedIds.size) return "Nenhuma";
+        if (selectedIds.size === 1) {
+            const id = Array.from(selectedIds)[0];
+            const camera = state.auditCameraOptions.find((item) => String(item.id) === String(id));
+            return camera ? camera.name : `Camera ${id}`;
+        }
+        return `${selectedIds.size} cameras`;
+    }
+
+    function renderAuditCameraSelector() {
+        const container = document.getElementById("auditCameraSelector");
+        if (!container) return;
+        const search = String(document.getElementById("auditCameraSearch")?.value || "").trim().toLowerCase();
+        const selectedIds = getSelectedCameraIds();
+        const filtered = state.auditCameraOptions.filter((camera) => {
+            if (!search) return true;
+            return String(camera.name || "").toLowerCase().includes(search) || String(camera.id).includes(search);
+        });
+        if (!filtered.length) {
+            container.innerHTML = '<div class="note">Nenhuma camera encontrada para este filtro.</div>';
+            return;
+        }
+        container.innerHTML = filtered.map((camera) => {
+            const checked = selectedIds === null || selectedIds.has(String(camera.id));
+            return `
+                <label class="audit-camera-option" title="${escapeHtml(camera.name || ("Camera " + camera.id))}">
+                    <input type="checkbox" data-camera-id="${escapeHtml(camera.id)}" ${checked ? "checked" : ""}>
+                    <span>${escapeHtml(camera.name || ("Camera " + camera.id))}</span>
+                </label>
+            `;
+        }).join("");
+        container.querySelectorAll("input[type='checkbox']").forEach((input) => {
+            input.addEventListener("change", () => {
+                const id = String(input.dataset.cameraId || "");
+                let selected = getSelectedCameraIds();
+                if (selected === null) {
+                    selected = new Set(state.auditCameraOptions.map((camera) => String(camera.id)));
+                }
+                if (input.checked) {
+                    selected.add(id);
+                } else {
+                    selected.delete(id);
+                }
+                state.auditSelectedCameraIds = selected;
+                renderAuditCameraSelector();
+                if (state.lastAuditPayload) renderOperationalHistory(state.lastAuditPayload);
+            });
+        });
+    }
+
+    function updateAuditCameraFilterOptions(cameras) {
+        const incoming = Array.isArray(cameras) ? cameras : [];
+        if (incoming.length) {
+            const byId = new Map(state.auditCameraOptions.map((camera) => [String(camera.id), camera]));
+            incoming.forEach((camera) => {
+                if (camera && camera.id !== undefined && camera.id !== null) {
+                    byId.set(String(camera.id), { id: camera.id, name: camera.name || `Camera ${camera.id}` });
+                }
+            });
+            state.auditCameraOptions = Array.from(byId.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        }
+        renderAuditCameraSelector();
+    }
+
+    function cameraHasState(camera, stateName) {
+        if (!stateName) return true;
+        const points = Array.isArray(camera && camera.points) ? camera.points : [];
+        if (stateName === "online") {
+            return points.some((point) => ["ia", "online", "warming", "degraded", "reconnecting"].includes(String(point || "")));
+        }
+        return points.some((point) => String(point || "") === stateName);
+    }
+
+    function auditStateLabel(stateName) {
+        const labels = {
+            ia: "IA ativa",
+            online: "Online",
+            warming: "Inicializando",
+            degraded: "Degradada",
+            reconnecting: "Reconectando",
+            offline: "Offline",
+            stopped: "Parada",
+            unknown: "Sem amostra",
+        };
+        return labels[String(stateName || "unknown")] || String(stateName || "-");
+    }
+
+    function getVisibleAuditCameras(payload) {
+        const cameras = Array.isArray(payload && payload.cameras) ? payload.cameras : [];
+        const selectedState = document.getElementById("auditStateFilter")?.value || "";
+        const selectedIds = getSelectedCameraIds();
+        return cameras.filter((camera) => {
+            if (selectedIds !== null && !selectedIds.has(String(camera.id))) return false;
+            return cameraHasState(camera, selectedState);
+        });
+    }
+
+    function buildFilteredAuditPayload() {
+        const payload = state.lastAuditPayload || {};
+        const request = buildAuditRequestParams();
+        const selectedState = document.getElementById("auditStateFilter")?.value || "";
+        const stateLabel = document.getElementById("auditStateFilter")?.selectedOptions?.[0]?.textContent || "Todos os estados";
+        const selectedIds = getSelectedCameraIds();
+        const visibleCameras = getVisibleAuditCameras(payload);
+        return {
+            exported_at: new Date().toISOString(),
+            source: {
+                endpoint: historyEndpoint,
+                query: request.params.toString(),
+            },
+            filters: {
+                hours: request.hours,
+                bucket_minutes: request.bucket,
+                start: request.customRange ? request.customRange.start : null,
+                end: request.customRange ? request.customRange.end : null,
+                state: selectedState,
+                state_label: stateLabel,
+                camera_ids: selectedIds === null ? null : Array.from(selectedIds).map((id) => Number(id) || id),
+                camera_label: selectedCameraLabel(),
+            },
+            range: payload.range || {},
+            summary: payload.summary || {},
+            filtered_summary: {
+                cameras: visibleCameras.length,
+                buckets: Array.isArray(payload.buckets) ? payload.buckets.length : 0,
+            },
+            buckets: Array.isArray(payload.buckets) ? payload.buckets : [],
+            cameras: visibleCameras,
+        };
+    }
+
+    function downloadAuditJson() {
+        if (!state.lastAuditPayload) {
+            refreshOperationalHistory().then(downloadAuditJson).catch(() => {});
+            return;
+        }
+        const filteredPayload = buildFilteredAuditPayload();
+        const blob = new Blob([JSON.stringify(filteredPayload, null, 2)], { type: "application/json" });
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = URL.createObjectURL(blob);
+        link.download = `auditoria_operacional_filtrada_${stamp}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    function renderOperationalHistory(payload) {
+        const chart = document.getElementById("auditChart");
+        const summary = document.getElementById("auditSummary");
+        if (!chart || !summary) return;
+
+        const buckets = Array.isArray(payload && payload.buckets) ? payload.buckets : [];
+        const cameras = Array.isArray(payload && payload.cameras) ? payload.cameras : [];
+        const range = payload && payload.range ? payload.range : {};
+        const info = payload && payload.summary ? payload.summary : {};
+        updateAuditCameraFilterOptions(cameras);
+        const visibleCameras = getVisibleAuditCameras(payload);
+        const bucketCount = Math.max(1, buckets.length);
+        const axisEvery = Math.max(1, Math.ceil(bucketCount / 8));
+        const stateLabel = document.getElementById("auditStateFilter")?.selectedOptions?.[0]?.textContent || "Todos os estados";
+
+        summary.innerHTML = `
+            <span class="audit-chip">Amostras: <strong>${escapeHtml(info.samples ?? 0)}</strong></span>
+            <span class="audit-chip">Cameras: <strong>${escapeHtml(visibleCameras.length)}</strong></span>
+            <span class="audit-chip">Bucket: <strong>${escapeHtml(range.bucket_minutes ?? "-")} min</strong></span>
+            <span class="audit-chip">Estado: <strong>${escapeHtml(stateLabel)}</strong></span>
+            <span class="audit-chip">Camera: <strong>${escapeHtml(selectedCameraLabel())}</strong></span>
+            <span class="audit-chip">Primeira: <strong>${escapeHtml(formatDateTime(info.first_sample_at))}</strong></span>
+            <span class="audit-chip">Ultima: <strong>${escapeHtml(formatDateTime(info.last_sample_at))}</strong></span>
+        `;
+
+        if (!buckets.length || !visibleCameras.length) {
+            chart.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><div class="empty-title">Sem historico para este filtro</div><div class="empty-desc">Nenhuma amostra nesta janela com os filtros atuais. Amplie o periodo ou limpe os filtros.</div></div>';
+            return;
+        }
+
+        const gridTemplate = `repeat(${bucketCount}, minmax(4px, 1fr))`;
+        const ticks = buckets.map((bucket, index) => {
+            const isLabel = index % axisEvery === 0;
+            const label = isLabel ? formatDateTime(bucket.start, { hour: "2-digit", minute: "2-digit" }) : "";
+            const tickClass = isLabel ? "audit-axis-tick audit-axis-tick--label" : "audit-axis-tick";
+            return `<div class="${tickClass}" title="${escapeHtml(formatDateTime(bucket.start))}">${escapeHtml(label)}</div>`;
+        }).join("");
+
+        const rows = visibleCameras.map((camera) => {
+            const points = Array.isArray(camera.points) ? camera.points : [];
+            const cells = buckets.map((bucket, index) => {
+                const stateName = String(points[index] || "unknown");
+                const tooltip = `${camera.name || camera.id}|${formatDateTime(bucket.start)}|${auditStateLabel(stateName)}`;
+                return `<div class="audit-cell state-${escapeHtml(stateName)}" data-tooltip="${escapeHtml(tooltip)}"></div>`;
+            }).join("");
+            const minutes = camera.minutes || {};
+            const meta = `IA ${minutes.ia || 0}min - online ${minutes.online || 0}min - parada ${minutes.stopped || 0}min`;
+            return `
+                <div class="audit-row">
+                    <div class="audit-camera" title="${escapeHtml(meta)}">
+                        ${escapeHtml(camera.name || ("Camera " + camera.id))}
+                        <span class="audit-camera-meta">${escapeHtml(meta)}</span>
+                    </div>
+                    <div class="audit-cells" style="grid-template-columns:${gridTemplate}">${cells}</div>
+                </div>
+            `;
+        }).join("");
+
+        chart.innerHTML = `
+            <div class="audit-time-axis">
+                <div class="audit-axis-label">Camera</div>
+                <div class="audit-axis-lines" style="grid-template-columns:${gridTemplate}">${ticks}</div>
+            </div>
+            <div class="audit-scroll">${rows}</div>
+            <div class="audit-tooltip" id="auditTooltip" role="status" aria-live="polite"></div>
+        `;
+        attachAuditTooltip(chart);
+    }
+
+    function attachAuditTooltip(chart) {
+        const tooltip = chart.querySelector("#auditTooltip");
+        if (!tooltip) return;
+        chart.querySelectorAll(".audit-cell[data-tooltip]").forEach((cell) => {
+            cell.addEventListener("mouseenter", () => {
+                const [camera, when, status] = String(cell.dataset.tooltip || "").split("|");
+                tooltip.innerHTML = `<strong>${escapeHtml(camera || "-")}</strong><span>${escapeHtml(when || "-")}</span><span>${escapeHtml(status || "-")}</span>`;
+                tooltip.style.display = "block";
+            });
+            cell.addEventListener("mousemove", (event) => {
+                tooltip.style.left = `${Math.min(window.innerWidth - 300, event.clientX + 14)}px`;
+                tooltip.style.top = `${Math.max(12, event.clientY - 10)}px`;
+            });
+            cell.addEventListener("mouseleave", () => {
+                tooltip.style.display = "none";
+            });
+        });
+    }
+
+    async function refreshOperationalHistory() {
+        const chart = document.getElementById("auditChart");
+        const { params } = buildAuditRequestParams();
+        try {
+            const response = await fetch(`${historyEndpoint}?${params.toString()}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            state.lastAuditPayload = await response.json();
+            renderOperationalHistory(state.lastAuditPayload);
+        } catch (error) {
+            console.warn("Falha ao carregar historico operacional:", error);
+            if (chart) {
+                chart.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg><div class="empty-title">Nao foi possivel carregar</div><div class="empty-desc">Falha ao buscar o historico operacional agora. Tente novamente em instantes.</div></div>';
+            }
+        }
+    }
+
+    const auditRefresh = document.getElementById("auditRefresh");
+    const auditExportJson = document.getElementById("auditExportJson");
+    const auditBucket = document.getElementById("auditBucket");
+    const auditCameraSearch = document.getElementById("auditCameraSearch");
+    const auditSelectAllCameras = document.getElementById("auditSelectAllCameras");
+    const auditClearCameras = document.getElementById("auditClearCameras");
+    const auditStateFilter = document.getElementById("auditStateFilter");
+    if (auditRefresh) auditRefresh.addEventListener("click", refreshOperationalHistory);
+    if (auditExportJson) auditExportJson.addEventListener("click", downloadAuditJson);
+    if (auditBucket) auditBucket.addEventListener("change", refreshOperationalHistory);
+    if (auditCameraSearch) auditCameraSearch.addEventListener("input", renderAuditCameraSelector);
+    if (auditSelectAllCameras) {
+        auditSelectAllCameras.addEventListener("click", () => {
+            state.auditSelectedCameraIds = null;
+            renderAuditCameraSelector();
+            if (state.lastAuditPayload) renderOperationalHistory(state.lastAuditPayload);
+        });
+    }
+    if (auditClearCameras) {
+        auditClearCameras.addEventListener("click", () => {
+            state.auditSelectedCameraIds = new Set();
+            renderAuditCameraSelector();
+            if (state.lastAuditPayload) renderOperationalHistory(state.lastAuditPayload);
+        });
+    }
+    if (auditStateFilter) {
+        auditStateFilter.addEventListener("change", () => {
+            if (state.lastAuditPayload) {
+                renderOperationalHistory(state.lastAuditPayload);
+            } else {
+                refreshOperationalHistory();
+            }
+        });
+    }
+    document.querySelectorAll(".audit-range-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            clearAuditCustomRange();
+            syncAuditRangeButtons(Number(button.dataset.hours) || 24);
+            refreshOperationalHistory();
+        });
+    });
+
+    const auditStart = document.getElementById("auditStart");
+    const auditEnd = document.getElementById("auditEnd");
+    const auditRangeClear = document.getElementById("auditRangeClear");
+    document.querySelectorAll("[data-picker-target]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openAuditDatePicker(document.getElementById(button.dataset.pickerTarget));
+        });
+    });
+    document.querySelectorAll("[data-date-control]").forEach((control) => {
+        control.addEventListener("click", (event) => {
+            if (event.target.closest("button")) return;
+            if (event.target.closest("input")) return;
+            openAuditDatePicker(document.getElementById(control.dataset.dateControl));
+        });
+    });
+    document.querySelectorAll(".audit-date-control input").forEach((input) => {
+        input.addEventListener("click", () => openAuditDatePicker(input, false));
+    });
+    function onAuditCustomRangeChanged() {
+        if (!getAuditCustomRange()) return;
+        // Intervalo absoluto ativo: tira o destaque dos botoes de periodo relativo.
+        document.querySelectorAll(".audit-range-btn").forEach((b) => b.classList.remove("active"));
+        refreshOperationalHistory();
+    }
+    if (auditStart) auditStart.addEventListener("change", onAuditCustomRangeChanged);
+    if (auditEnd) auditEnd.addEventListener("change", onAuditCustomRangeChanged);
+    if (auditRangeClear) {
+        auditRangeClear.addEventListener("click", () => {
+            clearAuditCustomRange();
+            syncAuditRangeButtons(state.auditHours || 24);
+            refreshOperationalHistory();
+        });
+    }
+
+    const auditChartEl = document.getElementById("auditChart");
+    if (auditChartEl) {
+        let auditWheelTimer = null;
+        auditChartEl.addEventListener("wheel", (event) => {
+            if (!event.ctrlKey) return;
+            event.preventDefault();
+            const options = Array.from(document.querySelectorAll(".audit-range-btn")).map((button) => Number(button.dataset.hours));
+            let index = options.indexOf(getSelectedAuditHours());
+            if (index < 0) index = 0;
+            index = Math.max(0, Math.min(options.length - 1, index + (event.deltaY < 0 ? -1 : 1)));
+            if (options[index] === getSelectedAuditHours()) return;
+            clearAuditCustomRange();
+            syncAuditRangeButtons(options[index]);
+            if (auditWheelTimer) clearTimeout(auditWheelTimer);
+            auditWheelTimer = setTimeout(refreshOperationalHistory, 120);
+        }, { passive: false });
+    }
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) refreshOperationalHistory();
+    });
+    refreshOperationalHistory();
+    setInterval(refreshOperationalHistory, 60000);
+})();
+</script>
+{% endblock %}

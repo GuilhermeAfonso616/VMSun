@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .lab-hero {
+        padding: 20px 22px;
+        background: linear-gradient(135deg, #111827 0%, #0f172a 45%, #1d4ed8 100%);
+        color: #fff;
+        border-radius: 18px;
+        margin-bottom: 18px;
+        box-shadow: var(--shadow-card);
+    }
+    .lab-hero h1 { color: inherit; font-size: 1.7rem; margin-bottom: 6px; }
+    .lab-hero p { color: rgba(255, 255, 255, 0.82); max-width: 760px; }
+    .lab-hero .lab-tag {
+        display: inline-flex;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+    }
+
+    .lab-layout { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 980px) { .lab-layout { grid-template-columns: 1fr; } }
+
+    .lab-card {
+        background: var(--bg-panel);
+        border: 1px solid var(--line-soft);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: var(--shadow-card);
+    }
+    .lab-card h2 { font-size: 1.02rem; margin-bottom: 12px; color: var(--heading-color); }
+
+    .lab-camera-item {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    .lab-camera-item:hover { background: var(--bg-row-hover); }
+    .lab-camera-item.active { border-color: var(--blue-primary); background: var(--blue-glow); }
+    .lab-camera-item .cam-name { font-weight: 600; color: var(--text-primary); }
+    .lab-camera-item .cam-meta { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
+    .lab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 1240px) { .lab-grid { grid-template-columns: 1fr; } }
+
+    .lab-kv { display: grid; grid-template-columns: 140px 1fr; row-gap: 6px; font-size: 14px; }
+    .lab-kv dt { color: var(--text-muted); }
+    .lab-kv dd { color: var(--text-primary); font-weight: 500; word-break: break-all; }
+
+    .lab-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lab-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid var(--line-soft);
+        color: var(--text-secondary);
+        background: var(--bg-soft);
+    }
+    .lab-chip.on { border-color: rgba(34, 197, 94, 0.45); color: var(--success-600); background: rgba(34, 197, 94, 0.10); }
+    .lab-chip.off { opacity: 0.6; }
+
+    .lab-snapshot { position: relative; border-radius: 12px; overflow: hidden; background: var(--bg-black); min-height: 220px; }
+    .lab-snapshot img { display: block; width: 100%; max-height: 380px; object-fit: contain; }
+    .lab-snapshot .snap-empty {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        color: rgba(255, 255, 255, 0.55); font-size: 14px;
+    }
+
+    .ptz-pad { display: grid; grid-template-columns: repeat(3, 64px); gap: 8px; justify-content: center; }
+    .ptz-btn {
+        width: 64px; height: 64px;
+        border-radius: 12px;
+        border: 1px solid var(--line-strong);
+        background: var(--bg-soft);
+        color: var(--text-primary);
+        font-size: 22px;
+        cursor: pointer;
+        user-select: none;
+        touch-action: none;
+        transition: var(--transition);
+    }
+    .ptz-btn:hover { border-color: var(--blue-primary); }
+    .ptz-btn:active, .ptz-btn.pressed { background: var(--blue-primary); color: #fff; border-color: var(--blue-primary); }
+    .ptz-zoom-row { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+    .ptz-zoom-row .ptz-btn { width: 100px; height: 48px; font-size: 16px; font-weight: 700; }
+    .ptz-speed { display: flex; align-items: center; gap: 10px; margin-top: 14px; justify-content: center; font-size: 13px; color: var(--text-secondary); }
+    .ptz-disabled-note { text-align: center; color: var(--text-muted); font-size: 14px; padding: 18px 6px; }
+
+    .lab-btn {
+        padding: 8px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line-strong);
+        background: var(--bg-soft);
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+    .lab-btn:hover { border-color: var(--blue-primary); color: var(--brand-600); }
+    .lab-btn.primary { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }
+    .lab-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .lab-input {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line-strong);
+        background: var(--field-bg);
+        color: var(--field-text);
+        font-size: 13px;
+    }
+
+    .preset-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+    .preset-row:last-child { border-bottom: none; }
+
+    .lab-log {
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        background: var(--bg-black);
+        color: #cbd5e1;
+        border-radius: 12px;
+        padding: 12px 14px;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+    .lab-log .log-ok { color: #4ade80; }
+    .lab-log .log-err { color: #f87171; }
+    .lab-log .log-ms { color: #7dd3fc; }
+
+    .lab-status-line { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .lab-profile-row { font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); display: flex; justify-content: space-between; gap: 8px; }
+    .lab-profile-row:last-child { border-bottom: none; }
+    .lab-profile-row code { font-family: var(--font-mono); color: var(--text-muted); }
+</style>
+
+<div class="lab-hero">
+    <span class="lab-tag">Protótipo · Laboratório</span>
+    <h1>Câmera como Objeto</h1>
+    <p>
+        Aqui a câmera deixa de ser só um link RTSP: abrimos uma sessão ONVIF viva com o
+        dispositivo, perguntamos quem ele é e o que sabe fazer, e controlamos PTZ em tempo real.
+        Nada desta tela altera o monitor ou o pipeline de analítico.
+    </p>
+</div>
+
+<div class="lab-layout">
+    <div class="lab-card">
+        <h2>Câmeras cadastradas</h2>
+        <div id="camera-list"></div>
+    </div>
+
+    <div>
+        <div class="lab-card" style="margin-bottom: 16px;">
+            <div class="lab-status-line">
+                <h2 style="margin-bottom: 0;">Dispositivo</h2>
+                <span id="device-status" class="lab-chip">Nenhuma câmera selecionada</span>
+                <span style="font-size: 13px; font-weight: 600; margin-left: 10px; margin-right: 4px;">Conexão:</span>
+                <select id="connection-mode" class="lab-input" style="padding: 6px 10px; border-radius: 8px;">
+                    <option value="onvif">ONVIF Genérico</option>
+                    <option value="sdk">SDK Proprietário</option>
+                </select>
+                <button class="lab-btn" id="btn-inspect" disabled>Conectar / Inspecionar</button>
+                <button class="lab-btn" id="btn-reset" disabled>Reiniciar sessão</button>
+            </div>
+            <div class="lab-grid">
+                <div>
+                    <h2>Identidade</h2>
+                    <dl class="lab-kv" id="device-identity">
+                        <dt>Fabricante</dt><dd>—</dd>
+                        <dt>Modelo</dt><dd>—</dd>
+                        <dt>Firmware</dt><dd>—</dd>
+                        <dt>Nº de série</dt><dd>—</dd>
+                        <dt>Endpoint</dt><dd>—</dd>
+                    </dl>
+                    <h2 style="margin-top: 16px;">Capacidades</h2>
+                    <div class="lab-chips" id="device-capabilities">
+                        <span class="lab-chip off">aguardando inspeção…</span>
+                    </div>
+                    <h2 style="margin-top: 16px;">Profiles de mídia</h2>
+                    <div id="device-profiles" style="font-size: 13px; color: var(--text-muted);">—</div>
+                </div>
+                <div>
+                    <h2>Visão da câmera</h2>
+                    <div class="lab-snapshot">
+                        <img id="snapshot-img" alt="" style="display:none;">
+                        <div class="snap-empty" id="snapshot-empty">sem imagem</div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+                        <button class="lab-btn" id="btn-snapshot" disabled>Atualizar imagem</button>
+                        <label style="font-size:13px; color:var(--text-secondary); display:flex; gap:6px; align-items:center;">
+                            <input type="checkbox" id="snapshot-auto"> auto (2s)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lab-grid">
+            <div class="lab-card">
+                <h2>Controle PTZ</h2>
+                <div id="ptz-controls" style="display:none;">
+                    <div class="ptz-pad">
+                        <button class="ptz-btn" data-pan="-1" data-tilt="1">↖</button>
+                        <button class="ptz-btn" data-pan="0" data-tilt="1">↑</button>
+                        <button class="ptz-btn" data-pan="1" data-tilt="1">↗</button>
+                        <button class="ptz-btn" data-pan="-1" data-tilt="0">←</button>
+                        <button class="ptz-btn" id="ptz-stop-btn">■</button>
+                        <button class="ptz-btn" data-pan="1" data-tilt="0">→</button>
+                        <button class="ptz-btn" data-pan="-1" data-tilt="-1">↙</button>
+                        <button class="ptz-btn" data-pan="0" data-tilt="-1">↓</button>
+                        <button class="ptz-btn" data-pan="1" data-tilt="-1">↘</button>
+                    </div>
+                    <div class="ptz-zoom-row">
+                        <button class="ptz-btn" data-zoom="1">Zoom +</button>
+                        <button class="ptz-btn" data-zoom="-1">Zoom −</button>
+                    </div>
+                    <div class="ptz-speed">
+                        Velocidade
+                        <input type="range" id="ptz-speed" min="0.1" max="1" step="0.1" value="0.5">
+                        <span id="ptz-speed-value">0.5</span>
+                    </div>
+                </div>
+                <div class="ptz-disabled-note" id="ptz-note">Inspecione um dispositivo para habilitar o controle.</div>
+            </div>
+
+            <div class="lab-card">
+                <h2>Presets</h2>
+                <div id="preset-list" style="font-size:14px; color:var(--text-muted);">—</div>
+                <div style="display:flex; gap:8px; margin-top:12px;">
+                    <input class="lab-input" id="preset-name" placeholder="Nome do novo preset" style="flex:1;">
+                    <button class="lab-btn primary" id="btn-save-preset" disabled>Salvar posição atual</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="lab-card" style="margin-top:16px;">
+            <h2>Log de comandos <span style="font-weight:400; color:var(--text-muted); font-size:12px;">(latência de ida e volta ao dispositivo)</span></h2>
+            <div class="lab-log" id="command-log">—</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const cameras = {{ cameras_payload | tojson }};
+    const LAST_CAMERA_STORAGE_KEY = "labDeviceLastCameraId";
+    let selectedCamera = null;
+    let ptzCapable = false;
+    let moveActive = false;
+    let ptzCommandQueue = Promise.resolve();
+    let snapshotTimer = null;
+    let activeConnectionMode = "onvif";
+    let ptzLoopId = 0;
+    let heldPtz = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function logLine(message, ok, ms) {
+        const log = $("command-log");
+        if (log.textContent === "—") log.textContent = "";
+        const line = document.createElement("div");
+        const time = new Date().toLocaleTimeString("pt-BR");
+        const msPart = ms != null ? ` <span class="log-ms">${ms}ms</span>` : "";
+        line.innerHTML = `[${time}] <span class="${ok ? "log-ok" : "log-err"}">${ok ? "OK" : "ERRO"}</span> ${message}${msPart}`;
+        log.prepend(line);
+        while (log.children.length > 60) log.removeChild(log.lastChild);
+    }
+
+    async function callApi(path, options, label) {
+        const started = performance.now();
+        try {
+            const response = await fetch(path, options);
+            const ms = Math.round(performance.now() - started);
+            let data = {};
+            try { data = await response.json(); } catch (e) { /* corpo vazio */ }
+            const ok = response.ok && data.ok !== false;
+            logLine(label + (ok ? "" : ` — ${data.error || response.status}`), ok, ms);
+            return ok ? data : null;
+        } catch (error) {
+            logLine(`${label} — ${error}`, false, Math.round(performance.now() - started));
+            return null;
+        }
+    }
+
+    function postJson(path, body, label) {
+        return callApi(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body || {}),
+        }, label);
+    }
+
+    function renderCameraList() {
+        const list = $("camera-list");
+        list.innerHTML = "";
+        if (!cameras.length) {
+            list.innerHTML = '<div style="color:var(--text-muted); font-size:14px;">Nenhuma câmera cadastrada.</div>';
+            return;
+        }
+        cameras.forEach((camera) => {
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "lab-camera-item";
+            item.dataset.cameraId = camera.id;
+            item.innerHTML = `
+                <span class="cam-name">${camera.name}</span>
+                <span class="cam-meta">${camera.ip}:${camera.onvif_port || 80} · ${camera.manufacturer || "marca não informada"}${camera.model ? " / " + camera.model : ""} · ${camera.source_type}</span>
+            `;
+            item.addEventListener("click", () => selectCamera(camera, item));
+            list.appendChild(item);
+        });
+    }
+
+    function rememberSelectedCamera(camera) {
+        try {
+            localStorage.setItem(LAST_CAMERA_STORAGE_KEY, String(camera.id));
+        } catch (error) { /* localStorage indisponivel (modo privado etc.) */ }
+    }
+
+    function selectCamera(camera, item) {
+        document.querySelectorAll(".lab-camera-item").forEach((el) => el.classList.remove("active"));
+        item.classList.add("active");
+        selectedCamera = camera;
+        rememberSelectedCamera(camera);
+        ptzCapable = false;
+        $("device-status").textContent = `${camera.name} — sessão não iniciada`;
+        $("device-status").className = "lab-chip";
+        $("btn-inspect").disabled = false;
+        $("btn-reset").disabled = false;
+        $("btn-snapshot").disabled = false;
+        resetDevicePanels();
+        refreshSnapshot();
+    }
+
+    function resetDevicePanels() {
+        $("device-identity").innerHTML = "<dt>Fabricante</dt><dd>—</dd><dt>Modelo</dt><dd>—</dd><dt>Firmware</dt><dd>—</dd><dt>Nº de série</dt><dd>—</dd><dt>Endpoint</dt><dd>—</dd>";
+        $("device-capabilities").innerHTML = '<span class="lab-chip off">aguardando inspeção…</span>';
+        $("device-profiles").textContent = "—";
+        $("preset-list").textContent = "—";
+        $("ptz-controls").style.display = "none";
+        $("ptz-note").style.display = "block";
+        $("ptz-note").textContent = "Inspecione um dispositivo para habilitar o controle.";
+        $("btn-save-preset").disabled = true;
+    }
+
+    function renderDevice(data) {
+        const info = data.device || {};
+        $("device-identity").innerHTML = `
+            <dt>Fabricante</dt><dd>${info.manufacturer || "—"}</dd>
+            <dt>Modelo</dt><dd>${info.model || "—"}</dd>
+            <dt>Firmware</dt><dd>${info.firmware_version || "—"}</dd>
+            <dt>Nº de série</dt><dd>${info.serial_number || "—"}</dd>
+            <dt>Endpoint</dt><dd>${data.endpoint || "—"}</dd>
+        `;
+
+        const labels = { ptz: "PTZ", events: "Eventos nativos", analytics: "Analytics embarcado", imaging: "Imaging", media: "Mídia" };
+        const caps = data.capabilities || {};
+        $("device-capabilities").innerHTML = Object.keys(labels).map((key) => {
+            const on = !!caps[key];
+            return `<span class="lab-chip ${on ? "on" : "off"}">${on ? "✓" : "✗"} ${labels[key]}</span>`;
+        }).join("");
+
+        $("device-profiles").innerHTML = (data.profiles || []).map((profile) => `
+            <div class="lab-profile-row">
+                <span>${profile.name}${profile.token === data.profile_token ? " <strong>(em uso)</strong>" : ""}</span>
+                <code>${profile.token}${profile.ptz ? " · PTZ" : ""}</code>
+            </div>
+        `).join("") || "—";
+
+        ptzCapable = !!caps.ptz;
+        if (ptzCapable) {
+            $("ptz-controls").style.display = "block";
+            $("ptz-note").style.display = "none";
+            $("btn-save-preset").disabled = false;
+        } else {
+            $("ptz-controls").style.display = "none";
+            $("ptz-note").style.display = "block";
+            $("ptz-note").textContent = "Este dispositivo não expõe PTZ via ONVIF (comum em câmeras fixas e canais de NVR).";
+            $("btn-save-preset").disabled = true;
+        }
+        renderPresets(data.presets || []);
+
+        $("device-status").textContent = `${selectedCamera.name} — sessão ativa (${data.session_age_seconds}s)`;
+        $("device-status").className = "lab-chip on";
+    }
+
+    function renderPresets(presets) {
+        const list = $("preset-list");
+        if (!presets.length) {
+            list.textContent = ptzCapable ? "Nenhum preset salvo no dispositivo." : "—";
+            return;
+        }
+        list.innerHTML = "";
+        presets.forEach((preset) => {
+            const row = document.createElement("div");
+            row.className = "preset-row";
+            const name = document.createElement("span");
+            name.textContent = preset.name;
+            const go = document.createElement("button");
+            go.className = "lab-btn";
+            go.textContent = "Ir";
+            go.addEventListener("click", () => {
+                postJson(`/lab/dispositivo/${selectedCamera.id}/ptz/preset/ir?mode=${activeConnectionMode}`,
+                    { preset_token: preset.token }, `GotoPreset "${preset.name}"`);
+            });
+            row.appendChild(name);
+            row.appendChild(go);
+            list.appendChild(row);
+        });
+    }
+
+    async function inspectDevice() {
+        if (!selectedCamera) return;
+        const mode = $("connection-mode").value;
+        $("device-status").textContent = `${selectedCamera.name} — conectando via ${mode.toUpperCase()}…`;
+        $("btn-inspect").disabled = true;
+        const data = await callApi(`/lab/dispositivo/${selectedCamera.id}/inspecao?mode=${mode}`, {}, `Inspeção do dispositivo (${mode.toUpperCase()})`);
+        $("btn-inspect").disabled = false;
+        if (data) {
+            activeConnectionMode = mode;
+            renderDevice(data);
+        } else {
+            $("device-status").textContent = `${selectedCamera.name} — falha na conexão`;
+            $("device-status").className = "lab-chip off";
+        }
+    }
+
+    function refreshSnapshot() {
+        if (!selectedCamera) return;
+        const img = $("snapshot-img");
+        img.onload = () => { img.style.display = "block"; $("snapshot-empty").style.display = "none"; };
+        img.onerror = () => { img.style.display = "none"; $("snapshot-empty").style.display = "flex"; };
+        img.src = `/lab/dispositivo/${selectedCamera.id}/snapshot?mode=${activeConnectionMode}&t=${Date.now()}`;
+    }
+
+    // --- PTZ: aperta pra mover, solta pra parar ---
+    function speed() { return parseFloat($("ptz-speed").value); }
+
+    function queuePtzCommand(command) {
+        ptzCommandQueue = ptzCommandQueue.catch(() => null).then(command);
+        return ptzCommandQueue;
+    }
+
+    function startMove(pan, tilt, zoom, button) {
+        if (!selectedCamera || !ptzCapable || moveActive || heldPtz) return;
+
+        if (activeConnectionMode === "sdk") {
+            heldPtz = button;
+            const loop = ++ptzLoopId;
+            moveActive = true;
+            (async () => {
+                while (heldPtz === button && loop === ptzLoopId && selectedCamera) {
+                    const velocity = speed();
+                    const cameraId = selectedCamera.id;
+                    let data;
+                    try {
+                        data = await postJson(`/lab/dispositivo/${cameraId}/ptz/mover?mode=sdk`, {
+                            pan: pan * velocity,
+                            tilt: tilt * velocity,
+                            zoom: zoom * velocity,
+                        }, `SDK Move pan=${(pan * velocity).toFixed(2)} tilt=${(tilt * velocity).toFixed(2)} zoom=${(zoom * velocity).toFixed(2)}`);
+                    } catch (error) {
+                        break;
+                    }
+                    if (!data) break;
+                    // Backends com start/stop real (Intelbras via HTTP CGI) so
+                    // precisam de um comando; o Stop cuida do resto. Backends
+                    // sem isso (worker nativo, ONVIF-dentro-do-SDK) continuam
+                    // no pulso repetido de antes.
+                    if (data.continuous) break;
+                    await new Promise(r => setTimeout(r, 450));
+                }
+            })();
+        } else {
+            moveActive = true;
+            const cameraId = selectedCamera.id;
+            const velocity = speed();
+            return queuePtzCommand(() => postJson(`/lab/dispositivo/${cameraId}/ptz/mover?mode=onvif`, {
+                pan: pan * velocity, tilt: tilt * velocity, zoom: zoom * velocity,
+            }, `ContinuousMove pan=${pan * velocity} tilt=${tilt * velocity} zoom=${zoom * velocity}`));
+        }
+    }
+
+    function stopMove(button, force = false) {
+        if (typeof button === "boolean") {
+            force = button;
+            button = null;
+        }
+        if (activeConnectionMode === "sdk") {
+            if (heldPtz === button || force) {
+                heldPtz = null;
+                ptzLoopId++;
+                moveActive = false;
+                if (selectedCamera) {
+                    postJson(`/lab/dispositivo/${selectedCamera.id}/ptz/parar?mode=sdk`, {}, "SDK Stop");
+                }
+            }
+        } else {
+            if (!selectedCamera || !ptzCapable || (!moveActive && !force)) return;
+            moveActive = false;
+            const cameraId = selectedCamera.id;
+            return queuePtzCommand(() => postJson(`/lab/dispositivo/${cameraId}/ptz/parar?mode=onvif`, {}, "Stop"));
+        }
+    }
+
+    document.querySelectorAll(".ptz-btn[data-pan], .ptz-btn[data-zoom]").forEach((button) => {
+        const pan = parseFloat(button.dataset.pan || "0");
+        const tilt = parseFloat(button.dataset.tilt || "0");
+        const zoom = parseFloat(button.dataset.zoom || "0");
+        button.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            button.setPointerCapture?.(event.pointerId);
+            button.classList.add("pressed");
+            startMove(pan, tilt, zoom, button);
+        });
+        ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
+            button.addEventListener(eventName, () => {
+                button.classList.remove("pressed");
+                stopMove(button);
+            });
+        });
+    });
+
+    $("ptz-stop-btn").addEventListener("click", () => stopMove(true));
+    window.addEventListener("blur", () => stopMove(true));
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) stopMove(true);
+    });
+    $("ptz-speed").addEventListener("input", () => { $("ptz-speed-value").textContent = speed().toFixed(1); });
+
+    $("btn-inspect").addEventListener("click", inspectDevice);
+    $("btn-reset").addEventListener("click", async () => {
+        if (!selectedCamera) return;
+        await postJson(`/lab/dispositivo/${selectedCamera.id}/sessao/reset?mode=${activeConnectionMode}`, {}, "Reset da sessão");
+        resetDevicePanels();
+        $("device-status").textContent = `${selectedCamera.name} — sessão não iniciada`;
+        $("device-status").className = "lab-chip";
+    });
+    $("btn-snapshot").addEventListener("click", refreshSnapshot);
+    $("snapshot-auto").addEventListener("change", (event) => {
+        if (event.target.checked) {
+            snapshotTimer = setInterval(refreshSnapshot, 2000);
+        } else if (snapshotTimer) {
+            clearInterval(snapshotTimer);
+            snapshotTimer = null;
+        }
+    });
+    $("btn-save-preset").addEventListener("click", async () => {
+        if (!selectedCamera) return;
+        const name = $("preset-name").value.trim();
+        const data = await postJson(`/lab/dispositivo/${selectedCamera.id}/ptz/preset/salvar?mode=${activeConnectionMode}`,
+            { name: name }, `SetPreset "${name || "(sem nome)"}"`);
+        if (data) {
+            $("preset-name").value = "";
+            inspectDevice();
+        }
+    });
+
+    renderCameraList();
+    let restoredCameraId = Number(new URLSearchParams(window.location.search).get("camera_id"));
+    if (!Number.isInteger(restoredCameraId) || restoredCameraId <= 0) {
+        restoredCameraId = null;
+        try {
+            const stored = Number(localStorage.getItem(LAST_CAMERA_STORAGE_KEY));
+            if (Number.isInteger(stored) && stored > 0) restoredCameraId = stored;
+        } catch (error) { /* localStorage indisponivel (modo privado etc.) */ }
+    }
+    if (restoredCameraId) {
+        const camera = cameras.find((item) => Number(item.id) === restoredCameraId);
+        const item = document.querySelector(`.lab-camera-item[data-camera-id="${restoredCameraId}"]`);
+        if (camera && item) {
+            selectCamera(camera, item);
+            inspectDevice();
+        }
+    }
+})();
+</script>
+{% endblock %}

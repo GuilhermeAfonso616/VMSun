@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# Central de eventos para triagem, fechamento e notas operacionais. #}
+<div class="events-page">
+<h1>Central de eventos</h1>
+
+<style>
+    .events-page {
+        display: grid;
+        gap: 16px;
+    }
+    .events-page .card {
+        margin-bottom: 0;
+    }
+    .event-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 14px;
+    }
+    .event-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 7px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 13px;
+        text-decoration: none;
+    }
+    .event-chip.is-active {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+        color: #fff;
+    }
+    .revalidator-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .revalidator-card h2 {
+        margin: 0 0 6px 0;
+    }
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        align-items: end;
+    }
+    .filter-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+    }
+    .events-card {
+        overflow-x: auto;
+        max-width: 100%;
+        padding: 14px;
+    }
+    .events-table {
+        min-width: 1080px;
+        table-layout: auto;
+    }
+    .events-table th {
+        white-space: nowrap;
+        word-break: normal;
+        font-size: 11px;
+        line-height: 1.2;
+    }
+    .events-table td {
+        vertical-align: top;
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+    .events-table td[data-label="ID"],
+    .events-table td[data-label="Data"],
+    .events-table td[data-label="Confianca"] {
+        white-space: nowrap;
+    }
+    .event-kind strong {
+        display: block;
+        margin-bottom: 2px;
+    }
+    .event-kind .raw-event {
+        font-size: 12px;
+    }
+    .event-confidence {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    .event-details {
+        max-width: 420px;
+        margin-top: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.35;
+    }
+    .event-note {
+        min-width: 220px;
+        max-width: 280px;
+    }
+    .note-form {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+    }
+    .event-note textarea {
+        min-height: 58px;
+        resize: vertical;
+    }
+    .event-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+    .event-actions form {
+        margin: 0;
+    }
+    .incident-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; width:100%; }
+    .incident-metric { padding:12px 14px; border:1px solid var(--line-soft); border-radius:10px; background:#fff; min-width:0; }
+    .incident-metric strong { display:block; font-size:20px; }
+    .sla-state { display:inline-flex; padding:4px 7px; border-radius:999px; font-size:11px; font-weight:800; }
+    .sla-on_time { background:#dcfce7; color:#166534; }.sla-at_risk { background:#fef3c7; color:#92400e; }
+    .sla-overdue { background:#fee2e2; color:#991b1b; }.sla-resolved { background:#e2e8f0; color:#334155; }
+    .assign-form,.close-form { display:grid; gap:5px; min-width:140px; }
+    #timelineDialog { width:min(680px,calc(100% - 32px)); border:0; border-radius:12px; padding:0; }
+    #timelineDialog::backdrop { background:rgba(2,6,23,.7); }.timeline-body{padding:20px}.timeline-item{padding:10px 0;border-bottom:1px solid #e2e8f0}
+    .incident-create-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; align-items:end; width:100%; }
+    .incident-detail-form { display:grid; gap:5px; min-width:150px; }
+    .checklist-item { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #e2e8f0; }
+    .empty-events {
+        padding: 20px;
+        color: var(--text-secondary);
+        text-align: center;
+    }
+    .events-card {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 760px) {
+        .incident-summary { grid-template-columns:repeat(2,1fr); }
+        .incident-create-grid { grid-template-columns:1fr; }
+        .event-chip {
+            flex: 1 1 46%;
+            justify-content: center;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .revalidator-card {
+            align-items: stretch;
+        }
+        .revalidator-card form,
+        .revalidator-card .btn,
+        .filter-actions .btn {
+            width: 100%;
+        }
+        .events-table td {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+        .note-form {
+            grid-template-columns: 1fr;
+        }
+        .event-actions .btn,
+        .event-actions form {
+            width: 100%;
+        }
+        .event-toolbar {
+            gap: 6px;
+        }
+        .event-chip {
+            flex-basis: 100%;
+        }
+    }
+</style>
+
+<div id="incidentSummary" class="incident-summary" aria-label="Resumo de incidentes">
+    <div class="incident-metric"><span>Abertos</span><strong id="metricOpen">-</strong></div>
+    <div class="incident-metric"><span>Sem responsável</span><strong id="metricUnassigned">-</strong></div>
+    <div class="incident-metric"><span>SLA vencido</span><strong id="metricOverdue">-</strong></div>
+    <div class="incident-metric"><span>Escalados</span><strong id="metricEscalated">-</strong></div>
+    <div class="incident-metric"><span>Reconhecimento medio</span><strong id="metricAck">-</strong></div>
+    <div class="incident-metric"><span>Resolucao media</span><strong id="metricResolution">-</strong></div>
+</div>
+
+<details class="card">
+    <summary><strong>Criar incidente manual</strong></summary>
+    <form method="post" action="/events/incidents/manual" class="incident-create-grid" style="margin-top:12px">
+        <div><label>Camera</label><select name="camera_id" required>{% for camera in cameras %}<option value="{{ camera.id }}">{{ camera.name }}</option>{% endfor %}</select></div>
+        <div><label>Titulo</label><input name="title" maxlength="200" required></div>
+        <div><label>Prioridade</label><select name="priority"><option value="low">Baixa</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="critical">Critica</option></select></div>
+        <div><label>Equipe</label><input name="team" maxlength="160"></div>
+        <div><label>Responsavel</label><select name="assignee_user_id"><option value="">Definir depois</option>{% for user in incident_users %}<option value="{{ user.id }}">{{ user.name or user.username }}</option>{% endfor %}</select></div>
+        <div><label>Descricao</label><input name="description" maxlength="1000"></div>
+        <button class="btn btn-primary" type="submit">Criar incidente</button>
+    </form>
+</details>
+
+<div class="event-toolbar" aria-label="Filtros rapidos de eventos">
+    <a class="event-chip {% if not selected_camera_id and not selected_severity and not selected_status and not selected_event_type and not selected_date and not only_open and not only_audit %}is-active{% endif %}" href="/events">Todos</a>
+    <a class="event-chip {% if only_open and not selected_severity and not selected_status %}is-active{% endif %}" href="/events?only_open=1">Abertos</a>
+    <a class="event-chip {% if only_audit %}is-active{% endif %}" href="/events?only_audit=1" style="border-color:#d97706; background:#fffbeb;">🛡️ Fila Silenciosa (Audit)</a>
+    <a class="event-chip {% if selected_severity == 'critical' and only_open %}is-active{% endif %}" href="/events?severity=critical&only_open=1">Criticos</a>
+    <a class="event-chip {% if selected_status == 'new' %}is-active{% endif %}" href="/events?status=new">Novos</a>
+    <a class="event-chip {% if selected_status == 'canceled' %}is-active{% endif %}" href="/events?status=canceled">Cancelados</a>
+    <a class="event-chip {% if selected_status == 'closed' %}is-active{% endif %}" href="/events?status=closed">Fechados</a>
+</div>
+
+
+<div class="card">
+    <form method="get" action="/events">
+        <div class="filters-grid">
+            <div>
+                <label>Câmera</label>
+                <select name="camera_id">
+                    <option value="">Todas</option>
+                    {% for camera in cameras %}
+                    <option value="{{ camera.id }}" {% if selected_camera_id == camera.id %}selected{% endif %}>{{ camera.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Severidade</label>
+                <select name="severity">
+                    <option value="">Todas</option>
+                    {% for value in ['low','medium','high','critical'] %}
+                    <option value="{{ value }}" {% if selected_severity == value %}selected{% endif %}>{{ value | severity_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Status</label>
+                <select name="status">
+                    <option value="">Todos</option>
+                    {% for value in ['new','acknowledged','closed','canceled'] %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ value | status_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Tipo de evento</label>
+                <select name="event_type">
+                    <option value="">Todos</option>
+                    {% for value in event_types %}
+                    <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>{{ value | event_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Responsável</label>
+                <select name="assigned_user_id">
+                    <option value="">Todos</option><option value="unassigned" {% if selected_assigned_user_id == 'unassigned' %}selected{% endif %}>Sem responsável</option>
+                    {% for user in incident_users %}<option value="{{ user.id }}" {% if selected_assigned_user_id == (user.id|string) %}selected{% endif %}>{{ user.name or user.username }}</option>{% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>SLA</label>
+                <select name="sla_state"><option value="">Todos</option><option value="on_time" {% if selected_sla_state == 'on_time' %}selected{% endif %}>No prazo</option><option value="at_risk" {% if selected_sla_state == 'at_risk' %}selected{% endif %}>Em risco</option><option value="overdue" {% if selected_sla_state == 'overdue' %}selected{% endif %}>Vencido</option><option value="resolved" {% if selected_sla_state == 'resolved' %}selected{% endif %}>Resolvido</option></select>
+            </div>
+            <div>
+                  <label>Data</label>
+                  <input type="date" name="date" value="{{ selected_date }}">
+              </div>
+              <div>
+                  <label>Somente abertos</label>
+                  <select name="only_open">
+                    <option value="0" {% if not only_open %}selected{% endif %}>Não</option>
+                    <option value="1" {% if only_open %}selected{% endif %}>Sim</option>
+                </select>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-primary" type="submit">Filtrar</button>
+            <a class="btn btn-secondary" href="/events">Limpar filtros</a>
+        </div>
+    </form>
+</div>
+
+<div class="card events-card">
+    <table class="events-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Câmera</th>
+                <th>Local</th>
+                <th>Evento</th>
+                <th>Data</th>
+                <th>Lifecycle</th>
+                <th>Severidade</th>
+                <th>Status</th>
+                <th>Responsável</th>
+                <th>SLA</th>
+                <th>Confiança</th>
+                <th>Snapshot</th>
+                <th>Nota operacional</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td data-label="ID">{{ event.id }}</td>
+                <td data-label="Camera">{{ event.camera_name }}</td>
+                <td data-label="Local">{{ event.site_name or '-' }}</td>
+                <td data-label="Evento">
+                    <div class="event-kind">
+                        <strong>{{ event.event_type_label or (event.event_type | event_label) }}</strong>
+                        <div class="compact muted raw-event">{{ event.event_type }}</div>
+                    </div>
+                    <div class="compact muted event-details" title="{{ event.details or '-' }}">{{ event.details or '-' }}</div>
+                </td>
+                <td data-label="Data">{{ event.created_at_label or '-' }}</td>
+                <td data-label="Lifecycle">
+                    {% set lifecycle = event.lifecycle_action or ('open' if (event.alarm_eligible or event.status_display != 'closed') and event.status_display != 'closed' else 'log_only') %}
+                    <span class="status status-{{ lifecycle }}">{{ lifecycle | lifecycle_label }}</span>
+                    {% if event.alarm_category %}
+                    <div class="compact muted">{{ event.alarm_category }}</div>
+                    {% endif %}
+                </td>
+                <td data-label="Severidade"><span class="status priority-{{ event.incident_priority or event.severity_display }}">{{ (event.incident_priority or event.severity_display) | severity_label }}</span>{% if event.incident_origin == 'manual' %}<div class="compact muted">Manual</div>{% endif %}</td>
+                <td data-label="Status"><span class="status status-{{ event.status_display }}">{{ event.status_label or (event.status_display | status_label) }}</span></td>
+                <td data-label="Responsavel">
+                    {% if event.alarm_eligible %}<form method="post" action="/events/{{ event.id }}/assign" class="assign-form"><select name="assignee_user_id"><option value="">Sem responsável</option>{% for user in incident_users %}<option value="{{ user.id }}" {% if event.assigned_user_id == user.id %}selected{% endif %}>{{ user.name or user.username }}</option>{% endfor %}</select><button class="btn btn-secondary btn-small" type="submit">Atribuir</button></form><div class="compact muted">Equipe: {{ event.incident_team or '-' }}</div>{% else %}-{% endif %}
+                </td>
+                <td data-label="SLA"><span class="sla-state sla-{{ event.sla_state }}">{{ {'on_time':'No prazo','at_risk':'Em risco','overdue':'Vencido','resolved':'Resolvido','untracked':'Sem SLA'}.get(event.sla_state,event.sla_state) }}</span><div class="compact muted">{{ event.sla_due_at | br_datetime if event.sla_due_at else '-' }}</div>{% if event.escalated_at %}<div class="compact" style="color:#b91c1c">Escalado</div>{% endif %}</td>
+                <td data-label="Confianca" class="event-confidence">{{ '%.3f'|format(event.confidence) if event.confidence is not none else '-' }}</td>
+                <td data-label="Snapshot">{% if event.snapshot_path %}<a class="btn btn-secondary btn-small" href="/events/{{ event.id }}/snapshot" target="_blank" data-media-popup data-media-kind="image" data-title="{{ event.camera_name }} - Evento #{{ event.id }}">Abrir</a>{% else %}-{% endif %}</td>
+                <td data-label="Nota" class="event-note">
+                    <form method="post" action="/events/{{ event.id }}/note" class="note-form">
+                        <textarea name="operator_note" rows="3" class="compact">{{ event.operator_note or '' }}</textarea>
+                        <button class="btn btn-secondary btn-small" type="submit">Salvar nota</button>
+                    </form>
+                </td>
+                <td data-label="Acoes">
+                    <div class="event-actions">
+                        {% if (event.alarm_eligible or event.status_display != 'closed') and event.status_display == 'new' %}
+                        <form method="post" action="/events/{{ event.id }}/ack"><button class="btn btn-warning btn-small" type="submit">Reconhecer</button></form>
+                        {% endif %}
+                        {% if (event.alarm_eligible or event.status_display != 'closed') and (event.is_alarm_active or event.status_display != 'closed') %}
+                        <form method="post" action="/events/{{ event.id }}/close" class="close-form"><select name="resolution_code" required><option value="verified_threat">Ameaça confirmada</option><option value="false_alarm">Falso alarme</option><option value="authorized_activity">Atividade autorizada</option><option value="system_test">Teste do sistema</option><option value="other">Outro</option></select><input name="resolution_comment" placeholder="Observação da resolução"><button class="btn btn-danger btn-small" type="submit">Fechar</button></form>
+                        {% elif (event.alarm_eligible or event.status_display != 'closed') and event.status_display == 'closed' and request.state.user.role in ['admin', 'supervisor', 'dev'] %}
+                        <form method="post" action="/events/{{ event.id }}/reopen"><button class="btn btn-secondary btn-small" type="submit">Reabrir</button></form>
+                        {% endif %}
+                        {% if event.alarm_eligible %}<button class="btn btn-secondary btn-small" type="button" onclick="showTimeline({{ event.id }})">Histórico</button><button class="btn btn-secondary btn-small" type="button" onclick="showIncident({{ event.id }})">Gerenciar</button>{% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="14" class="empty-events">Nenhum evento encontrado com os filtros atuais.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<dialog id="timelineDialog"><div class="timeline-body"><div style="display:flex;justify-content:space-between;align-items:center"><h2 id="timelineTitle">Histórico</h2><button class="btn btn-secondary" onclick="document.getElementById('timelineDialog').close()">Fechar</button></div><div id="timelineContent" class="muted">Carregando...</div></div></dialog>
+<dialog id="incidentDialog"><div class="timeline-body"><div style="display:flex;justify-content:space-between;align-items:center"><h2 id="incidentTitle">Gerenciar incidente</h2><button class="btn btn-secondary" onclick="document.getElementById('incidentDialog').close()">Fechar</button></div><div id="incidentContent" class="muted">Carregando...</div></div></dialog>
+
+<script>
+(function () {
+    fetch('/api/events/incidents/summary').then(r=>r.json()).then(s=>{document.getElementById('metricOpen').textContent=s.open;document.getElementById('metricUnassigned').textContent=s.unassigned;document.getElementById('metricOverdue').textContent=s.overdue;document.getElementById('metricEscalated').textContent=s.escalated;document.getElementById('metricAck').textContent=s.mean_acknowledge_minutes==null?'-':`${s.mean_acknowledge_minutes} min`;document.getElementById('metricResolution').textContent=s.mean_resolution_minutes==null?'-':`${s.mean_resolution_minutes} min`;}).catch(()=>{});
+    const signature = {{ latest_alarm_signature|tojson }};
+    const allowSound = {{ 'true' if alarm_should_play else 'false' }};
+    const latestPopupAlarm = {{ latest_popup_alarm|tojson }};
+    const key = 'server_analiticos_last_alarm_signature';
+    const previous = localStorage.getItem(key);
+    if (signature && allowSound && previous && previous !== signature) {
+        playAlarmTone();
+    }
+    if (signature && latestPopupAlarm && latestPopupAlarm.alarm_popup_enabled !== false && previous && previous !== signature) {
+        const popupAlarm = Object.assign({}, latestPopupAlarm, {
+            severity: latestPopupAlarm.severity_display || latestPopupAlarm.severity || 'medium',
+        });
+        showAlarmPopup(popupAlarm);
+    }
+    if (signature) {
+        localStorage.setItem(key, signature);
+    }
+    setTimeout(() => { if (![...document.querySelectorAll('dialog')].some(dialog => dialog.open)) window.location.reload(); }, 6000);
+})();
+const timelineEsc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function showTimeline(eventId){const dialog=document.getElementById('timelineDialog');document.getElementById('timelineTitle').textContent=`Histórico do incidente #${eventId}`;const body=document.getElementById('timelineContent');body.textContent='Carregando...';dialog.showModal();try{const r=await fetch(`/api/events/${eventId}/timeline`);if(!r.ok)throw new Error('Falha ao carregar histórico');const items=await r.json();body.innerHTML=items.length?items.map(i=>`<div class="timeline-item"><strong>${timelineEsc(i.action)}</strong> · ${timelineEsc(i.actor_username||'system')}<div class="compact muted">${timelineEsc(i.created_at||'')}</div>${i.comment?`<div>${timelineEsc(i.comment)}</div>`:''}</div>`).join(''):'Nenhuma ação registrada.';}catch(e){body.textContent=e.message;}}
+async function toggleChecklist(eventId,itemId,completed){const r=await fetch(`/api/events/${eventId}/checklist/${encodeURIComponent(itemId)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({completed})});if(!r.ok)throw new Error('Falha ao atualizar checklist');showIncident(eventId,true);}
+async function showIncident(eventId,refresh=false){const dialog=document.getElementById('incidentDialog');const body=document.getElementById('incidentContent');body.textContent='Carregando...';if(!refresh)dialog.showModal();try{const r=await fetch(`/api/events/${eventId}/incident`);if(!r.ok)throw new Error('Falha ao carregar incidente');const i=await r.json();const rootId=i.event_id;document.getElementById('incidentTitle').textContent=`Gerenciar incidente #${rootId}`;const priorities=['low','medium','high','critical'];body.innerHTML=`<form method="post" action="/events/${rootId}/details" class="incident-detail-form"><label>Prioridade</label><select name="priority">${priorities.map(p=>`<option value="${p}" ${p===i.priority?'selected':''}>${p}</option>`).join('')}</select><label>Equipe</label><input name="team" maxlength="160" value="${timelineEsc(i.team||'')}"><button class="btn btn-primary btn-small" type="submit">Salvar dados</button></form><h3>Checklist de resposta</h3>${i.checklist.map(item=>`<label class="checklist-item"><input type="checkbox" ${item.completed?'checked':''} onchange="toggleChecklist(${rootId},'${timelineEsc(item.id)}',this.checked)"><span>${timelineEsc(item.label)}${item.completed_by?`<div class="compact muted">${timelineEsc(item.completed_by)}</div>`:''}</span></label>`).join('')}<h3>Eventos vinculados</h3><div>${i.related_events.map(e=>`#${e.id} · ${timelineEsc(e.event_type)} · ${timelineEsc(e.status||'-')}`).join('<br>')}</div><form method="post" action="/events/${rootId}/correlate" class="incident-detail-form" style="margin-top:12px"><label>Vincular IDs (separados por virgula)</label><input name="related_event_ids" placeholder="101, 102"><button class="btn btn-secondary btn-small" type="submit">Vincular eventos</button></form>`;}catch(e){body.textContent=e.message;}}
+</script>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Notificações | SunOrus{% endblock %}
+{% block content %}
+<style>
+  .notify-shell{max-width:1180px;margin:0 auto;padding:22px}.notify-head{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:22px}
+  .notify-head h1{margin:0 0 6px}.notify-muted{color:var(--text-secondary,#94a3b8)}.notify-grid{display:grid;grid-template-columns:380px 1fr;gap:18px}
+  .notify-card{background:var(--surface,#111827);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:18px}.notify-card h2{font-size:17px;margin:0 0 16px}
+  .notify-field{margin:12px 0}.notify-field label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}.notify-field input,.notify-field select{width:100%;box-sizing:border-box;background:#0b1220;color:#e5e7eb;border:1px solid #334155;border-radius:7px;padding:10px}
+  .notify-btn{border:0;border-radius:7px;padding:9px 12px;font-weight:700;cursor:pointer;background:#2563eb;color:#fff}.notify-btn.secondary{background:#334155}.notify-btn:disabled{opacity:.5}.notify-channel{border-top:1px solid #243044;padding:13px 0}.notify-channel:first-child{border-top:0}
+  .notify-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.notify-badge{font-size:11px;padding:3px 7px;border-radius:999px;background:#334155}.notify-badge.sent{background:#14532d}.notify-badge.retry,.notify-badge.dead{background:#7f1d1d}
+  table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid #263246}th{color:#94a3b8}.notify-error{color:#fca5a5;font-size:12px;max-width:280px;word-break:break-word}
+  @media(max-width:900px){.notify-grid{grid-template-columns:1fr}.notify-shell{padding:14px}.notify-card{overflow:auto}}
+</style>
+<div class="notify-shell">
+  <div class="notify-head"><div><h1>Central de notificações</h1><div class="notify-muted">Webhooks confiáveis para alarmes, com assinatura, retentativa e histórico.</div></div><button class="notify-btn secondary" onclick="reloadAll()">Atualizar</button></div>
+  <div class="notify-grid">
+    <section>
+      {% if can_manage %}
+      <div class="notify-card">
+        <h2>Novo canal</h2>
+        <div class="notify-field"><label>Nome</label><input id="channelName" placeholder="Ex.: Central SOC"></div>
+        <div class="notify-field"><label>URL do webhook</label><input id="channelTarget" type="url" placeholder="https://..." autocomplete="off"></div>
+        <div class="notify-field"><label>Segredo de assinatura (opcional)</label><input id="channelSecret" type="password" autocomplete="new-password"></div>
+        <div class="notify-field"><label>Severidade mínima</label><select id="channelSeverity"><option value="medium">Média</option><option value="high">Alta</option><option value="critical">Crítica</option><option value="low">Baixa</option></select></div>
+        <div class="notify-field"><label>Tipos de evento (separados por vírgula; vazio = todos)</label><input id="channelEvents" placeholder="intrusion,line_crossing"></div>
+        <div id="formMessage" class="notify-error"></div>
+        <button class="notify-btn" onclick="createChannel()">Salvar canal</button>
+      </div>
+      {% endif %}
+      <div class="notify-card" style="margin-top:18px"><h2>Canais</h2><div id="channels"><span class="notify-muted">Carregando...</span></div></div>
+    </section>
+    <section class="notify-card"><h2>Últimas entregas</h2><div style="overflow:auto"><table><thead><tr><th>ID</th><th>Canal</th><th>Evento</th><th>Status</th><th>Tentativas</th><th>HTTP</th><th>Erro</th><th></th></tr></thead><tbody id="deliveries"><tr><td colspan="8" class="notify-muted">Carregando...</td></tr></tbody></table></div></section>
+  </div>
+</div>
+<script>
+const canManage={{ 'true' if can_manage else 'false' }};
+const esc=(v)=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+async function api(url,options={}){const r=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});if(!r.ok){let d={};try{d=await r.json()}catch{}throw new Error(d.detail||`HTTP ${r.status}`)}return r.json()}
+async function loadChannels(){try{const items=await api('/api/notifications/channels');document.getElementById('channels').innerHTML=items.length?items.map(c=>`<div class="notify-channel"><div class="notify-row"><strong>${esc(c.name)}</strong><span class="notify-badge">${c.enabled?'ativo':'inativo'}</span></div><div class="notify-muted" style="font-size:12px;margin:5px 0">${esc(c.target_masked)} · mínimo ${esc(c.min_severity)}</div><div>${canManage?`<button class="notify-btn secondary" onclick="testChannel(${c.id})">Testar</button> <button class="notify-btn secondary" onclick="toggleChannel(${c.id},${!c.enabled})">${c.enabled?'Desativar':'Ativar'}</button>`:''}</div></div>`).join(''):'<span class="notify-muted">Nenhum canal configurado.</span>'}catch(e){document.getElementById('channels').textContent=e.message}}
+async function loadDeliveries(){try{const items=await api('/api/notifications/deliveries?limit=100');document.getElementById('deliveries').innerHTML=items.length?items.map(d=>`<tr><td>${d.id}</td><td>${esc(d.channel_name||d.channel_id)}</td><td>${esc(d.event_id||'teste')}</td><td><span class="notify-badge ${esc(d.status)}">${esc(d.status)}</span></td><td>${d.attempt_count}</td><td>${esc(d.http_status||'-')}</td><td class="notify-error">${esc(d.error_message||'')}</td><td>${['dead','retry'].includes(d.status)?`<button class="notify-btn secondary" onclick="resend(${d.id})">Reenviar</button>`:''}</td></tr>`).join(''):'<tr><td colspan="8" class="notify-muted">Nenhuma entrega registrada.</td></tr>'}catch(e){document.getElementById('deliveries').innerHTML=`<tr><td colspan="8" class="notify-error">${esc(e.message)}</td></tr>`}}
+async function createChannel(){const msg=document.getElementById('formMessage');msg.textContent='';try{await api('/api/notifications/channels',{method:'POST',body:JSON.stringify({name:channelName.value.trim(),target:channelTarget.value.trim(),signing_secret:channelSecret.value,event_types:channelEvents.value.split(',').map(v=>v.trim()).filter(Boolean),min_severity:channelSeverity.value})});channelName.value=channelTarget.value=channelSecret.value=channelEvents.value='';await reloadAll()}catch(e){msg.textContent=e.message}}
+async function testChannel(id){try{const d=await api(`/api/notifications/channels/${id}/test`,{method:'POST'});alert(d.status==='sent'?'Teste entregue com sucesso.':`Teste ficou em ${d.status}: ${d.error_message||''}`);await loadDeliveries()}catch(e){alert(e.message)}}
+async function toggleChannel(id,enabled){try{await api(`/api/notifications/channels/${id}`,{method:'PUT',body:JSON.stringify({enabled})});await loadChannels()}catch(e){alert(e.message)}}
+async function resend(id){try{await api(`/api/notifications/deliveries/${id}/resend`,{method:'POST'});await loadDeliveries()}catch(e){alert(e.message)}}
+async function reloadAll(){await Promise.all([loadChannels(),loadDeliveries()])}document.addEventListener('DOMContentLoaded',reloadAll);
+</script>
+{% endblock %}

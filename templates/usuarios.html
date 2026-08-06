@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .users-page-head {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .users-page-head h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+    .users-page-head .btn {
+        align-self: flex-start;
+    }
+    .users-table-container {
+        background: var(--bg-surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: var(--shadow-card);
+    }
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    .users-table th {
+        padding: 12px 16px;
+        font-weight: 700;
+        color: var(--text-secondary);
+        font-size: 13px;
+        text-transform: uppercase;
+        border-bottom: 1.5px solid rgba(255, 255, 255, 0.08);
+    }
+    .users-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-size: 14.5px;
+        color: var(--text-primary);
+    }
+    .users-table tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 99px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .badge.admin { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge.dev { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); }
+    .badge.supervisor { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge.operator { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge.viewer { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+    .badge.active { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .badge.inactive { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    
+    /* Modal Styles */
+    .user-modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1100;
+    }
+    .user-modal {
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        width: 440px;
+        padding: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        max-width: calc(100vw - 24px);
+        max-height: calc(100dvh - 24px);
+        overflow: auto;
+    }
+    .user-modal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .user-modal-head h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+    .modal-close-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 20px;
+        cursor: pointer;
+    }
+    .form-group {
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .form-group label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #94a3b8;
+    }
+    .form-control {
+        background: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 10px 12px;
+        color: #f8fafc;
+        font-size: 14.5px;
+    }
+    .form-control:focus {
+        border-color: #3b82f6;
+        outline: none;
+    }
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    .sessions-modal {
+        width: min(780px, calc(100vw - 24px));
+    }
+    .sessions-summary {
+        margin: -8px 0 16px;
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+    .sessions-table-wrap {
+        overflow-x: auto;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+    }
+    .sessions-table {
+        width: 100%;
+        min-width: 680px;
+        border-collapse: collapse;
+    }
+    .sessions-table th,
+    .sessions-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        text-align: left;
+        font-size: 13px;
+    }
+    .sessions-table th {
+        color: var(--text-secondary);
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+    .session-device {
+        display: block;
+        max-width: 260px;
+        color: var(--text-secondary);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .session-current {
+        color: #22c55e;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    @media (max-width: 760px) {
+        .users-table-container {
+            overflow-x: auto;
+        }
+        .users-table {
+            min-width: 820px;
+        }
+    }
+</style>
+
+<div class="users-page-head">
+    <h1>Gerenciamento de Usuários</h1>
+    <button type="button" class="btn btn-primary" onclick="openCreateModal()">Novo Usuário</button>
+</div>
+
+<div class="users-table-container">
+    <table class="users-table">
+        <thead>
+            <tr>
+                <th>Usuário</th>
+                <th>Nome Completo</th>
+                <th>Papel / Hierarquia</th>
+                <th>Status</th>
+                <th>Acessos</th>
+                <th style="text-align: right;">Ações</th>
+            </tr>
+        </thead>
+        <tbody id="usersTableBody">
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-secondary);">Carregando usuários...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Form -->
+<div id="userModalBackdrop" class="user-modal-backdrop">
+    <div class="user-modal">
+        <div class="user-modal-head">
+            <h3 id="modalTitle">Cadastrar Novo Usuário</h3>
+            <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <input type="hidden" id="userIdField">
+        <div class="form-group">
+            <label for="usernameField">Nome de Usuário</label>
+            <input type="text" id="usernameField" class="form-control" placeholder="Ex: joao.silva">
+        </div>
+        <div class="form-group">
+            <label for="nameField">Nome Completo</label>
+            <input type="text" id="nameField" class="form-control" placeholder="Ex: João da Silva">
+        </div>
+        <div class="form-group">
+            <label for="roleField">Nível de Hierarquia</label>
+            <select id="roleField" class="form-control">
+                <option value="admin">Administrador</option>
+                <option value="dev">DEV</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="operator" selected>Operador</option>
+                <option value="viewer">Visualizador</option>
+            </select>
+        </div>
+        <div class="form-group" id="passwordGroup">
+            <label for="passwordField">Senha</label>
+            <input type="password" id="passwordField" class="form-control" placeholder="Digite a senha">
+        </div>
+        <div class="form-group">
+            <label for="sessionLimitField">Limite de acessos simultâneos</label>
+            <input id="sessionLimitField" class="form-control" type="number" min="1" max="10" step="1" placeholder="Vazio = sem limite">
+        </div>
+        <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; margin-top: 10px;">
+            <input type="checkbox" id="isActiveField" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="isActiveField" style="cursor: pointer; margin: 0;">Usuário Ativo</label>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveUser()">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="sessionsModalBackdrop" class="user-modal-backdrop">
+    <div class="user-modal sessions-modal">
+        <div class="user-modal-head">
+            <h3 id="sessionsModalTitle">Sessões ativas</h3>
+            <button class="modal-close-btn" type="button" onclick="closeSessionsModal()">&times;</button>
+        </div>
+        <div id="sessionsSummary" class="sessions-summary"></div>
+        <div class="sessions-table-wrap">
+            <table class="sessions-table">
+                <thead>
+                    <tr>
+                        <th>Dispositivo</th>
+                        <th>IP</th>
+                        <th>Início</th>
+                        <th>Última atividade</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="sessionsTableBody"></tbody>
+            </table>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" type="button" onclick="closeSessionsModal()">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load Token if available in client session/cookies
+    // For local settings page we will perform requests directly.
+    let usersById = {};
+
+    async function loadUsers() {
+        try {
+            const res = await fetch("/api/users");
+            if (!res.ok) throw new Error("Acesso negado ou erro ao listar.");
+            const users = await res.json();
+            usersById = Object.fromEntries(users.map(user => [String(user.id), user]));
+            
+            const tbody = document.getElementById("usersTableBody");
+            tbody.innerHTML = "";
+            
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Nenhum usuário cadastrado.</td></tr>`;
+                return;
+            }
+            
+            users.forEach(u => {
+                const tr = document.createElement("tr");
+                const isLocked = u.lockout_until && new Date(u.lockout_until) > new Date();
+                
+                let statusBadge = `<span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Ativo' : 'Inativo'}</span>`;
+                if (isLocked) {
+                    statusBadge = `<span class="badge inactive" style="background: rgba(239, 68, 68, 0.25); color: #f87171; border-color: rgba(239, 68, 68, 0.5);" title="Bloqueado temporariamente">Bloqueado</span>`;
+                }
+
+                const unlockBtn = isLocked ? `<button class="btn btn-primary btn-small" style="margin-right: 6px;" onclick="unlockUser(${u.id})">Desbloquear</button>` : '';
+
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(u.username)}</strong></td>
+                    <td>${escapeHtml(u.name || '-')}</td>
+                    <td><span class="badge ${u.role}">${translateRole(u.role)}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="openSessionsModal(${u.id})">Sessões</button>
+                        <span class="session-device">${u.max_active_sessions ? `Limite: ${u.max_active_sessions}` : 'Sem limite'}</span>
+                    </td>
+                    <td style="text-align: right;">
+                        ${unlockBtn}
+                        <button class="btn btn-secondary btn-small" onclick="openEditModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Editar</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteUser(${u.id})">Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            console.error(err);
+            document.getElementById("usersTableBody").innerHTML = `
+                <tr><td colspan="6" style="text-align: center; color: #ef4444;">Erro ao carregar lista de usuários (Apenas Administradores).</td></tr>
+            `;
+        }
+    }
+    
+    function translateRole(role) {
+        switch (role) {
+            case "admin": return "Administrador";
+            case "dev": return "DEV";
+            case "supervisor": return "Supervisor";
+            case "operator": return "Operador";
+            case "viewer": return "Visualizador";
+            default: return role;
+        }
+    }
+    
+    function escapeHtml(str) {
+        return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function formatDateTime(value) {
+        if (!value) return "-";
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString("pt-BR");
+    }
+
+    function sessionDeviceLabel(userAgent) {
+        const value = String(userAgent || "");
+        let browser = "Navegador";
+        if (/Edg\//i.test(value)) browser = "Microsoft Edge";
+        else if (/Chrome\//i.test(value)) browser = "Google Chrome";
+        else if (/Firefox\//i.test(value)) browser = "Mozilla Firefox";
+        else if (/Safari\//i.test(value)) browser = "Safari";
+        let system = "";
+        if (/Windows/i.test(value)) system = "Windows";
+        else if (/Android/i.test(value)) system = "Android";
+        else if (/iPhone|iPad/i.test(value)) system = "iOS";
+        else if (/Macintosh/i.test(value)) system = "macOS";
+        else if (/Linux/i.test(value)) system = "Linux";
+        return system ? `${browser} / ${system}` : browser;
+    }
+    
+    function closeModal() {
+        document.getElementById("userModalBackdrop").style.display = "none";
+    }
+    
+    function openCreateModal() {
+        document.getElementById("modalTitle").innerText = "Cadastrar Novo Usuário";
+        document.getElementById("userIdField").value = "";
+        document.getElementById("usernameField").value = "";
+        document.getElementById("usernameField").disabled = false;
+        document.getElementById("nameField").value = "";
+        document.getElementById("roleField").value = "operator";
+        document.getElementById("passwordField").value = "";
+        document.getElementById("passwordGroup").style.display = "flex";
+        document.getElementById("isActiveField").checked = true;
+        document.getElementById("sessionLimitField").value = "";
+        document.getElementById("userModalBackdrop").style.display = "flex";
+    }
+    
+    function openEditModal(user) {
+        document.getElementById("modalTitle").innerText = `Editar Usuário: ${user.username}`;
+        document.getElementById("userIdField").value = user.id;
+        document.getElementById("usernameField").value = user.username;
+        document.getElementById("usernameField").disabled = true;
+        document.getElementById("nameField").value = user.name || "";
+        document.getElementById("roleField").value = user.role;
+        document.getElementById("passwordField").value = "";
+        document.getElementById("passwordGroup").style.display = "flex"; // Optional password change
+        document.getElementById("passwordField").placeholder = "Preencha apenas para alterar a senha";
+        document.getElementById("isActiveField").checked = user.is_active;
+        document.getElementById("sessionLimitField").value = user.max_active_sessions == null ? "" : String(user.max_active_sessions);
+        document.getElementById("userModalBackdrop").style.display = "flex";
+    }
+    
+    async function saveUser() {
+        const id = document.getElementById("userIdField").value;
+        const username = document.getElementById("usernameField").value.trim();
+        const name = document.getElementById("nameField").value.trim();
+        const role = document.getElementById("roleField").value;
+        const password = document.getElementById("passwordField").value;
+        const isActive = document.getElementById("isActiveField").checked;
+        const sessionLimitValue = document.getElementById("sessionLimitField").value;
+        
+        if (!username) {
+            alert("O nome de usuário é obrigatório.");
+            return;
+        }
+        
+        const isEdit = !!id;
+        const url = isEdit ? `/api/users/${id}` : "/api/users";
+        const method = isEdit ? "PUT" : "POST";
+        
+        const payload = {
+            name,
+            role,
+            is_active: isActive,
+            max_active_sessions: sessionLimitValue ? Number(sessionLimitValue) : null
+        };
+        
+        if (!isEdit) {
+            payload.username = username;
+            payload.password = password;
+            if (!password) {
+                alert("A senha é obrigatória para novos usuários.");
+                return;
+            }
+        } else {
+            if (password) {
+                payload.password = password;
+            }
+        }
+        
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao salvar usuário.");
+            }
+            
+            closeModal();
+            loadUsers();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+    
+    async function deleteUser(id) {
+        if (!confirm("Tem certeza de que deseja excluir permanentemente este usuário?")) return;
+        try {
+            const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao excluir usuário.");
+            }
+            loadUsers();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+    
+    async function unlockUser(id) {
+        if (!confirm("Deseja realmente desbloquear a conta deste usuário?")) return;
+        try {
+            const res = await fetch(`/api/users/${id}/unlock`, { method: "POST" });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao desbloquear usuário.");
+            }
+            loadUsers();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    let selectedSessionsUserId = null;
+
+    async function openSessionsModal(userId) {
+        selectedSessionsUserId = userId;
+        const selectedUser = usersById[String(userId)] || {};
+        const username = selectedUser.username || `#${userId}`;
+        document.getElementById("sessionsModalTitle").innerText = `Sessões ativas: ${username}`;
+        document.getElementById("sessionsSummary").innerText = "Carregando...";
+        document.getElementById("sessionsTableBody").innerHTML = "";
+        document.getElementById("sessionsModalBackdrop").style.display = "flex";
+        await loadUserSessions();
+    }
+
+    function closeSessionsModal() {
+        selectedSessionsUserId = null;
+        document.getElementById("sessionsModalBackdrop").style.display = "none";
+    }
+
+    async function loadUserSessions() {
+        if (!selectedSessionsUserId) return;
+        try {
+            const res = await fetch(`/api/users/${selectedSessionsUserId}/sessions`);
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao listar sessões.");
+            }
+            const sessions = await res.json();
+            document.getElementById("sessionsSummary").innerText = sessions.length
+                ? `${sessions.length} sessão(ões) ativa(s).`
+                : "Nenhuma sessão ativa.";
+            const tbody = document.getElementById("sessionsTableBody");
+            if (!sessions.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary);">Sem acessos ativos.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = sessions.map(session => {
+                const currentLabel = session.is_current ? `<span class="session-current">Sessão atual</span>` : "";
+                const action = session.is_current
+                    ? currentLabel
+                    : `<button class="btn btn-danger btn-small" onclick="closeUserSession('${session.id}')">Encerrar</button>`;
+                return `
+                    <tr>
+                        <td>
+                            <strong>${escapeHtml(sessionDeviceLabel(session.user_agent))}</strong>
+                            <span class="session-device" title="${escapeHtml(session.user_agent || '')}">${escapeHtml(session.user_agent || 'Dispositivo não identificado')}</span>
+                        </td>
+                        <td>${escapeHtml(session.ip_address || '-')}</td>
+                        <td>${formatDateTime(session.created_at)}</td>
+                        <td>${formatDateTime(session.last_seen_at)}</td>
+                        <td>${action}</td>
+                    </tr>
+                `;
+            }).join("");
+        } catch (err) {
+            document.getElementById("sessionsSummary").innerText = err.message;
+        }
+    }
+
+    async function closeUserSession(sessionId) {
+        if (!selectedSessionsUserId || !confirm("Encerrar esta sessão remota?")) return;
+        try {
+            const res = await fetch(`/api/users/${selectedSessionsUserId}/sessions/${sessionId}`, {
+                method: "DELETE"
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao encerrar sessão.");
+            }
+            await loadUserSessions();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    // Auto load on page render
+    document.addEventListener("DOMContentLoaded", loadUsers);
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+uvicorn main:app --host 192.168.1.42 --port 8000
+
+
+cd ~/Documentos/Analitico_Go_V4
+git pull --ff-only
+
+
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml down
+
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml build analitico camera-gateway
+
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+
+
+
+
+
+cd ~/Documentos/Analitico_Go_V4
+git pull
+
+
+
+git add .
+git commit -m "fix analytics false positives and line crossing flow"
+git push -u origin HEAD
+
+
+
+git config --global credential.helper store

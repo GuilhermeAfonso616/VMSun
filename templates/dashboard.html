@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+{# Visao executiva: resumo rapido do estado global e dos ultimos alarmes. #}
+<div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;"><h1>Dashboard operacional</h1><a class="btn btn-primary" href="/monitor">Abrir monitoramento</a></div>
+
+<div class="grid">
+    <div class="card"><div>Total de câmeras</div><div class="metric">{{ total_cameras }}</div></div>
+    <div class="card"><div>Câmeras rodando</div><div class="metric">{{ running_cameras }}</div></div>
+    <div class="card"><div>Alarmes abertos</div><div class="metric">{{ open_events_count }}</div></div>
+    <div class="card"><div>Alarmes novos</div><div class="metric">{{ new_events_count }}</div></div>
+    <div class="card"><div>Alta/Crítica abertas</div><div class="metric">{{ critical_open_count }}</div></div>
+    <div class="card"><div>Total de eventos</div><div class="metric">{{ total_events }}</div></div>
+</div>
+
+<div class="alarm-board">
+    <div class="card">
+        <h2>Últimos eventos</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Câmera</th>
+                    <th>Evento</th>
+                    <th>Severidade</th>
+                    <th>Status</th>
+                    <th>Confiança</th>
+                    <th>Snapshot</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in recent_events %}
+                <tr>
+                    <td>{{ event.id }}</td>
+                    <td>{{ event.camera_name }}</td>
+                    <td>{{ event.event_type_label or (event.event_type | event_label) }}</td>
+                    <td><span class="status priority-{{ event.severity_display }}">{{ event.severity_label or (event.severity_display | severity_label) }}</span></td>
+                    <td><span class="status status-{{ event.status_display }}">{{ event.status_label or (event.status_display | status_label) }}</span></td>
+                    <td>{{ '%.3f'|format(event.confidence) if event.confidence is not none else '-' }}</td>
+                    <td>{% if event.snapshot_path %}<a class="btn btn-secondary btn-small" href="/events/{{ event.id }}/snapshot" target="_blank" data-media-popup data-media-kind="image" data-title="{{ event.camera_name }} - Evento #{{ event.id }}">Abrir</a>{% else %}-{% endif %}</td>
+                    <td>
+                        <div class="event-actions">
+                            {% if event.status_display == 'new' %}
+                            <form method="post" action="/events/{{ event.id }}/ack"><button class="btn btn-warning btn-small" type="submit">Reconhecer</button></form>
+                            {% endif %}
+                            {% if event.status_display != 'closed' %}
+                            <form method="post" action="/events/{{ event.id }}/close"><button class="btn btn-danger btn-small" type="submit">Fechar</button></form>
+                            {% else %}
+                            <form method="post" action="/events/{{ event.id }}/reopen"><button class="btn btn-secondary btn-small" type="submit">Reabrir</button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Fila de alarmes abertos</h2>
+        {% if open_events %}
+            {% for event in open_events %}
+            <div style="padding:10px 0; border-bottom:1px solid #e5e7eb;">
+                <div><strong>#{{ event.id }}</strong> · {{ event.camera_name }}</div>
+                <div class="compact muted">{{ event.event_type_label or (event.event_type | event_label) }}</div>
+                <div style="margin-top:6px;">
+                    <span class="status priority-{{ event.severity_display }}">{{ event.severity_label or (event.severity_display | severity_label) }}</span>
+                    <span class="status status-{{ event.status_display }}">{{ event.status_label or (event.status_display | status_label) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>Nenhum alarme aberto.</p>
+        {% endif %}
+        <div style="margin-top:16px;"><a class="btn btn-primary" href="/events?only_open=1">Abrir central de eventos</a></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const signature = {{ latest_alarm_signature|tojson }};
+    const allowSound = {{ 'true' if alarm_should_play else 'false' }};
+    const key = 'server_analiticos_last_alarm_signature';
+    const previous = localStorage.getItem(key);
+    if (signature && allowSound && previous && previous !== signature) {
+        playAlarmTone();
+    }
+    if (signature) {
+        localStorage.setItem(key, signature);
+    }
+    setTimeout(() => window.location.reload(), 5000);
+})();
+</script>
+{% endblock %}

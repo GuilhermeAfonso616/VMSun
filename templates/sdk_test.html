@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .sdk-hero{padding:22px;border-radius:18px;color:#fff;background:linear-gradient(135deg,#111827,#0f172a 55%,#0e7490);margin-bottom:18px}.sdk-hero h1{color:#fff;margin:0 0 6px}.sdk-hero p{color:#cbd5e1;margin:0}.sdk-tag{display:inline-block;padding:4px 10px;border-radius:99px;background:#ffffff1f;font-size:12px;font-weight:800;margin-bottom:10px}
+  .sdk-grid{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start}.sdk-card{background:var(--bg-panel);border:1px solid var(--line-soft);border-radius:14px;padding:18px;box-shadow:var(--shadow-card)}.sdk-card h2{font-size:1.05rem;margin:0 0 14px}.sdk-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sdk-field{display:flex;flex-direction:column;gap:5px}.sdk-field.wide{grid-column:1/-1}.sdk-field label{font-size:12px;font-weight:800}.sdk-field input,.sdk-field select{width:100%;padding:10px;border:1px solid var(--line-soft);border-radius:9px;background:var(--bg-page);color:var(--text-main)}.sdk-btn{border:0;border-radius:9px;padding:10px 14px;background:#0e7490;color:#fff;font-weight:800;cursor:pointer}.sdk-btn:disabled{opacity:.45;cursor:not-allowed}.sdk-btn.danger{background:#b91c1c}.sdk-status{padding:10px 12px;border-radius:9px;background:#fef3c7;color:#92400e;margin-bottom:14px;font-size:13px}.sdk-status.ok{background:#dcfce7;color:#166534}.sdk-status.error{background:#fee2e2;color:#991b1b}
+  .sdk-view{min-height:390px;border-radius:12px;background:#05080d;display:grid;place-items:center;overflow:hidden;position:relative}.sdk-stage{position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden}.sdk-stage[hidden]{display:none}.sdk-view iframe{display:block;width:100%;height:100%;border:0}.ptz-3d-overlay{position:absolute;left:0;top:0;width:100%;height:100%;z-index:5;cursor:crosshair;touch-action:none;user-select:none;background:transparent;box-shadow:inset 0 0 0 1px #22d3ee80}.ptz-3d-overlay.is-estimated{box-shadow:inset 0 0 0 2px #f59e0baa}.ptz-3d-overlay[hidden]{display:none}.ptz-3d-selection{position:absolute;display:none;border:2px solid #22d3ee;background:#22d3ee24;box-shadow:0 0 0 1px #082f49;pointer-events:none}.ptz-3d-selection.zoom-out{border-color:#f59e0b;background:#f59e0b24}.sdk-empty{color:#94a3b8;text-align:center;padding:30px}.sdk-info{display:grid;grid-template-columns:repeat(4,minmax(100px,1fr));gap:9px;margin:14px 0}.sdk-info div{padding:10px;border:1px solid var(--line-soft);border-radius:9px}.sdk-info small{display:block;color:var(--text-muted)}.sdk-info strong{word-break:break-word}.sdk-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}.sdk-controls input{padding:9px 10px;border:1px solid var(--line-soft);border-radius:9px;background:var(--bg-page);color:var(--text-main);max-width:150px}.ptz{display:grid;grid-template-columns:repeat(3,46px);gap:6px}.ptz button,[data-zoom]{touch-action:none;user-select:none}.ptz button{height:42px;border:1px solid var(--line-soft);border-radius:9px;background:var(--bg-page);color:var(--text-main);font-weight:900;cursor:pointer}.ptz button:hover,.ptz button.ptz-active,[data-zoom].ptz-active{border-color:#0891b2;box-shadow:0 0 0 3px #0891b233}.sdk-note{font-size:12px;color:var(--text-muted);margin-top:10px}.sdk-installer{padding:13px;border:1px dashed #0891b2;border-radius:10px;margin-bottom:16px}.sdk-installer h3{font-size:.95rem;margin:0 0 9px}.sdk-installer .sdk-form{grid-template-columns:1fr}.sdk-package-state{font-size:12px;color:var(--text-muted);margin:8px 0 0}
+  .sdk-tabs{display:flex;gap:4px;margin:16px 0 2px;border-bottom:1px solid var(--line-soft)}.sdk-tab{border:0;background:transparent;padding:9px 14px;font-weight:800;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;border-radius:8px 8px 0 0}.sdk-tab:hover{color:var(--text-main)}.sdk-tab.active{color:var(--text-main);border-bottom-color:#0891b2}.sdk-audio-report{padding:11px 12px;border:1px solid var(--line-soft);border-radius:9px;margin:12px 0;font-size:13px;line-height:1.45}
+  @media(max-width:900px){.sdk-grid{grid-template-columns:1fr}.sdk-info{grid-template-columns:1fr 1fr}}@media(max-width:520px){.sdk-form,.sdk-info{grid-template-columns:1fr}.sdk-field.wide{grid-column:auto}}
+</style>
+<section class="sdk-hero"><span class="sdk-tag">Laboratório administrativo</span><h1>Teste SDK</h1><p>Identidade e PTZ pelo SDK do fabricante; vídeo contínuo por RTSP e WebRTC.</p></section>
+<div class="sdk-grid">
+  <section class="sdk-card">
+    <div class="sdk-installer">
+      <h3>Instalar ou atualizar SDK</h3>
+      <form id="sdk-install-form" class="sdk-form" enctype="multipart/form-data">
+        <div class="sdk-field"><label for="sdk-install-manufacturer">Fabricante</label><select id="sdk-install-manufacturer" name="manufacturer"><option value="hikvision">Hikvision</option><option value="dahua">Dahua</option><option value="intelbras">Intelbras</option></select></div>
+        <div class="sdk-field"><label for="sdk-archive">Arquivo oficial ZIP, TAR.GZ ou TGZ</label><input id="sdk-archive" name="archive" type="file" accept=".zip,.tar,.gz,.tgz,application/zip,application/gzip" required></div>
+        <button id="sdk-install" class="sdk-btn" type="submit">Validar e instalar</button>
+      </form>
+      <p class="sdk-package-state">Hikvision: {% if sdk_packages.hikvision.installed %}instalado{% else %}não instalado{% endif %} &middot; Dahua: {% if sdk_packages.dahua.installed %}instalado{% else %}não instalado{% endif %} &middot; Intelbras: {% if sdk_packages.intelbras.installed %}instalado{% else %}não instalado{% endif %}</p>
+      <p class="sdk-note">O servidor aceita somente o pacote oficial, bloqueia caminhos inseguros e não executa scripts enviados. Intelbras compartilha o protocolo NetSDK da Dahua: sem pacote próprio, a conexão reaproveita a biblioteca Dahua já instalada.</p>
+    </div>
+    <h2>Novo equipamento temporário</h2>
+    <div id="sdk-status" class="sdk-status {% if sdk_available %}ok{% endif %}">{% if sdk_available %}SDK de dispositivo carregado e pronto para teste.{% else %}Nenhum SDK está habilitado no container web.{% endif %}</div>
+    <form id="sdk-form" class="sdk-form">
+      <div class="sdk-field wide"><label for="connection_mode">Método de Conexão</label><select id="connection_mode"><option value="sdk">SDK Proprietário</option><option value="onvif">ONVIF Genérico</option></select></div>
+      <div class="sdk-field"><label for="manufacturer">Fabricante</label><select id="manufacturer"><option value="hikvision">Hikvision</option><option value="dahua">Dahua</option><option value="intelbras">Intelbras</option></select></div>
+      <div class="sdk-field"><label for="device_type">Tipo</label><select id="device_type"><option value="nvr">NVR</option><option value="camera">Câmera IP</option></select></div>
+      <div class="sdk-field"><label for="label">Nome do teste</label><input id="label" maxlength="80" placeholder="Portaria"></div>
+      <div class="sdk-field"><label for="channel">Canal</label><input id="channel" type="number" min="1" max="4096" value="1" required></div>
+      <div class="sdk-field wide"><label for="host">IP do equipamento</label><input id="host" required placeholder="192.168.1.64" inputmode="decimal"></div>
+      <div class="sdk-field"><label for="port" id="port-label">Porta SDK</label><input id="port" type="number" min="1" max="65535" value="8000" required></div>
+      <div class="sdk-field"><label for="rtsp_port">Porta RTSP</label><input id="rtsp_port" type="number" min="1" max="65535" value="554" required></div>
+      <div class="sdk-field wide"><label for="stream_kind">Qualidade do vídeo</label><select id="stream_kind"><option value="sub">Substream — recomendado</option><option value="main">Stream principal</option></select></div>
+      <div class="sdk-field"><label for="username">Usuário</label><input id="username" maxlength="64" value="admin" autocomplete="username" required></div>
+      <div class="sdk-field"><label for="password">Senha</label><input id="password" type="password" maxlength="128" autocomplete="current-password" required></div>
+      <button id="connect" class="sdk-btn sdk-field wide" type="submit" {% if not sdk_available %}disabled{% endif %}>Conectar via SDK e iniciar vídeo</button>
+    </form>
+    <p class="sdk-note">{% if public_ips_allowed %}Conexões com IP público estão habilitadas. {% else %}Somente IPs privados estão habilitados. {% endif %}A senha fica somente na memória da sessão e no path temporário do gateway, removido ao desconectar ou expirar.</p>
+  </section>
+  <section class="sdk-card">
+    <h2 id="device-title">Nenhum equipamento conectado</h2>
+    <div class="sdk-view"><div id="empty" class="sdk-empty">Conecte um equipamento para iniciar o vídeo WebRTC.</div><div id="video-stage" class="sdk-stage" hidden><iframe id="player" title="Vídeo ao vivo" allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe><div id="ptz-3d-overlay" class="ptz-3d-overlay" aria-label="Posicionamento PTZ 3D" hidden><div id="ptz-3d-selection" class="ptz-3d-selection"></div></div></div></div>
+    <div id="device-info" class="sdk-info" hidden><div><small>Endpoint</small><strong id="info-endpoint">—</strong></div><div><small>Serial</small><strong id="info-serial">—</strong></div><div><small>Canais digitais</small><strong id="info-channels">—</strong></div><div><small>SDK</small><strong id="info-sdk">—</strong></div></div>
+    <div class="sdk-controls"><button id="video" class="sdk-btn" disabled>Reconectar vídeo</button><label>Velocidade <input id="speed" type="range" min="1" max="7" value="4" disabled></label><button id="disconnect" class="sdk-btn danger" disabled>Desconectar</button></div>
+    <div class="sdk-tabs" role="tablist"><button type="button" class="sdk-tab active" data-tab="ptz">PTZ e presets</button><button type="button" class="sdk-tab" data-tab="audio">Áudio ao vivo</button></div>
+    <div data-panel="ptz">
+    <div class="sdk-controls"><div class="ptz" aria-label="Controle PTZ"><button data-pan="-1" data-tilt="1" disabled>↖</button><button data-pan="0" data-tilt="1" disabled>↑</button><button data-pan="1" data-tilt="1" disabled>↗</button><button data-pan="-1" data-tilt="0" disabled>←</button><button id="position-3d" type="button" title="Ativar posicionamento 3D na imagem" aria-pressed="false" disabled>◎</button><button data-pan="1" data-tilt="0" disabled>→</button><button data-pan="-1" data-tilt="-1" disabled>↙</button><button data-pan="0" data-tilt="-1" disabled>↓</button><button data-pan="1" data-tilt="-1" disabled>↘</button></div><button class="sdk-btn" data-zoom="1" disabled>Zoom +</button><button class="sdk-btn" data-zoom="-1" disabled>Zoom −</button><select id="aspectRatioSelect" class="vms-control-select" style="height:34px; padding:2px 8px; font-size:12px;" title="Proporção da imagem (Aspect Ratio) do vídeo"><option value="auto" selected>Proporção: Auto (4:3 / 16:9)</option><option value="4:3">Proporção: 4:3 (Padrão NVR)</option><option value="16:9">Proporção: 16:9 (Wide)</option><option value="9:16">Proporção: 9:16 (Corredor)</option><option value="1:1">Proporção: 1:1 (Quadrado)</option><option value="fill">Preencher container completo</option></select><span class="sdk-note">Centro: modo 3D. Clique na imagem para centralizar; arraste ↘ para aproximar e ↖ para afastar.</span></div>
+    <div class="sdk-controls"><strong>Acionar preset existente</strong><input id="preset-token" type="text" inputmode="numeric" maxlength="200" placeholder="Número ou token" disabled><button id="goto-preset" class="sdk-btn" disabled>Ir para preset</button><button id="presets" class="sdk-btn" disabled>Consultar lista</button><span class="sdk-note">Somente aciona uma posição já cadastrada; não salva nem altera presets.</span><div id="preset-list" class="sdk-note">Conecte uma câmera para consultar.</div></div>
+    <div class="sdk-controls"><button id="audio-toggle-ptz" class="sdk-btn js-audio-toggle" disabled>🔊 Escutar áudio ao vivo</button><span class="sdk-note">Ativa o som junto do vídeo WebRTC enquanto você usa o PTZ. Codec e diagnóstico na aba “Áudio ao vivo”.</span></div>
+    </div>
+    <div data-panel="audio" hidden>
+      <div class="sdk-controls"><button id="audio-toggle" class="sdk-btn js-audio-toggle" disabled>🔊 Escutar áudio ao vivo</button><button id="audio-analyze" class="sdk-btn" disabled>Detectar codec</button><span class="sdk-note">O áudio ao vivo é reproduzido junto do vídeo WebRTC. Costuma estar no stream principal — se não houver som, reconecte usando “Stream principal”.</span></div>
+      <div id="audio-report" class="sdk-audio-report">Conecte um equipamento e ative o áudio, ou detecte o codec primeiro.</div>
+    </div>
+  </section>
+</div>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id);let active=null;let heldPtz=null;let ptzLoopId=0;let audioOn=false;let lastStream=null;let position3dEnabled=false;let position3dDrag=null;let detectedVideoAspect=0;let aspectProbePending=false;let aspectProbeError='';const availability={{ sdk_availability | tojson }};
+  const status=(message,kind='')=>{const el=$('sdk-status');el.textContent=message;el.className=`sdk-status ${kind}`;};
+  const controls=enabled=>{['video','speed','disconnect','presets','preset-token','goto-preset','audio-toggle','audio-toggle-ptz','audio-analyze'].forEach(id=>$(id).disabled=!enabled);document.querySelectorAll('[data-pan],[data-zoom]').forEach(el=>el.disabled=!enabled);$('position-3d').disabled=!enabled||!active||active.connection_mode!=='sdk';if(!enabled){position3dEnabled=false;position3dDrag=null;$('ptz-3d-overlay').hidden=true;$('position-3d').classList.remove('ptz-active');$('position-3d').setAttribute('aria-pressed','false');$('preset-list').textContent='Conecte uma câmera para consultar.';audioOn=false;lastStream=null;syncAudioButtons();$('audio-report').textContent='Conecte um equipamento e ative o áudio, ou detecte o codec primeiro.';}};
+  const requestJson=async(url,options={})=>{const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Operação não concluída.');return data;};
+  const configuredWebrtcBase={{ webrtc_public_base_url | tojson }}.replace(/\/+$/,'');
+  const publicWebrtcBase=()=>configuredWebrtcBase||(window.location.protocol==='http:'?'http://'+window.location.hostname+':8889':'');
+  const resolvePlayerUrl=(stream,muted=true)=>{const path=String(stream.path||'');let url=configuredWebrtcBase&&path?configuredWebrtcBase+'/'+encodeURIComponent(path):(stream.player_url||'');if(url.startsWith('/__webrtc_public__/'))url=publicWebrtcBase()&&path?publicWebrtcBase()+'/'+encodeURIComponent(path):'';if(!url)return'';const parsed=new URL(url,window.location.href);[['controls','false'],['muted',muted?'true':'false'],['autoplay','true'],['playsInline','true']].forEach(item=>parsed.searchParams.set(item[0],item[1]));return parsed.toString();};
+  const showPlayer=visible=>{$('video-stage').hidden=!visible;$('empty').hidden=visible;if(visible)syncStageBounds();};
+  const detectStreamAspect=async(force=false)=>{
+    if(!active||aspectProbePending)return;
+    if(detectedVideoAspect>0&&!force)return;
+    // O vídeo roda num iframe WebRTC de outra origem (porta 8889), então o JS
+    // não consegue ler a resolução dele. Pedimos ao servidor só as dimensões
+    // reais do stream (a imagem não sai do backend) e damos ao palco do vídeo
+    // exatamente essa proporção: o iframe passa a ter o formato da imagem, o
+    // player não gera letterbox dentro dele e o overlay 3D cobre a imagem
+    // inteira e nada além dela.
+    aspectProbePending=true;
+    try{
+      const data=await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/dimensoes`);
+      if(data.width>0&&data.height>0){detectedVideoAspect=data.width/data.height;aspectProbeError='';}
+      else aspectProbeError='O servidor não retornou as dimensões do fluxo.';
+    }catch(error){
+      aspectProbeError=error.message||'Não foi possível medir as dimensões do fluxo.';
+    }finally{
+      aspectProbePending=false;
+      syncStageBounds();
+      if(position3dEnabled)announce3dArea();
+    }
+  };
+  const startVideo=async()=>{if(!active)return;status('Registrando vídeo temporário no gateway…');try{const data=await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/stream`,{method:'POST',body:'{}'});lastStream=data.stream;const player=$('player');player.src=resolvePlayerUrl(data.stream,!audioOn);showPlayer(true);status('Vídeo WebRTC iniciado; identidade e PTZ continuam no SDK.','ok');detectStreamAspect();}catch(error){status(error.message,'error');}};
+  const selectSession=session=>{active=session;detectedVideoAspect=0;aspectProbeError='';const brand=session.manufacturer==='dahua'?'Dahua':session.manufacturer==='intelbras'?'Intelbras':'Hikvision';const modeText=session.connection_mode==='onvif'?' (ONVIF)':' (SDK)';$('device-title').textContent=`${session.label} · ${brand}${modeText}`;$('info-endpoint').textContent=`${session.host}:${session.port} · canal ${session.channel}`;$('info-serial').textContent=session.device.serial_number||'Não informado';$('info-channels').textContent=String(session.device.digital_channels??'—');$('info-sdk').textContent=session.device.sdk_build||'—';$('device-info').hidden=false;controls(true);startVideo();};
+  const manufacturerChanged=()=>{const name=$('manufacturer').value;const mode=$('connection_mode').value;const ready=Boolean(availability[name])||mode==='onvif';if(mode==='onvif'){$('port').value='80';$('port-label').textContent='Porta HTTP (ONVIF)';$('connect').textContent='Conectar via ONVIF e iniciar vídeo';status('Conexão genérica via ONVIF selecionada.','ok');}else{$('port').value=name==='dahua'?'37777':name==='intelbras'?'80':'8000';$('port-label').textContent=name==='intelbras'?'Porta HTTP':'Porta SDK';$('connect').textContent='Conectar via SDK e iniciar vídeo';const label=name==='dahua'?'Dahua NetSDK':name==='intelbras'?'API HTTP Intelbras':'HCNetSDK';status(ready?`${label} carregado e pronto para teste.`:`SDK ${name} indisponível.`,ready?'ok':'error');}$('connect').disabled=!ready;};
+  $('sdk-install-form').addEventListener('submit',async event=>{event.preventDefault();const button=$('sdk-install');const archive=$('sdk-archive').files[0];if(!archive)return;button.disabled=true;status('Enviando, validando e instalando o pacote SDK...');try{const body=new FormData();body.append('manufacturer',$('sdk-install-manufacturer').value);body.append('archive',archive);const response=await fetch('/admin/teste-sdk/instalar',{method:'POST',body});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Instalação não concluída.');status('SDK instalado. Recarregando a disponibilidade...','ok');window.location.reload();}catch(error){status(error.message,'error');button.disabled=false;}});
+  $('manufacturer').addEventListener('change',manufacturerChanged);
+  $('connection_mode').addEventListener('change',manufacturerChanged);
+  $('sdk-form').addEventListener('submit',async event=>{event.preventDefault();$('connect').disabled=true;status('Conectando ao equipamento…');try{const data=await requestJson('/admin/teste-sdk/sessoes',{method:'POST',body:JSON.stringify({label:$('label').value,manufacturer:$('manufacturer').value,device_type:$('device_type').value,host:$('host').value,port:Number($('port').value),rtsp_port:Number($('rtsp_port').value),stream_kind:$('stream_kind').value,channel:Number($('channel').value),username:$('username').value,password:$('password').value,connection_mode:$('connection_mode').value})});$('password').value='';selectSession(data.session);}catch(error){status(error.message,'error');}finally{const name=$('manufacturer').value;const mode=$('connection_mode').value;$('connect').disabled=!(availability[name]||mode==='onvif');}});
+  $('video').addEventListener('click',startVideo);
+  const activatePreset=async(token,label=token)=>{if(!active)return;const normalized=String(token||'').trim();if(!normalized){status('Informe o número ou token de um preset existente.','error');return;}const button=$('goto-preset');button.disabled=true;try{await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/presets/goto`,{method:'POST',body:JSON.stringify({preset_token:normalized})});status(`Comando para o preset “${label}” enviado sem alterar a configuração da câmera.`,'ok');}catch(error){status(error.message,'error');}finally{button.disabled=false;}};
+  const loadPresets=async()=>{if(!active)return;$('preset-list').textContent='Consultando presets existentes…';try{const data=await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/presets`);const presets=data.presets||[];if(!presets.length){$('preset-list').textContent='Nenhum preset retornado. Se souber o número, informe-o acima para acionar diretamente pelo SDK.';return;}$('preset-list').innerHTML='';presets.forEach(preset=>{const button=document.createElement('button');button.className='sdk-btn';button.textContent=`Ir: ${preset.name}`;button.addEventListener('click',()=>activatePreset(preset.token,preset.name));$('preset-list').appendChild(button);});}catch(error){$('preset-list').textContent='A listagem não está disponível por este protocolo. Informe o número do preset para acioná-lo diretamente.';status(error.message,'error');}};
+  $('presets').addEventListener('click',loadPresets);
+  $('goto-preset').addEventListener('click',()=>activatePreset($('preset-token').value));
+  $('preset-token').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();activatePreset(event.currentTarget.value);}});
+  // Proporcao usada para desenhar o palco do video. "Auto" segue a proporcao
+  // REAL do fluxo exibido (medida por ffprobe no servidor) e so cai no 4:3
+  // enquanto essa medicao nao chega. O valor manual do seletor sempre vence.
+  const stageAspect=()=>{
+    const selectVal=$('aspectRatioSelect')?.value||'auto';
+    if(selectVal==='4:3')return 4/3;
+    if(selectVal==='16:9')return 16/9;
+    if(selectVal==='9:16')return 9/16;
+    if(selectVal==='1:1')return 1;
+    if(selectVal==='fill')return 0;
+    return detectedVideoAspect>0?detectedVideoAspect:4/3;
+  };
+  const stageAspectIsMeasured=()=>($('aspectRatioSelect')?.value||'auto')!=='auto'||detectedVideoAspect>0;
+  // O IFRAME (e nao so o overlay) recebe a proporcao da imagem. Com o iframe no
+  // formato do video, o player nao gera barras de letterbox dentro dele, entao
+  // o overlay 3D -- que cobre exatamente o iframe -- nunca sobra para fora da
+  // imagem nem mapeia coordenadas de uma area que a camera nao enxerga.
+  const syncStageBounds=()=>{
+    const stage=$('video-stage');
+    if(!stage||stage.hidden)return;
+    const view=stage.parentElement;
+    if(!view)return;
+    const viewRect=view.getBoundingClientRect();
+    if(!viewRect.width||!viewRect.height)return;
+    // Fora do modo 3D em "Auto" o palco ocupa a area toda e o proprio player
+    // cuida do letterbox: assim a imagem nunca fica menor do que precisa por
+    // causa de uma proporcao estimada. Ao ligar o 3D o palco assume a
+    // proporcao, que e o que garante o mapeamento correto do clique.
+    const manualAspect=($('aspectRatioSelect')?.value||'auto')!=='auto';
+    const aspect=(manualAspect||position3dEnabled)?stageAspect():0;
+    if(aspect>0){
+      const viewAspect=viewRect.width/viewRect.height;
+      let contentWidth=viewRect.width;
+      let contentHeight=viewRect.height;
+      let left=0;
+      let top=0;
+      if(viewAspect>aspect){
+        contentWidth=viewRect.height*aspect;
+        left=(viewRect.width-contentWidth)/2;
+      }else if(viewAspect<aspect){
+        contentHeight=viewRect.width/aspect;
+        top=(viewRect.height-contentHeight)/2;
+      }
+      stage.style.left=`${left.toFixed(1)}px`;
+      stage.style.top=`${top.toFixed(1)}px`;
+      stage.style.width=`${contentWidth.toFixed(1)}px`;
+      stage.style.height=`${contentHeight.toFixed(1)}px`;
+    }else{
+      stage.style.left='0px';
+      stage.style.top='0px';
+      stage.style.width='100%';
+      stage.style.height='100%';
+    }
+    $('ptz-3d-overlay').classList.toggle('is-estimated',!stageAspectIsMeasured());
+  };
+  const announce3dArea=()=>{
+    if(stageAspectIsMeasured()){
+      status('Posicionamento 3D ativo: clique para centralizar ou arraste uma área na imagem.','ok');
+      return;
+    }
+    const detail=aspectProbeError?` (${aspectProbeError})`:'';
+    status(`Posicionamento 3D ativo com proporção estimada${detail}. Se a moldura não casar com a imagem, escolha a proporção no seletor ao lado.`,'error');
+  };
+  const setPosition3dEnabled=enabled=>{
+    const allowed=Boolean(enabled&&active&&active.connection_mode==='sdk'&&!$('position-3d').disabled);
+    position3dEnabled=allowed;
+    position3dDrag=null;
+    $('ptz-3d-overlay').hidden=!allowed;
+    $('ptz-3d-selection').style.display='none';
+    syncStageBounds();
+    if(allowed){
+      detectStreamAspect();
+      announce3dArea();
+    }
+    $('position-3d').classList.toggle('ptz-active',allowed);
+    $('position-3d').setAttribute('aria-pressed',allowed?'true':'false');
+  };
+  $('position-3d').addEventListener('click',()=>setPosition3dEnabled(!position3dEnabled));
+  $('aspectRatioSelect')?.addEventListener('change',()=>{syncStageBounds();if(position3dEnabled)announce3dArea();});
+  window.addEventListener('resize',syncStageBounds);
+  if(window.ResizeObserver)new ResizeObserver(syncStageBounds).observe($('video-stage').parentElement);
+  const overlayPoint=event=>{
+    const rect=$('ptz-3d-overlay').getBoundingClientRect();
+    return{
+      x:Math.max(0,Math.min(rect.width,event.clientX-rect.left)),
+      y:Math.max(0,Math.min(rect.height,event.clientY-rect.top)),
+      width:rect.width,
+      height:rect.height
+    };
+  };
+  const drawPosition3dSelection=point=>{
+    if(!position3dDrag)return;
+    const selection=$('ptz-3d-selection');
+    const left=Math.min(position3dDrag.x,point.x);
+    const top=Math.min(position3dDrag.y,point.y);
+    selection.style.left=`${left}px`;
+    selection.style.top=`${top}px`;
+    selection.style.width=`${Math.abs(point.x-position3dDrag.x)}px`;
+    selection.style.height=`${Math.abs(point.y-position3dDrag.y)}px`;
+    selection.style.display='block';
+    selection.classList.toggle('zoom-out',point.x<position3dDrag.x);
+  };
+  const sendPosition3d=async(start,end)=>{if(!active||!position3dEnabled)return;const normalize=(value,size)=>Math.max(0,Math.min(255,Math.round(value/Math.max(1,size)*255)));const dx=end.x-start.x;const dy=end.y-start.y;const click=Math.hypot(dx,dy)<6;const finalPoint=click?start:end;const payload={x_start:normalize(start.x,start.width),y_start:normalize(start.y,start.height),x_end:normalize(finalPoint.x,finalPoint.width),y_end:normalize(finalPoint.y,finalPoint.height)};const operation=click?'Centralizando no ponto selecionado...':dx>0?'Enquadrando e aproximando a área...':'Afastando a partir da área selecionada...';status(operation);try{await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/ptz/3d`,{method:'POST',body:JSON.stringify(payload)});status(click?'Ponto centralizado pelo posicionamento 3D.':dx>0?'Zoom in 3D enviado.':'Zoom out 3D enviado.','ok');}catch(error){status(error.message,'error');}};
+  $('ptz-3d-overlay').addEventListener('pointerdown',event=>{if(!position3dEnabled||event.button!==0)return;event.preventDefault();position3dDrag={...overlayPoint(event),pointerId:event.pointerId};$('ptz-3d-overlay').setPointerCapture(event.pointerId);drawPosition3dSelection(position3dDrag);});
+  $('ptz-3d-overlay').addEventListener('pointermove',event=>{if(!position3dDrag||event.pointerId!==position3dDrag.pointerId)return;drawPosition3dSelection(overlayPoint(event));});
+  $('ptz-3d-overlay').addEventListener('pointerup',event=>{if(!position3dDrag||event.pointerId!==position3dDrag.pointerId)return;event.preventDefault();const start=position3dDrag;const end=overlayPoint(event);position3dDrag=null;$('ptz-3d-selection').style.display='none';sendPosition3d(start,end);});
+  $('ptz-3d-overlay').addEventListener('pointercancel',()=>{position3dDrag=null;$('ptz-3d-selection').style.display='none';});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&position3dEnabled)setPosition3dEnabled(false);});
+  const stopPtzHold=(announce=true)=>{if(!heldPtz)return;heldPtz.classList.remove('ptz-active');heldPtz=null;ptzLoopId+=1;if(active){requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/ptz/parar`,{method:'POST',body:'{}'}).catch(()=>{});}if(announce)status('Movimento PTZ interrompido.','ok');};
+  const startPtzHold=button=>{if(!active||button.disabled||heldPtz)return;heldPtz=button;const loop=++ptzLoopId;button.classList.add('ptz-active');status('Movimentando PTZ enquanto o botão estiver pressionado...');(async()=>{while(heldPtz===button&&loop===ptzLoopId){let data;try{data=await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/ptz`,{method:'POST',body:JSON.stringify({pan:Number(button.dataset.pan||0),tilt:Number(button.dataset.tilt||0),zoom:Number(button.dataset.zoom||0),speed:Number($('speed').value),duration_ms:500})});}catch(error){status(error.message,'error');stopPtzHold(false);break;}if(data&&data.continuous)break;}})();};
+  document.querySelectorAll('[data-pan],[data-zoom]').forEach(button=>{button.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();button.setPointerCapture?.(event.pointerId);startPtzHold(button);});['pointerup','pointercancel','lostpointercapture'].forEach(name=>button.addEventListener(name,stopPtzHold));button.addEventListener('keydown',event=>{if((event.key===' '||event.key==='Enter')&&!event.repeat){event.preventDefault();startPtzHold(button);}});button.addEventListener('keyup',event=>{if(event.key===' '||event.key==='Enter'){event.preventDefault();stopPtzHold();}});});
+  window.addEventListener('blur',stopPtzHold);
+  $('disconnect').addEventListener('click',async()=>{if(!active)return;stopPtzHold(false);try{await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}`,{method:'DELETE'});}catch(error){status(error.message,'error');return;}active=null;$('player').src='about:blank';showPlayer(false);$('device-info').hidden=true;$('device-title').textContent='Nenhum equipamento conectado';controls(false);status('Sessão temporária e vídeo encerrados.','ok');});
+  document.querySelectorAll('.sdk-tab').forEach(tab=>tab.addEventListener('click',()=>{const name=tab.dataset.tab;document.querySelectorAll('.sdk-tab').forEach(el=>el.classList.toggle('active',el===tab));document.querySelectorAll('[data-panel]').forEach(panel=>panel.hidden=panel.dataset.panel!==name);}));
+  const syncAudioButtons=()=>{document.querySelectorAll('.js-audio-toggle').forEach(btn=>btn.textContent=audioOn?'🔇 Silenciar áudio':'🔊 Escutar áudio ao vivo');};
+  const toggleLiveAudio=async()=>{if(!active)return;if(!lastStream)await startVideo();if(!lastStream)return;audioOn=!audioOn;const player=$('player');player.src=resolvePlayerUrl(lastStream,!audioOn);showPlayer(true);syncAudioButtons();status(audioOn?'Áudio ao vivo ativado; ele vem junto do vídeo WebRTC.':'Áudio silenciado.',audioOn?'ok':'');};
+  document.querySelectorAll('.js-audio-toggle').forEach(btn=>btn.addEventListener('click',toggleLiveAudio));
+  const describeAudio=info=>{if(!info||!info.has_audio)return 'Nenhuma track de áudio no fluxo atual. Habilite o áudio na câmera (via ONVIF ou interface web) ou reconecte usando o “Stream principal”.';const parts=[info.codec_long_name||info.codec||'codec desconhecido'];if(info.sample_rate)parts.push(`${info.sample_rate} Hz`);if(info.channels)parts.push(info.channels===1?'mono':info.channels===2?'estéreo':`${info.channels} canais`);let verdict;if(info.compatibility==='ok')verdict='✓ Compatível com WebRTC — toca direto no navegador ao ativar o áudio.';else if(info.compatibility==='transcode')verdict='⚠ Áudio AAC não toca direto no WebRTC; exigiria transcodificação para Opus no gateway.';else verdict='⚠ Codec não reconhecido para WebRTC; pode não tocar no navegador.';return `${parts.join(' · ')}. ${verdict}`;};
+  $('audio-analyze').addEventListener('click',async()=>{if(!active)return;const button=$('audio-analyze');button.disabled=true;$('audio-report').textContent='Detectando o codec de áudio do fluxo RTSP…';try{const data=await requestJson(`/admin/teste-sdk/sessoes/${encodeURIComponent(active.token)}/audio/analise`,{method:'POST',body:'{}'});$('audio-report').textContent=describeAudio(data.audio);status('Análise de áudio concluída.','ok');}catch(error){$('audio-report').textContent=error.message;status(error.message,'error');}finally{button.disabled=!active;}});
+  const existing={{ sessions | tojson }};manufacturerChanged();if(existing.length)selectSession(existing[0]);
+})();
+</script>
+{% endblock %}

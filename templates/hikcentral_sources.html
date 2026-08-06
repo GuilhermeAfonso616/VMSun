@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% set values = form_values if form_values else {} %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #dbe3ec; padding-bottom: 10px;">
+    <h1 style="margin: 0;">Fontes de Vídeo</h1>
+    <div style="display: flex; gap: 8px;">
+        <a href="/video-sources/nvr" class="btn btn-secondary">NVR (RTSP/SDK)</a>
+        <a href="/video-sources/hikcentral" class="btn btn-primary">HikCentral (OpenAPI)</a>
+        <a href="/video-sources/hikconnect" class="btn btn-secondary">Hik-Connect (P2P Cloud)</a>
+    </div>
+</div>
+
+{% if error %}
+    <div class="error">{{ error }}</div>
+{% endif %}
+
+{% if message %}
+    <div class="card hc-message">{{ message }}</div>
+{% endif %}
+
+{% if created is not none %}
+    <div class="card hc-message">Câmeras HikCentral criadas: {{ created }}{% if skipped is not none %} · ignoradas: {{ skipped }}{% endif %}</div>
+{% endif %}
+
+<div class="card">
+    <h2>Conectar ao HikCentral OpenAPI</h2>
+    <form method="post" action="/video-sources/hikcentral/discover" id="hcDiscoverForm" data-loading-title="Descobrindo HikCentral" data-loading-message="Conectando na OpenAPI Artemis e buscando lista de câmeras.">
+        <div class="grid">
+            <div>
+                <label>Nome base</label>
+                <input type="text" name="base_name" value="{{ values.base_name or 'HikCentral' }}" placeholder="HikCentral Central">
+            </div>
+            <div>
+                <label>Host ou IP do HikCentral (com protocolo e porta)</label>
+                <input type="text" name="host" value="{{ values.host or '' }}" placeholder="https://192.168.1.100:8443" required>
+            </div>
+            <div>
+                <label>AppKey (Chave de Parceiro)</label>
+                <input type="text" name="username" value="{{ values.username or '' }}" placeholder="ex: 29845722" required autocomplete="username">
+            </div>
+            <div>
+                <label>AppSecret (Segredo de Parceiro)</label>
+                <input type="password" name="password" value="" placeholder="{% if values.credential_token %}segredo guardado temporariamente{% else %}ex: a1b2c3d4e5f6g7h8{% endif %}" autocomplete="current-password" {% if not values.credential_token %}required{% endif %}>
+            </div>
+        </div>
+
+        <div style="margin-top:14px; margin-bottom:14px; display:flex; gap:16px; align-items:center;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:normal; cursor:pointer;">
+                <input type="checkbox" name="simulate" value="true" {% if values.simulate %}checked{% endif %} style="width:auto; margin:0;">
+                <strong>Simular ambiente de teste (usar câmeras fictícias se não tiver HikCentral real ativo)</strong>
+            </label>
+        </div>
+
+        <button class="btn btn-primary" type="submit" id="hcDiscoverSubmit">Descobrir Câmeras HikCentral</button>
+    </form>
+</div>
+
+{% if profiles %}
+<div class="card">
+    <h2>Câmeras HikCentral encontradas</h2>
+    <form method="post" action="/video-sources/hikcentral/create" id="hcCreateForm">
+        <input type="hidden" name="host" value="{{ values.host or '' }}">
+        <input type="hidden" name="username" value="{{ values.username or '' }}">
+        <input type="hidden" name="credential_token" value="{{ credential_token or values.credential_token or '' }}">
+        <input type="hidden" name="base_name" value="{{ values.base_name or 'HikCentral' }}">
+        <input type="hidden" name="profile_count" value="{{ profiles|length }}">
+
+        <div class="hc-actions" style="margin-bottom:12px;">
+            <button class="btn btn-secondary btn-small" type="button" data-hc-select="all">Selecionar todas</button>
+            <button class="btn btn-secondary btn-small" type="button" data-hc-select="clear">Limpar seleção</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:50px;">Importar</th>
+                    <th>Index Code (HikCentral UUID)</th>
+                    <th>Canal</th>
+                    <th>Status no VMS</th>
+                    <th>Status no HC</th>
+                    <th>Nome da Câmera</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in profiles %}
+                <tr>
+                    <td>
+                        <input type="hidden" name="profile_index_code_{{ item.index }}" value="{{ item.cameraIndexCode }}">
+                        <input type="hidden" name="profile_channel_{{ item.index }}" value="{{ item.channelNo }}">
+                        <label class="hc-select" style="display:inline-flex; align-items:center; margin:0;">
+                            <input
+                                type="checkbox"
+                                name="selected_profile"
+                                value="{{ item.index }}"
+                                class="hc-profile-checkbox"
+                                {% if item.existing_id %}disabled{% else %}checked{% endif %}
+                            >
+                        </label>
+                    </td>
+                    <td style="font-family:monospace; font-size:12px;">{{ item.cameraIndexCode }}</td>
+                    <td>{{ item.channelNo }}</td>
+                    <td>
+                        {% if item.existing_id %}
+                            <span class="status status-deduplicated">Já existe</span>
+                            <div class="muted">#{{ item.existing_id }} {{ item.existing_name }}</div>
+                        {% else %}
+                            <span class="status status-pending">Nova câmera</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == 'online' %}
+                            <span class="status status-running">Online</span>
+                        {% else %}
+                            <span class="status status-offline">Offline</span>
+                            {% if item.error %}<div class="muted">{{ item.error }}</div>{% endif %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="text" name="profile_camera_name_{{ item.index }}" value="{{ item.cameraName }}" style="width:100%;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top:14px;">
+            <button class="btn btn-success" type="submit" id="hcCreateSubmit">Criar câmeras selecionadas no VMS</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Câmeras do HikCentral Importadas</h2>
+    {% if channel_health %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Câmera</th>
+                    <th>Servidor HikCentral</th>
+                    <th>Index Code / UUID</th>
+                    <th>Status VMS</th>
+                    <th>Worker</th>
+                    <th>Último Frame</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in channel_health %}
+                <tr>
+                    <td><a href="/cameras/{{ item.id }}"><strong>{{ item.name }}</strong></a></td>
+                    <td>{{ item.host }}</td>
+                    <td style="font-family:monospace; font-size:12px;">{{ item.masked_rtsp_url }}</td>
+                    <td>
+                        {% set status_class = 'status-idle' %}
+                        {% if item.health_status == 'running' %}
+                            {% set status_class = 'status-running' %}
+                        {% elif item.health_status == 'degraded' %}
+                            {% set status_class = 'status-degraded' %}
+                        {% elif item.health_status == 'reconnecting' %}
+                            {% set status_class = 'status-reconnecting' %}
+                        {% elif item.health_status == 'offline' %}
+                            {% set status_class = 'status-offline' %}
+                        {% endif %}
+                        <span class="status {{ status_class }}">{{ item.health_status }}</span>
+                    </td>
+                    <td>{{ item.worker_mode }}</td>
+                    <td>{{ item.last_frame_at or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="muted">Nenhuma câmera do HikCentral cadastrada no momento.</p>
+    {% endif %}
+</div>
+
+<style>
+.hc-message {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #c7d2fe;
+    margin-bottom: 18px;
+}
+.hc-actions button {
+    margin-right: 6px;
+}
+@media (min-width: 768px) {
+    #hcDiscoverForm .grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+#hcDiscoverForm .grid label {
+    min-height: 38px;
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 6px;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Ações de seleção em lote
+    const selectAllBtn = document.querySelector('[data-hc-select="all"]');
+    const selectClearBtn = document.querySelector('[data-hc-select="clear"]');
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.hc-profile-checkbox:not(:disabled)').forEach(cb => {
+                cb.checked = true;
+            });
+        });
+    }
+    
+    if (selectClearBtn) {
+        selectClearBtn.addEventListener('click', function() {
+            document.querySelectorAll('.hc-profile-checkbox:not(:disabled)').forEach(cb => {
+                cb.checked = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

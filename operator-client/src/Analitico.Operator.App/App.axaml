@@ -1,0 +1,388 @@
+<Application
+    x:Class="Analitico.Operator.App.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <SolidColorBrush x:Key="SoBgBase" Color="#020305" />
+    <SolidColorBrush x:Key="SoBgBaseTranslucent" Color="#e2020305" />
+    <SolidColorBrush x:Key="SoBgChrome" Color="#07090e" />
+    <SolidColorBrush x:Key="SoBgPanel" Color="#0b1018" />
+    <SolidColorBrush x:Key="SoBgPanelElevated" Color="#101722" />
+    <SolidColorBrush x:Key="SoBgPanelSoft" Color="#0d121a" />
+    <SolidColorBrush x:Key="SoBgVideo" Color="#05070c" />
+    <SolidColorBrush x:Key="SoBgVideoHeader" Color="#d006111f" />
+    <SolidColorBrush x:Key="SoLineSoft" Color="#1a2a3d" />
+    <SolidColorBrush x:Key="SoLineStrong" Color="#294463" />
+    <SolidColorBrush x:Key="SoLineAccent" Color="#3b82f6" />
+    <SolidColorBrush x:Key="SoText" Color="#f4f7fb" />
+    <SolidColorBrush x:Key="SoTextSoft" Color="#c9d6e8" />
+    <SolidColorBrush x:Key="SoTextMuted" Color="#8fa0b7" />
+    <SolidColorBrush x:Key="SoTextFaint" Color="#64748b" />
+    <SolidColorBrush x:Key="SoBlue" Color="#2563eb" />
+    <SolidColorBrush x:Key="SoBlueSoft" Color="#0f2540" />
+    <SolidColorBrush x:Key="SoCyan" Color="#7dd3fc" />
+    <SolidColorBrush x:Key="SoGreen" Color="#15803d" />
+    <SolidColorBrush x:Key="SoAmber" Color="#d89500" />
+    <SolidColorBrush x:Key="SoAmberPanel" Color="#2f220b" />
+    <SolidColorBrush x:Key="SoRed" Color="#dc2626" />
+    <SolidColorBrush x:Key="SoRedPanel" Color="#2a1114" />
+    <SolidColorBrush x:Key="SoOverlay" Color="#c0000000" />
+    <LinearGradientBrush x:Key="SoGridCellGrad" StartPoint="0%,0%" EndPoint="0%,100%">
+      <GradientStop Offset="0.0" Color="#7fb9ff" />
+      <GradientStop Offset="1.0" Color="#3474be" />
+    </LinearGradientBrush>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI, Arial" />
+      <Setter Property="Background" Value="{StaticResource SoBgBase}" />
+    </Style>
+
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource SoTextSoft}" />
+    </Style>
+
+    <Style Selector="TextBlock.kicker">
+      <Setter Property="Foreground" Value="{StaticResource SoCyan}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{StaticResource SoTextMuted}" />
+    </Style>
+
+    <Style Selector="TextBlock.faint">
+      <Setter Property="Foreground" Value="{StaticResource SoTextFaint}" />
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="Background" Value="{StaticResource SoBgPanelElevated}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="#1e293b" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+    </Style>
+
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource SoBlue}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoBlue}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="#1d4ed8" />
+      <Setter Property="BorderBrush" Value="#1d4ed8" />
+    </Style>
+
+    <Style Selector="Button.toolbar-primary">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="12,4" />
+      <Setter Property="Background" Value="#101a2a" />
+      <Setter Property="BorderBrush" Value="#2d527f" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.toolbar-secondary">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="12,4" />
+      <Setter Property="Background" Value="#0d141f" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="Foreground" Value="{StaticResource SoTextSoft}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{StaticResource SoRed}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoRed}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.warning">
+      <Setter Property="Background" Value="{StaticResource SoAmberPanel}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoAmber}" />
+      <Setter Property="Foreground" Value="#ffe8a3" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.subtle">
+      <Setter Property="Background" Value="#111827" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="Foreground" Value="{StaticResource SoTextSoft}" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="Button.subtle:pointerover">
+      <Setter Property="Background" Value="#1f2937" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+    </Style>
+
+    <Style Selector="Button.saved-view">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Padding" Value="9,5" />
+      <Setter Property="Background" Value="#0f1724" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.chip">
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="Background" Value="#0e1726" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="Foreground" Value="{StaticResource SoTextSoft}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.chip:pointerover">
+      <Setter Property="Background" Value="#1b2a47" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+    </Style>
+
+    <Style Selector="Button.icon-button">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="#111827" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.icon-button TextBlock">
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{StaticResource SoTextSoft}" />
+    </Style>
+
+    <Style Selector="Button.grid-button">
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="#0e1726" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.grid-button:pointerover">
+      <Setter Property="Background" Value="#1b2a47" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+    </Style>
+    <Style Selector="Button.grid-button.active">
+      <Setter Property="Background" Value="#2563eb" />
+      <Setter Property="BorderBrush" Value="#3b82f6" />
+    </Style>
+    <Style Selector="Button.grid-button.active:pointerover">
+      <Setter Property="Background" Value="#1d4ed8" />
+      <Setter Property="BorderBrush" Value="#3b82f6" />
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Padding" Value="9,5" />
+      <Setter Property="Background" Value="#080d14" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+      <Setter Property="Background" Value="#0b1320" />
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+      <Setter Property="Background" Value="#0c192e" />
+    </Style>
+
+    <Style Selector="NumericUpDown">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Background" Value="#080d14" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+      <Setter Property="Foreground" Value="{StaticResource SoText}" />
+    </Style>
+
+    <Style Selector="Border.app-chrome">
+      <Setter Property="Background" Value="{StaticResource SoBgChrome}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+    </Style>
+
+    <Style Selector="Border.side-panel">
+      <Setter Property="Background" Value="{StaticResource SoBgChrome}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+    </Style>
+
+    <Style Selector="Border.surface-card">
+      <Setter Property="Background" Value="{StaticResource SoBgPanelElevated}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Border.command-cluster">
+      <Setter Property="Background" Value="#070b11" />
+      <Setter Property="BorderBrush" Value="#111d2b" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="4" />
+    </Style>
+
+    <Style Selector="Border.status-pill">
+      <Setter Property="Background" Value="#081c2d" />
+      <Setter Property="BorderBrush" Value="#214466" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Padding" Value="8,3" />
+    </Style>
+
+    <Style Selector="Border.performance-meter">
+      <Setter Property="Background" Value="#07111b" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8,5" />
+    </Style>
+
+    <Style Selector="Border.perf-cell">
+      <Setter Property="Background" Value="#0d1622" />
+      <Setter Property="BorderBrush" Value="#17283b" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,3" />
+    </Style>
+
+    <Style Selector="Border.metric-strip">
+      <Setter Property="Background" Value="{StaticResource SoBgPanel}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Border.spotlight-card">
+      <Setter Property="Background" Value="{StaticResource SoBgPanelElevated}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+    </Style>
+
+    <Style Selector="Border.camera-card">
+      <Setter Property="Background" Value="{StaticResource SoBgPanelSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <Style Selector="Border.event-card">
+      <Setter Property="Background" Value="{StaticResource SoRedPanel}" />
+      <Setter Property="BorderBrush" Value="#5f2e2e" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <Style Selector="Border.health-card">
+      <Setter Property="Background" Value="{StaticResource SoBgPanelSoft}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+
+    <Style Selector="Border.mosaic-tile">
+      <Setter Property="Background" Value="{StaticResource SoBgVideo}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="Border.tile-header">
+      <Setter Property="Background" Value="{StaticResource SoBgVideoHeader}" />
+      <Setter Property="Padding" Value="6,2" />
+    </Style>
+
+    <Style Selector="Border.tile-footer">
+      <Setter Property="Background" Value="{StaticResource SoBgVideoHeader}" />
+      <Setter Property="Padding" Value="6,3" />
+    </Style>
+
+    <Style Selector="Border.slot-index">
+      <Setter Property="Background" Value="#0b1220" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="5,0" />
+    </Style>
+
+    <Style Selector="Border.empty-slot">
+      <Setter Property="Background" Value="#081320" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineStrong}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style Selector="Border.badge">
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="5,1" />
+    </Style>
+
+    <Style Selector="Border.modal-card">
+      <Setter Property="Background" Value="{StaticResource SoBgPanel}" />
+      <Setter Property="BorderBrush" Value="{StaticResource SoLineAccent}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style Selector="Border.grid-preview-border">
+      <Setter Property="BorderBrush" Value="#40ffffff" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.grid-button.active Border.grid-preview-border">
+      <Setter Property="BorderBrush" Value="White" />
+    </Style>
+
+    <Style Selector="Border.grid-cell">
+      <Setter Property="Background" Value="#25ffffff" />
+      <Setter Property="BorderBrush" Value="#45ffffff" />
+      <Setter Property="BorderThickness" Value="0.5" />
+      <Setter Property="Margin" Value="0.5" />
+    </Style>
+    <Style Selector="Button.grid-button.active Border.grid-cell">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="White" />
+    </Style>
+    <Style Selector="Button.grid-button:pointerover Border.grid-cell">
+      <Setter Property="Background" Value="#65ffffff" />
+      <Setter Property="BorderBrush" Value="#85ffffff" />
+    </Style>
+  </Application.Styles>
+</Application>

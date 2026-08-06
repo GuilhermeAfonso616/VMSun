@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .profile-container {
+        max-width: 600px;
+        margin: 40px auto;
+    }
+    .profile-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: var(--shadow-card);
+    }
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--line-soft);
+    }
+    .profile-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        font-weight: 800;
+        color: #ffffff;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    }
+    .profile-title h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+    .profile-title p {
+        margin: 4px 0 0 0;
+        font-size: 13.5px;
+        color: var(--text-secondary);
+        text-transform: capitalize;
+    }
+    .form-group {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .form-group label {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: var(--text-secondary);
+    }
+    .form-control {
+        background: var(--field-bg);
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: var(--text-primary);
+        font-size: 14.5px;
+        transition: all 0.2s ease;
+    }
+    .form-control:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        outline: none;
+    }
+    .section-divider {
+        margin: 28px 0 20px 0;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 14px;
+        font-weight: 700;
+        color: #cbd5e1;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        display: none;
+    }
+    .alert.success {
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+    }
+    .alert.danger {
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+    }
+</style>
+
+<div class="profile-container">
+    <div class="profile-card">
+        <div class="profile-header">
+            <div class="profile-avatar" id="userAvatar">U</div>
+            <div class="profile-title">
+                <h1 id="userDisplayName">Carregando Perfil...</h1>
+                <p id="userRoleBadge">-</p>
+            </div>
+        </div>
+
+        <div class="alert success" id="successAlert">Perfil atualizado com sucesso!</div>
+        <div class="alert danger" id="errorAlert">Erro ao atualizar perfil.</div>
+
+        <form id="profileForm" onsubmit="saveProfile(event)">
+            <div class="form-group">
+                <label for="profileUsername">Nome de Usuário</label>
+                <input type="text" id="profileUsername" class="form-control" disabled style="opacity: 0.6; cursor: not-allowed;">
+            </div>
+
+            <div class="form-group">
+                <label for="profileName">Nome Completo</label>
+                <input type="text" id="profileName" class="form-control" placeholder="Seu nome completo">
+            </div>
+
+            <div class="section-divider">Alterar Senha</div>
+
+            <div class="form-group">
+                <label for="currentPassword">Senha Atual</label>
+                <input type="password" id="currentPassword" class="form-control" placeholder="Digite a senha atual se for alterar a senha">
+            </div>
+
+            <div class="form-group">
+                <label for="newPassword">Nova Senha</label>
+                <input type="password" id="newPassword" class="form-control" placeholder="Digite a nova senha">
+            </div>
+
+            <div class="form-group">
+                <label for="confirmNewPassword">Confirmar Nova Senha</label>
+                <input type="password" id="confirmNewPassword" class="form-control" placeholder="Repita a nova senha">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px; font-weight: 700; border-radius: 8px; margin-top: 12px;">
+                Salvar Alterações
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    async function loadProfile() {
+        try {
+            const res = await fetch("/api/auth/me");
+            if (!res.ok) throw new Error("Não foi possível carregar as informações do usuário.");
+            const user = await res.json();
+            
+            document.getElementById("profileUsername").value = user.username;
+            document.getElementById("profileName").value = user.name || "";
+            document.getElementById("userDisplayName").innerText = user.name || user.username;
+            document.getElementById("userRoleBadge").innerText = translateRole(user.role);
+            
+            // Set first letter as avatar icon
+            const firstLetter = (user.name || user.username).substring(0, 1).toUpperCase();
+            document.getElementById("userAvatar").innerText = firstLetter;
+        } catch (err) {
+            showAlert("errorAlert", err.message);
+        }
+    }
+
+    function translateRole(role) {
+        switch (role) {
+            case "admin": return "Administrador";
+            case "dev": return "DEV";
+            case "supervisor": return "Supervisor";
+            case "operator": return "Operador";
+            case "viewer": return "Visualizador";
+            default: return role;
+        }
+    }
+
+    function showAlert(id, msg) {
+        const alertEl = document.getElementById(id);
+        alertEl.innerText = msg;
+        alertEl.style.display = "block";
+        setTimeout(() => {
+            alertEl.style.display = "none";
+        }, 5000);
+    }
+
+    async function saveProfile(event) {
+        event.preventDefault();
+        
+        const name = document.getElementById("profileName").value.trim();
+        const currentPassword = document.getElementById("currentPassword").value;
+        const newPassword = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmNewPassword").value;
+        
+        if (newPassword || currentPassword) {
+            if (!currentPassword) {
+                showAlert("errorAlert", "Você deve preencher a senha atual para alterá-la.");
+                return;
+            }
+            if (!newPassword) {
+                showAlert("errorAlert", "Preencha a nova senha desejada.");
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                showAlert("errorAlert", "A nova senha e a confirmação não conferem.");
+                return;
+            }
+        }
+        
+        const payload = { name };
+        if (newPassword) {
+            payload.current_password = currentPassword;
+            payload.new_password = newPassword;
+        }
+        
+        try {
+            const res = await fetch("/api/auth/me", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || "Erro ao salvar alterações.");
+            }
+            
+            showAlert("successAlert", "Alterações salvas com sucesso!");
+            document.getElementById("currentPassword").value = "";
+            document.getElementById("newPassword").value = "";
+            document.getElementById("confirmNewPassword").value = "";
+            if (newPassword) {
+                setTimeout(() => { window.location.href = "/logout"; }, 900);
+                return;
+            }
+            loadProfile();
+        } catch (err) {
+            showAlert("errorAlert", err.message);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadProfile);
+</script>
+{% endblock %}

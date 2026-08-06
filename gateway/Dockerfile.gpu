@@ -1,0 +1,15 @@
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/gateway .
+
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates ffmpeg wget && \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /out/gateway /app/gateway
+EXPOSE 8090
+ENV GATEWAY_ADDR=:8090
+ENTRYPOINT ["/app/gateway"]

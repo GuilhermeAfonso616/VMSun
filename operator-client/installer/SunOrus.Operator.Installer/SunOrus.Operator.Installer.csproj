@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SunOrus.Operator.Setup</AssemblyName>
+    <ApplicationIcon>..\..\src\Analitico.Operator.App\Assets\sunorus-logo.ico</ApplicationIcon>
+    <Version>0.6.45</Version>
+    <FileVersion>0.6.45.0</FileVersion>
+    <AssemblyVersion>0.6.45.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Payload\AnaliticoOperatorPayload.zip" LogicalName="AnaliticoOperatorPayload.zip" Condition="Exists('Payload\AnaliticoOperatorPayload.zip')" />
+    <EmbeddedResource Include="..\..\src\Analitico.Operator.App\Assets\sunorus-logo.png" LogicalName="sunorus-logo.png" />
+  </ItemGroup>
+
+  <Target Name="RequirePayload" BeforeTargets="BeforeBuild" Condition="!Exists('Payload\AnaliticoOperatorPayload.zip')">
+    <Error Text="Payload nao encontrado. Rode ..\..\build_operator_installer.ps1 para publicar o app e gerar o instalador." />
+  </Target>
+</Project>

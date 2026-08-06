@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurar SunOrus VMS</title>
+    <style>
+        :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #070d19; color: #f8fafc; }
+        main { width: min(430px, calc(100% - 48px)); padding: 36px; border: 1px solid #263247; border-radius: 16px; background: #0b1220; box-shadow: 0 20px 60px #0008; }
+        h1 { margin: 0 0 8px; font-size: 25px; } p { color: #94a3b8; line-height: 1.5; }
+        label { display: block; margin: 17px 0 6px; font-weight: 650; font-size: 13px; }
+        input { box-sizing: border-box; width: 100%; padding: 12px; color: inherit; background: #0d1729; border: 1px solid #334155; border-radius: 8px; }
+        button { width: 100%; margin-top: 24px; padding: 13px; border: 0; border-radius: 8px; background: #2563eb; color: white; font-weight: 700; cursor: pointer; }
+        button:disabled { opacity: .55; } #message { color: #fca5a5; min-height: 20px; }
+        .rule { font-size: 12px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Configuração inicial</h1>
+    <p>Crie o primeiro administrador desta instalação. Não existem credenciais padrão.</p>
+    <form id="setupForm">
+        <label for="name">Nome</label><input id="name" autocomplete="name">
+        <label for="username">Usuário administrador</label><input id="username" minlength="3" autocomplete="username" required autofocus>
+        <label for="password">Senha</label><input id="password" type="password" minlength="12" autocomplete="new-password" required>
+        <div class="rule">Mínimo de 12 caracteres, com maiúscula, minúscula e número.</div>
+        <label for="confirmation">Confirmar senha</label><input id="confirmation" type="password" autocomplete="new-password" required>
+        <p id="message"></p><button id="submit" type="submit">Criar administrador</button>
+    </form>
+</main>
+<script>
+document.getElementById("setupForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = document.getElementById("submit");
+    const message = document.getElementById("message");
+    const password = document.getElementById("password").value;
+    if (password !== document.getElementById("confirmation").value) {
+        message.textContent = "As senhas não conferem."; return;
+    }
+    button.disabled = true; message.textContent = "";
+    const response = await fetch("/api/auth/setup", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            name: document.getElementById("name").value.trim(),
+            username: document.getElementById("username").value.trim(), password
+        })
+    });
+    if (response.ok) { window.location.href = "/monitor"; return; }
+    const data = await response.json();
+    message.textContent = data.detail || "Não foi possível concluir."; button.disabled = false;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+fastapi[standard]
+docker
+ultralytics==8.4.38
+lap>=0.5.12
+onvif-zeep
+opencv-python-headless
+sqlalchemy
+psycopg[binary]
+pydantic-settings
+python-multipart
+jinja2
+tzdata
+requests
+cryptography

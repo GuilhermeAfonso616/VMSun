@@ -1,0 +1,1062 @@
+{% extends "base.html" %}
+
+{% set values = form_values if form_values else {} %}
+{% set selected_kinds = values.stream_kinds if values.stream_kinds else ["main", "sub"] %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #dbe3ec; padding-bottom: 10px;">
+    <h1 style="margin: 0;">Fontes de Vídeo</h1>
+    <div style="display: flex; gap: 8px;">
+        <a href="/video-sources/nvr" class="btn btn-primary">NVR (RTSP/SDK)</a>
+        <a href="/video-sources/hikcentral" class="btn btn-secondary">HikCentral (OpenAPI)</a>
+        <a href="/video-sources/hikconnect" class="btn btn-secondary">Hik-Connect (P2P Cloud)</a>
+    </div>
+</div>
+
+{% if error %}
+    <div class="error">{{ error }}</div>
+{% endif %}
+
+{% if message %}
+    <div class="card nvr-message">{{ message }}</div>
+{% endif %}
+
+{% if completed_job_token and discovery_job_counts and discovery_job_counts.timeout %}
+    <div class="card nvr-message">
+        <strong>{{ discovery_job_counts.timeout }} teste(s) atingiram o tempo limite.</strong>
+        <div class="muted compact" style="margin:6px 0 10px;">Os resultados concluidos serao preservados; somente timeouts e itens pendentes serao executados novamente.</div>
+        <button type="button" class="btn btn-secondary" id="nvrResumeTimeouts" data-job-token="{{ completed_job_token }}">Tentar novamente os timeouts</button>
+    </div>
+{% endif %}
+
+{% if created is not none %}
+    <div class="card nvr-message">Canais criados: {{ created }}{% if skipped is not none %} · ignorados: {{ skipped }}{% endif %}</div>
+{% endif %}
+
+<div class="card">
+    <form method="post" action="/video-sources/nvr/discover" id="nvrDiscoverForm">
+        <input type="hidden" name="credential_token" value="{{ credential_token or values.credential_token or '' }}">
+        <div class="grid">
+            <div>
+                <label>Nome base</label>
+                <input type="text" name="base_name" value="{{ values.base_name or 'NVR' }}" placeholder="NVR Loja 01">
+            </div>
+            <div>
+                <label>IP ou host</label>
+                <input type="text" name="host" value="{{ values.host or '' }}" placeholder="192.168.1.100" required>
+            </div>
+            <div>
+                <label>Usuario</label>
+                <input type="text" name="username" value="{{ values.username or '' }}" autocomplete="username">
+            </div>
+            <div>
+                <label>Senha</label>
+                <input type="password" name="password" value="" autocomplete="current-password" placeholder="{% if values.credential_token %}senha guardada temporariamente para criar os canais{% else %}senha do NVR{% endif %}" {% if not values.credential_token %}required{% endif %}>
+            </div>
+            <div>
+                <label>Marca/template</label>
+                <select name="brand" id="nvrBrandSelect">
+                    {% for option in brand_options %}
+                        <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Porta RTSP</label>
+                <input type="number" name="rtsp_port" id="nvrRtspPort" value="{{ values.rtsp_port or 554 }}" min="1" max="65535">
+            </div>
+            <div>
+                <label>Porta do servidor (ONVIF/HTTP)</label>
+                <input type="number" name="onvif_port" id="nvrOnvifPort" value="{{ values.onvif_port or 80 }}" min="1" max="65535">
+            </div>
+            <div>
+                <label>Canais</label>
+                <input type="number" name="channel_count" value="{{ values.channel_count or 16 }}" min="1" max="128">
+            </div>
+            <div>
+                <label>Provider</label>
+                <select name="provider_type" id="nvrProviderSelect">
+                    <option value="generic_nvr" {% if (values.provider_type or 'generic_nvr') == 'generic_nvr' %}selected{% endif %}>RTSP generico</option>
+                    <option value="hikvision_sdk" {% if values.provider_type == 'hikvision_sdk' %}selected{% endif %}>Hikvision SDK</option>
+                    <option value="dahua_sdk" {% if values.provider_type == 'dahua_sdk' %}selected{% endif %}>Dahua SDK</option>
+                    <option value="intelbras_sdk" {% if values.provider_type == 'intelbras_sdk' %}selected{% endif %}>Intelbras SDK</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="nvr-checks">
+            <label><input type="checkbox" name="stream_kinds" value="main" {% if 'main' in selected_kinds %}checked{% endif %}> Main stream</label>
+            <label><input type="checkbox" name="stream_kinds" value="sub" {% if 'sub' in selected_kinds %}checked{% endif %}> Sub stream</label>
+            <label><input type="checkbox" name="probe" value="true" {% if values.probe %}checked{% endif %}> Testar abertura do stream</label>
+        </div>
+
+        <div id="nvrDiscoveryProgress" class="nvr-progress" hidden aria-live="polite">
+            <div class="nvr-progress-head">
+                <strong id="nvrProgressTitle">Descobrindo NVR</strong>
+                <span id="nvrProgressPercent">0%</span>
+            </div>
+            <div class="nvr-progress-track">
+                <div class="nvr-progress-bar" id="nvrProgressBar"></div>
+            </div>
+            <div class="nvr-progress-text" id="nvrProgressText">Preparando descoberta...</div>
+            <div class="muted compact" style="margin-bottom: 10px;">A busca continua no servidor mesmo se esta pagina for atualizada.</div>
+            <div class="nvr-progress-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                <button type="button" class="btn btn-secondary btn-small" id="nvrPauseBtn">⏸️ Pausar busca</button>
+                <button type="button" class="btn btn-primary btn-small" id="nvrResumeBtn" style="display: none;">▶️ Retomar busca</button>
+                <button type="button" class="btn btn-secondary btn-small" id="nvrIntegrateBtn">⚡ Integrar resultados já lidos</button>
+                <button type="button" class="btn btn-danger btn-small" id="nvrCancelBtn">🛑 Parar / Cancelar</button>
+            </div>
+        </div>
+
+        <div id="nvrLiveDiscoveredContainer" style="margin-top: 16px; background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(148, 163, 184, 0.2); padding: 14px; border-radius: 8px;" hidden>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="font-size: 14px; color: #f8fafc;">Resultados em Tempo Real (<span id="nvrLiveCount">0</span>)</strong>
+                <span class="muted compact" style="font-size: 12px;">Atualizado dinamicamente conforme cada canal é testado</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.2); text-align: left;">
+                            <th style="padding: 6px 8px;">Canal</th>
+                            <th style="padding: 6px 8px;">Stream</th>
+                            <th style="padding: 6px 8px;">Status</th>
+                            <th style="padding: 6px 8px;">Resolução</th>
+                            <th style="padding: 6px 8px;">URL RTSP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nvrLiveTbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="nvrAutoDetectionResult" class="nvr-auto-detection" hidden aria-live="polite"></div>
+
+        <div class="nvr-form-actions">
+            <button class="btn btn-secondary" type="button" id="nvrAutoDetectButton">Detectar automaticamente</button>
+            <button class="btn btn-primary" type="submit" id="nvrDiscoverSubmit">Descobrir canais</button>
+        </div>
+    </form>
+</div>
+
+{% if profiles %}
+<div class="card">
+    <h2>Canais encontrados</h2>
+    <form method="post" action="/video-sources/nvr/create" id="nvrCreateForm">
+        <input type="hidden" name="host" value="{{ values.host or '' }}">
+        <input type="hidden" name="username" value="{{ values.username or '' }}">
+        <input type="hidden" name="credential_token" value="{{ credential_token or values.credential_token or '' }}">
+        <input type="hidden" name="brand" value="{{ values.brand or 'generic' }}">
+        <input type="hidden" name="provider_type" value="{{ values.provider_type or 'generic_nvr' }}">
+        <input type="hidden" name="rtsp_port" value="{{ values.rtsp_port or 554 }}">
+        <input type="hidden" name="onvif_port" value="{{ values.onvif_port or 80 }}">
+        <input type="hidden" name="base_name" value="{{ values.base_name or 'NVR' }}">
+        <input type="hidden" name="profile_count" value="{{ profiles|length }}">
+
+        <div class="nvr-actions">
+            <button class="btn btn-secondary btn-small" type="button" data-nvr-select="ok">Selecionar OK</button>
+            <button class="btn btn-secondary btn-small" type="button" data-nvr-select="main">Selecionar main</button>
+            <button class="btn btn-secondary btn-small" type="button" data-nvr-select="sub">Selecionar sub</button>
+            <button class="btn btn-secondary btn-small" type="button" data-nvr-select="clear">Limpar selecao</button>
+            <label class="nvr-filter-toggle" for="nvrHideFailures">
+                <input type="checkbox" id="nvrHideFailures" aria-controls="nvrProfilesTable">
+                Ocultar falhas
+            </label>
+        </div>
+
+        <table id="nvrProfilesTable">
+            <thead>
+                <tr>
+                    <th>Usar</th>
+                    <th>Canal</th>
+                    <th>Stream</th>
+                    <th>Status</th>
+                    <th>Midia</th>
+                    <th>Nome da camera</th>
+                    <th>RTSP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in profiles %}
+                <tr
+                    class="nvr-profile-row"
+                    data-failed="{% if values.probe and not item.ok and not item.existing_id %}true{% else %}false{% endif %}"
+                >
+                    <td>
+                        <input type="hidden" name="profile_channel_{{ item.index }}" value="{{ item.channel }}">
+                        <input type="hidden" name="profile_stream_kind_{{ item.index }}" value="{{ item.stream_kind }}">
+                        <label class="nvr-select">
+                            <input
+                                type="checkbox"
+                                name="selected_profile"
+                                value="{{ item.index }}"
+                                class="nvr-profile-checkbox"
+                                data-stream-kind="{{ item.stream_kind }}"
+                                data-ok="{% if item.ok %}true{% else %}false{% endif %}"
+                                {% if item.selected %}checked{% endif %}
+                                {% if item.existing_id %}disabled{% endif %}
+                            >
+                        </label>
+                    </td>
+                    <td>{{ item.channel }}</td>
+                    <td>{{ item.stream_kind }}</td>
+                    <td>
+                        {% if item.existing_id %}
+                            <span class="status status-deduplicated">Ja existe</span>
+                            <div class="muted">#{{ item.existing_id }} {{ item.existing_name }}</div>
+                        {% elif values.probe and item.ok %}
+                            <span class="status status-running">OK</span>
+                        {% elif values.probe %}
+                            <span class="status status-offline">Falhou</span>
+                            {% if item.error %}<div class="muted">{{ item.error }}</div>{% endif %}
+                        {% else %}
+                            <span class="status status-pending">Nao testado</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.resolution_label %}
+                            <strong>{{ item.resolution_label }}</strong>
+                        {% else %}
+                            -
+                        {% endif %}
+                        {% if item.fps %}
+                            <div class="muted">{{ item.fps }} fps</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="text" name="profile_camera_name_{{ item.index }}" value="{{ values.base_name or 'NVR' }} - Canal {{ item.channel }} {{ item.stream_kind }}">
+                    </td>
+                    <td class="nvr-url">{{ item.masked_rtsp_url }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="margin-top:14px;">
+            <div id="nvrCreateProgress" class="nvr-progress nvr-progress-compact" hidden aria-live="polite">
+                <div class="nvr-progress-head">
+                    <strong>Criando cameras</strong>
+                    <span>aguarde</span>
+                </div>
+                <div class="nvr-progress-track">
+                    <div class="nvr-progress-bar nvr-progress-bar-loop"></div>
+                </div>
+                <div class="nvr-progress-text">Salvando canais selecionados e evitando duplicidades...</div>
+            </div>
+            <button class="btn btn-success" type="submit" id="nvrCreateSubmit">Criar cameras selecionadas</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Health por canal</h2>
+    {% if channel_health %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Camera</th>
+                    <th>NVR</th>
+                    <th>Canal</th>
+                    <th>Stream</th>
+                    <th>Status</th>
+                    <th>Worker</th>
+                    <th>Ultimo frame</th>
+                    <th>RTSP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in channel_health %}
+                <tr>
+                    <td><a href="/cameras/{{ item.id }}">{{ item.name }}</a></td>
+                    <td>{{ item.host }} · {{ item.source_brand }}</td>
+                    <td>{{ item.source_channel or '-' }}</td>
+                    <td>{{ item.source_stream_kind }}</td>
+                    <td>
+                        {% set status_class = 'status-idle' %}
+                        {% if item.health_status == 'running' %}
+                            {% set status_class = 'status-running' %}
+                        {% elif item.health_status == 'degraded' %}
+                            {% set status_class = 'status-degraded' %}
+                        {% elif item.health_status == 'reconnecting' %}
+                            {% set status_class = 'status-reconnecting' %}
+                        {% elif item.health_status == 'offline' %}
+                            {% set status_class = 'status-offline' %}
+                        {% endif %}
+                        <span class="status {{ status_class }}">{{ item.health_status }}</span>
+                    </td>
+                    <td>{{ item.worker_mode }}</td>
+                    <td>{{ item.last_frame_at or '-' }}</td>
+                    <td class="nvr-url">{{ item.masked_rtsp_url }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="muted">Nenhum canal de NVR cadastrado.</p>
+    {% endif %}
+</div>
+
+<style>
+.nvr-checks {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 2px 0 16px;
+}
+.nvr-checks label,
+.nvr-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.nvr-checks input,
+.nvr-select input {
+    width: auto;
+    margin: 0;
+}
+.nvr-url {
+    max-width: 360px;
+    word-break: break-all;
+    font-size: 12px;
+}
+.nvr-message {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+.nvr-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0 0 12px;
+}
+.nvr-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+.nvr-filter-toggle input {
+    width: auto;
+    margin: 0;
+}
+.nvr-form-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.nvr-auto-detection {
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1e3a5f;
+}
+.nvr-auto-detection.is-warning {
+    border-color: #fcd34d;
+    background: #fffbeb;
+    color: #92400e;
+}
+.nvr-auto-detection.is-error {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #991b1b;
+}
+.nvr-auto-title {
+    display: block;
+    margin-bottom: 5px;
+}
+.nvr-auto-detail {
+    font-size: 12px;
+    line-height: 1.5;
+}
+.nvr-auto-drivers {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+.nvr-auto-driver {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1e40af;
+    font-size: 11px;
+    font-weight: 700;
+}
+.nvr-auto-driver.is-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+.nvr-progress {
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #eff6ff;
+}
+.nvr-progress-compact {
+    max-width: 560px;
+}
+.nvr-progress-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    color: #1e3a8a;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+.nvr-progress-track {
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+}
+.nvr-progress-bar {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb, #22c55e);
+    transition: width 0.35s ease;
+}
+.nvr-progress-bar-loop {
+    width: 40%;
+    animation: nvr-progress-loop 1.2s ease-in-out infinite;
+}
+.nvr-progress-text {
+    margin-top: 8px;
+    color: #1e40af;
+    font-size: 12px;
+    font-weight: 700;
+}
+@keyframes nvr-progress-loop {
+    0% { transform: translateX(-110%); }
+    100% { transform: translateX(260%); }
+}
+</style>
+<script>
+(function () {
+    const buttons = document.querySelectorAll("[data-nvr-select]");
+    const checks = () => Array.from(document.querySelectorAll(".nvr-profile-checkbox"));
+    const profileRows = () => Array.from(document.querySelectorAll(".nvr-profile-row"));
+    const hideFailuresToggle = document.getElementById("nvrHideFailures");
+    const discoverForm = document.getElementById("nvrDiscoverForm");
+    const discoverSubmit = document.getElementById("nvrDiscoverSubmit");
+    const autoDetectButton = document.getElementById("nvrAutoDetectButton");
+    const autoDetectionResult = document.getElementById("nvrAutoDetectionResult");
+    const brandSelect = document.getElementById("nvrBrandSelect");
+    const providerSelect = document.getElementById("nvrProviderSelect");
+    const rtspPortInput = document.getElementById("nvrRtspPort");
+    const onvifPortInput = document.getElementById("nvrOnvifPort");
+    const progressBox = document.getElementById("nvrDiscoveryProgress");
+    const progressBar = document.getElementById("nvrProgressBar");
+    const progressPercent = document.getElementById("nvrProgressPercent");
+    const progressText = document.getElementById("nvrProgressText");
+    const createForm = document.getElementById("nvrCreateForm");
+    const createProgress = document.getElementById("nvrCreateProgress");
+    const createSubmit = document.getElementById("nvrCreateSubmit");
+    const initialJobToken = {{ active_job_token|default(none)|tojson }};
+    const completedJobToken = {{ completed_job_token|default(none)|tojson }};
+    const resumeTimeoutsButton = document.getElementById("nvrResumeTimeouts");
+    const jobStorageKey = "sunorus-nvr-discovery-job";
+    let progressTimer = null;
+    let resumeRequested = false;
+
+    function restoreProgressButtons() {
+        const globalActions = document.getElementById("globalLoadingActions");
+        if (globalActions) globalActions.hidden = true;
+    }
+
+    function moveButtonsToGlobalOverlay() {
+        // Keeps buttons visible inline in the discovery card
+    }
+
+    function renderLiveDiscovered(state) {
+        const container = document.getElementById("nvrLiveDiscoveredContainer");
+        const tbody = document.getElementById("nvrLiveTbody");
+        const countEl = document.getElementById("nvrLiveCount");
+        if (!container || !tbody) return;
+
+        const items = Array.isArray(state.discovered) ? state.discovered : [];
+        if (!items.length) {
+            container.hidden = true;
+            return;
+        }
+
+        container.hidden = false;
+        if (countEl) countEl.textContent = String(items.length);
+        tbody.replaceChildren();
+
+        items.forEach((item) => {
+            const tr = document.createElement("tr");
+            tr.style.borderBottom = "1px solid rgba(148, 163, 184, 0.12)";
+
+            const tdChan = document.createElement("td");
+            tdChan.style.padding = "6px 8px";
+            tdChan.style.fontWeight = "bold";
+            tdChan.style.color = "#f8fafc";
+            tdChan.textContent = "Canal " + item.channel;
+
+            const tdStream = document.createElement("td");
+            tdStream.style.padding = "6px 8px";
+            tdStream.textContent = item.stream_kind;
+
+            const tdStatus = document.createElement("td");
+            tdStatus.style.padding = "6px 8px";
+            if (item.status === "ok" || item.ok) {
+                tdStatus.innerHTML = '<span style="color:#22c55e; font-weight:bold;">[ OK ]</span>';
+            } else if (item.status === "timeout") {
+                tdStatus.innerHTML = '<span style="color:#f59e0b; font-weight:bold;">[ Timeout ]</span>';
+            } else {
+                tdStatus.innerHTML = '<span style="color:#ef4444; font-weight:bold;">[ Falha ]</span>';
+            }
+
+            const tdRes = document.createElement("td");
+            tdRes.style.padding = "6px 8px";
+            tdRes.textContent = (item.width && item.height) ? (item.width + "x" + item.height) : "—";
+
+            const tdUrl = document.createElement("td");
+            tdUrl.style.padding = "6px 8px";
+            tdUrl.style.fontFamily = "monospace";
+            tdUrl.style.fontSize = "11px";
+            tdUrl.style.wordBreak = "break-all";
+            tdUrl.style.color = "rgba(226, 232, 240, 0.8)";
+            tdUrl.textContent = item.rtsp_url || "—";
+
+            tr.appendChild(tdChan);
+            tr.appendChild(tdStream);
+            tr.appendChild(tdStatus);
+            tr.appendChild(tdRes);
+            tr.appendChild(tdUrl);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function appendDetectionLine(container, text, className) {
+        const line = document.createElement("div");
+        line.className = className || "nvr-auto-detail";
+        line.textContent = text;
+        container.appendChild(line);
+    }
+
+    function renderAutoDetection(state) {
+        if (!autoDetectionResult) return;
+        autoDetectionResult.replaceChildren();
+        autoDetectionResult.className = "nvr-auto-detection";
+        autoDetectionResult.hidden = false;
+
+        const recommendation = state.recommendation || {};
+        const title = document.createElement("strong");
+        title.className = "nvr-auto-title";
+        title.textContent = recommendation.ready ? "Dispositivo identificado" : "Dispositivo parcialmente identificado";
+        autoDetectionResult.appendChild(title);
+
+        const ports = Array.isArray(state.open_ports) ? state.open_ports : [];
+        appendDetectionLine(autoDetectionResult, "Portas acessiveis: " + (ports.length ? ports.join(", ") : "nenhuma conhecida"));
+        appendDetectionLine(autoDetectionResult, recommendation.reason || "Nenhuma recomendacao disponivel.");
+        if (recommendation.manufacturer_raw || recommendation.model) {
+            appendDetectionLine(
+                autoDetectionResult,
+                "Identificacao ONVIF: " + [recommendation.manufacturer_raw, recommendation.model].filter(Boolean).join(" ")
+            );
+        }
+        appendDetectionLine(autoDetectionResult, "Tempo do teste: " + Math.round(Number(state.elapsed_ms || 0)) + " ms");
+
+        const detectedDrivers = (Array.isArray(state.drivers) ? state.drivers : []).filter((driver) => driver.detected);
+        if (detectedDrivers.length) {
+            const driverBox = document.createElement("div");
+            driverBox.className = "nvr-auto-drivers";
+            detectedDrivers.forEach((driver) => {
+                const badge = document.createElement("span");
+                badge.className = "nvr-auto-driver" + (driver.ready ? "" : " is-pending");
+                badge.textContent = driver.label + (driver.ready ? " pronto" : " pendente");
+                badge.title = driver.detail || "";
+                driverBox.appendChild(badge);
+            });
+            autoDetectionResult.appendChild(driverBox);
+        }
+
+        if (!recommendation.ready) autoDetectionResult.classList.add("is-warning");
+        if (recommendation.brand && brandSelect) brandSelect.value = recommendation.brand;
+        if (recommendation.rtsp_port && rtspPortInput) rtspPortInput.value = recommendation.rtsp_port;
+        if (recommendation.onvif_port && onvifPortInput) onvifPortInput.value = recommendation.onvif_port;
+        // Nao selecionar um SDK nativo ausente: o usuario ve a deteccao, mas a
+        // descoberta nao finge que o gateway proprietario esta operacional.
+        if (recommendation.provider_type && providerSelect && recommendation.ready) {
+            providerSelect.value = recommendation.provider_type;
+        }
+    }
+
+    if (autoDetectButton && discoverForm) {
+        autoDetectButton.addEventListener("click", async () => {
+            autoDetectButton.disabled = true;
+            autoDetectButton.textContent = "Detectando...";
+            if (autoDetectionResult) {
+                autoDetectionResult.hidden = false;
+                autoDetectionResult.className = "nvr-auto-detection";
+                autoDetectionResult.textContent = "Testando portas e um unico stream de referencia...";
+            }
+            try {
+                const response = await window.fetch("/video-sources/nvr/detect", {
+                    method: "POST",
+                    body: new FormData(discoverForm),
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                const state = await response.json();
+                if (!response.ok) throw new Error(state.error || "Falha na deteccao automatica.");
+                renderAutoDetection(state);
+            } catch (error) {
+                if (autoDetectionResult) {
+                    autoDetectionResult.hidden = false;
+                    autoDetectionResult.className = "nvr-auto-detection is-error";
+                    autoDetectionResult.textContent = error && error.message ? error.message : "Falha na deteccao automatica.";
+                }
+            } finally {
+                autoDetectButton.disabled = false;
+                autoDetectButton.textContent = "Detectar automaticamente";
+            }
+        });
+    }
+
+    function rowIsHidden(box) {
+        const row = box.closest(".nvr-profile-row");
+        return Boolean(row && row.hidden);
+    }
+
+    function applyFailureFilter() {
+        const shouldHide = Boolean(hideFailuresToggle && hideFailuresToggle.checked);
+        profileRows().forEach((row) => {
+            const failed = row.dataset.failed === "true";
+            row.hidden = shouldHide && failed;
+            if (row.hidden) {
+                const box = row.querySelector(".nvr-profile-checkbox");
+                if (box && !box.disabled) box.checked = false;
+            }
+        });
+    }
+
+    function setChecked(mode) {
+        checks().forEach((box) => {
+            if (box.disabled) return;
+            if (mode !== "clear" && rowIsHidden(box)) return;
+            const stream = box.dataset.streamKind || "";
+            const ok = box.dataset.ok === "true";
+            if (mode === "ok") {
+                box.checked = ok;
+            } else if (mode === "main") {
+                box.checked = stream === "main";
+            } else if (mode === "sub") {
+                box.checked = stream === "sub";
+            } else if (mode === "clear") {
+                box.checked = false;
+            }
+        });
+    }
+
+    buttons.forEach((button) => {
+        button.addEventListener("click", () => setChecked(button.dataset.nvrSelect));
+    });
+
+    if (hideFailuresToggle) {
+        hideFailuresToggle.addEventListener("change", applyFailureFilter);
+        applyFailureFilter();
+    }
+
+    function selectedCandidateCount(form, channels) {
+        const brandInput = form.querySelector('select[name="brand"]');
+        const brand = String(brandInput && brandInput.value ? brandInput.value : "generic").toLowerCase();
+        const templatesByBrand = {
+            hikvision: { main: 1, sub: 1 },
+            dahua: { main: 1, sub: 1 },
+            intelbras: { main: 2, sub: 2 },
+            generic: { main: 4, sub: 3 },
+        };
+        const templateCounts = templatesByBrand[brand] || templatesByBrand.generic;
+        const selected = Array.from(form.querySelectorAll('input[name="stream_kinds"]:checked'));
+        const perChannel = selected.reduce((total, input) => {
+            return total + (templateCounts[String(input.value || "").toLowerCase()] || 0);
+        }, 0);
+        return channels * Math.max(1, perChannel);
+    }
+
+    function setProgress(percent, text) {
+        const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+        if (progressBar) progressBar.style.width = clamped + "%";
+        if (progressPercent) progressPercent.textContent = clamped + "%";
+        if (progressText && text) progressText.textContent = text;
+        if (typeof window.updateGlobalLoadingProgress === "function") {
+            window.updateGlobalLoadingProgress(clamped, text || "Processando...", true);
+        }
+    }
+
+    function startDiscoveryProgress(form) {
+        if (!progressBox || !form) return;
+
+        progressBox.hidden = false;
+        setProgress(1, "Criando trabalho de descoberta...");
+
+        if (discoverSubmit) {
+            discoverSubmit.disabled = true;
+            discoverSubmit.textContent = "Testando canais...";
+        }
+    }
+
+    function rememberJob(token) {
+        if (!token) return;
+        try {
+            window.sessionStorage.setItem(jobStorageKey, token);
+        } catch (error) {
+            /* Session storage can be unavailable in private browsing. */
+        }
+        const url = new URL(window.location.href);
+        url.pathname = "/video-sources/nvr";
+        url.search = "?job=" + encodeURIComponent(token);
+        window.history.replaceState({}, "", url.toString());
+    }
+
+    function forgetJob(token) {
+        try {
+            if (!token || window.sessionStorage.getItem(jobStorageKey) === token) {
+                window.sessionStorage.removeItem(jobStorageKey);
+            }
+        } catch (error) {
+            /* Ignore storage failures. */
+        }
+    }
+
+    function storedJob() {
+        try {
+            return window.sessionStorage.getItem(jobStorageKey) || "";
+        } catch (error) {
+            return "";
+        }
+    }
+
+    function hideGlobalLoading() {
+        const overlay = document.getElementById("globalLoadingOverlay");
+        if (overlay) {
+            overlay.classList.remove("is-visible");
+            overlay.setAttribute("aria-hidden", "true");
+        }
+        document.body.classList.remove("loading-active");
+    }
+
+    function progressDescription(state) {
+        const counts = state.counts || {};
+        const running = Array.isArray(state.running) ? state.running : [];
+        const active = running.length
+            ? " | agora: canal " + running.map((item) => item.channel + " " + item.stream_kind).join(", canal ")
+            : "";
+        return (counts.completed || 0) + "/" + (counts.total || 0)
+            + " concluidos | " + (counts.ok || 0) + " OK"
+            + " | " + (counts.failed || 0) + " falhas"
+            + " | " + (counts.timeout || 0) + " timeouts"
+            + active;
+    }
+
+    async function fetchJson(url, options = {}) {
+        const response = await window.fetch(url, {
+            headers: { "Accept": "application/json", ...(options.headers || {}) },
+            credentials: "same-origin",
+            cache: "no-store",
+            ...options,
+        });
+        let data;
+        try {
+            data = await response.json();
+        } catch (err) {
+            if (response.status === 404) {
+                const error = new Error("Sessão de busca expirada. Inicie uma nova descoberta.");
+                error.status = 404;
+                throw error;
+            }
+            const error = new Error("Servidor indisponível ou reiniciado (" + response.status + ").");
+            error.status = response.status;
+            throw error;
+        }
+        if (!response.ok) {
+            const msg = (data && data.error) ? data.error : ("Erro na requisição (" + response.status + ")");
+            const err = new Error(msg);
+            err.status = response.status;
+            throw err;
+        }
+        return data;
+    }
+
+    async function pollJob(token) {
+        if (!token) return;
+        rememberJob(token);
+        if (progressBox) progressBox.hidden = false;
+        moveButtonsToGlobalOverlay();
+        try {
+            const state = await fetchJson("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/status");
+
+            renderLiveDiscovered(state);
+            setProgress(state.percent || 0, progressDescription(state));
+
+            const pauseBtn = document.getElementById("nvrPauseBtn");
+            const resumeBtn = document.getElementById("nvrResumeBtn");
+
+            if (state.status === "paused") {
+                if (pauseBtn) pauseBtn.style.display = "none";
+                if (resumeBtn) {
+                    resumeBtn.style.display = "inline-block";
+                    resumeBtn.disabled = false;
+                }
+                setProgress(state.percent || 0, "Busca pausada pelo usuário (" + progressDescription(state) + ")");
+                return;
+            } else {
+                if (pauseBtn) pauseBtn.style.display = "inline-block";
+                if (resumeBtn) resumeBtn.style.display = "none";
+            }
+
+            if (state.status === "completed" && state.result_url) {
+                setProgress(100, progressDescription(state));
+                forgetJob(token);
+                restoreProgressButtons();
+                window.location.assign(state.result_url);
+                return;
+            }
+            if (state.status === "canceled") {
+                forgetJob(token);
+                restoreProgressButtons();
+                if (progressBox) progressBox.hidden = true;
+                if (discoverSubmit) {
+                    discoverSubmit.disabled = false;
+                    discoverSubmit.textContent = "Descobrir canais";
+                }
+                alert("Busca cancelada pelo usuário.");
+                return;
+            }
+            if (state.status === "interrupted" && !resumeRequested) {
+                resumeRequested = true;
+                try {
+                    await fetchJson("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/resume", { method: "POST" });
+                } catch (e) {
+                    resumeRequested = false;
+                }
+            }
+            progressTimer = window.setTimeout(() => pollJob(token), 900);
+        } catch (error) {
+            if (error.status === 404 || (error.message && error.message.includes("expirada"))) {
+                forgetJob(token);
+            }
+            setProgress(0, error && error.message ? error.message : "Falha ao acompanhar descoberta.");
+            restoreProgressButtons();
+            if (discoverSubmit) {
+                discoverSubmit.disabled = false;
+                discoverSubmit.textContent = "Descobrir canais";
+            }
+            hideGlobalLoading();
+        }
+    }
+
+    if (discoverForm) {
+        discoverForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            startDiscoveryProgress(discoverForm);
+            try {
+                const response = await window.fetch("/video-sources/nvr/discover/start", {
+                    method: "POST",
+                    body: new FormData(discoverForm),
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                const state = await response.json();
+                if (!response.ok) throw new Error(state.error || "Falha ao iniciar descoberta.");
+                rememberJob(state.token);
+                await pollJob(state.token);
+            } catch (error) {
+                setProgress(0, error && error.message ? error.message : "Falha ao iniciar descoberta.");
+                if (discoverSubmit) {
+                    discoverSubmit.disabled = false;
+                    discoverSubmit.textContent = "Descobrir canais";
+                }
+                hideGlobalLoading();
+            }
+        });
+    }
+
+    const pauseBtn = document.getElementById("nvrPauseBtn");
+    const resumeBtn = document.getElementById("nvrResumeBtn");
+    const integrateBtn = document.getElementById("nvrIntegrateBtn");
+    const cancelBtn = document.getElementById("nvrCancelBtn");
+
+    if (pauseBtn) {
+        pauseBtn.addEventListener("click", async () => {
+            const token = storedJob() || initialJobToken;
+            if (!token) return;
+            pauseBtn.disabled = true;
+            pauseBtn.textContent = "Pausando...";
+            try {
+                const response = await window.fetch("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/pause", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                const state = await response.json();
+                if (progressTimer) window.clearTimeout(progressTimer);
+                pauseBtn.style.display = "none";
+                if (resumeBtn) {
+                    resumeBtn.style.display = "inline-block";
+                    resumeBtn.disabled = false;
+                }
+                setProgress(state.percent || 0, "Busca pausada pelo usuário.");
+            } catch (error) {
+                alert(error.message || "Falha ao pausar.");
+            } finally {
+                pauseBtn.disabled = false;
+                pauseBtn.textContent = "⏸️ Pausar busca";
+            }
+        });
+    }
+
+    if (resumeBtn) {
+        resumeBtn.addEventListener("click", async () => {
+            const token = storedJob() || initialJobToken;
+            if (!token) return;
+            resumeBtn.disabled = true;
+            resumeBtn.textContent = "Retomando...";
+            try {
+                const response = await window.fetch("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/resume", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Falha ao retomar.");
+                }
+                resumeBtn.style.display = "none";
+                if (pauseBtn) {
+                    pauseBtn.style.display = "inline-block";
+                    pauseBtn.disabled = false;
+                }
+                await pollJob(token);
+            } catch (error) {
+                alert(error.message || "Falha ao retomar.");
+            } finally {
+                resumeBtn.disabled = false;
+                resumeBtn.textContent = "▶️ Retomar busca";
+            }
+        });
+    }
+
+    if (integrateBtn) {
+        integrateBtn.addEventListener("click", async () => {
+            const token = storedJob() || initialJobToken;
+            if (!token) return;
+            integrateBtn.disabled = true;
+            integrateBtn.textContent = "Integrando...";
+            try {
+                const response = await window.fetch("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/integrate", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Falha ao integrar resultados.");
+                }
+                await pollJob(token);
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                integrateBtn.disabled = false;
+                integrateBtn.textContent = "Integrar resultados já lidos";
+            }
+        });
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener("click", async () => {
+            const token = storedJob() || initialJobToken;
+            if (!token) return;
+            if (!confirm("Tem certeza que deseja cancelar a descoberta?")) return;
+            cancelBtn.disabled = true;
+            cancelBtn.textContent = "Cancelando...";
+            try {
+                const response = await window.fetch("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/cancel", {
+                    method: "POST",
+                    headers: { "Accept": "application/json" },
+                    credentials: "same-origin",
+                });
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Falha ao cancelar.");
+                }
+                if (progressTimer) window.clearTimeout(progressTimer);
+                forgetJob(token);
+                restoreProgressButtons();
+                if (progressBox) progressBox.hidden = true;
+                if (discoverSubmit) {
+                    discoverSubmit.disabled = false;
+                    discoverSubmit.textContent = "Descobrir canais";
+                }
+                const url = new URL(window.location.href);
+                url.searchParams.delete("job");
+                window.history.replaceState({}, "", url.toString());
+            } catch (error) {
+                alert(error.message);
+            } finally {
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = "Cancelar busca";
+            }
+        });
+    }
+
+    if (resumeTimeoutsButton) {
+        resumeTimeoutsButton.addEventListener("click", async () => {
+            const token = resumeTimeoutsButton.dataset.jobToken || "";
+            resumeTimeoutsButton.disabled = true;
+            const response = await window.fetch("/video-sources/nvr/discover/" + encodeURIComponent(token) + "/resume", {
+                method: "POST",
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin",
+            });
+            if (response.ok) {
+                rememberJob(token);
+                window.location.assign("/video-sources/nvr?job=" + encodeURIComponent(token));
+            } else {
+                resumeTimeoutsButton.disabled = false;
+            }
+        });
+    }
+
+    if (completedJobToken) forgetJob(completedJobToken);
+    const resumableJobToken = initialJobToken || storedJob();
+    if (resumableJobToken) {
+        startDiscoveryProgress(discoverForm);
+        pollJob(resumableJobToken);
+    }
+
+    if (createForm) {
+        createForm.addEventListener("submit", () => {
+            if (createProgress) createProgress.hidden = false;
+            if (createSubmit) {
+                createSubmit.disabled = true;
+                createSubmit.textContent = "Criando...";
+            }
+        });
+    }
+
+    window.addEventListener("pagehide", () => {
+        if (progressTimer) window.clearTimeout(progressTimer);
+    });
+})();
+</script>
+{% endblock %}

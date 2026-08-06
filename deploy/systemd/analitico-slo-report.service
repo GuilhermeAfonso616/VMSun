@@ -1,0 +1,13 @@
+[Unit]
+Description=Relatorio SLO do Analitico VMS
+After=analitico-supervisor.service
+RequiresMountsFor=/mnt/analitico_ssd
+
+[Service]
+Type=oneshot
+User=srv-sunshield
+Group=srv-sunshield
+WorkingDirectory=/mnt/analitico_ssd/Analitico_Go_V4
+ExecStart=/usr/bin/python3 /mnt/analitico_ssd/Analitico_Go_V4/scripts/generate_supervisor_slo_report.py
+NoNewPrivileges=true
+PrivateTmp=true

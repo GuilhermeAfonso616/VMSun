@@ -1,0 +1,103 @@
+name: Quality Gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python tests and coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Compile Python sources
+        run: python -m compileall -q app tests scripts main.py
+      - name: Validate legacy SQLite upgrade
+        run: python scripts/verify_database_compatibility.py --mode legacy
+      - name: Run test suite with coverage
+        run: python -m pytest tests -q --cov=app --cov-report=term --cov-report=xml:coverage.xml
+      - name: Upload coverage report
+        if: always() && hashFiles('coverage.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: coverage.xml
+          retention-days: 14
+
+  postgres:
+    name: PostgreSQL schema compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: analitico_test
+          POSTGRES_USER: analitico
+          POSTGRES_PASSWORD: analitico_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U analitico -d analitico_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install database dependencies
+        run: python -m pip install sqlalchemy "psycopg[binary]" pydantic-settings
+      - name: Validate fresh PostgreSQL schema
+        env:
+          DATABASE_URL: postgresql+psycopg://analitico:analitico_test@127.0.0.1:5432/analitico_test
+        run: python scripts/verify_database_compatibility.py --mode fresh --database-url "$DATABASE_URL"
+
+  go:
+    name: Go gateway tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache-dependency-path: gateway/go.mod
+      - run: go test ./...
+
+  dotnet:
+    name: Operator client build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Restore operator client
+        run: dotnet restore operator-client/src/Analitico.Operator.App/Analitico.Operator.App.csproj
+      - name: Build operator client
+        env:
+          AVALONIA_TELEMETRY_OPTOUT: "1"
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+        run: dotnet build operator-client/src/Analitico.Operator.App/Analitico.Operator.App.csproj -c Release --no-restore

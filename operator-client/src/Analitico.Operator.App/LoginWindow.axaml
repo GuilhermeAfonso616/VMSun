@@ -1,0 +1,91 @@
+<Window
+    x:Class="Analitico.Operator.App.LoginWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Width="440"
+    Height="600"
+    WindowStartupLocation="CenterScreen"
+    CanResize="False"
+    Title="SunOrus - Login"
+    Background="#070d19"
+    Icon="avares://Analitico.Operator.App/Assets/sunorus-logo.png">
+
+  <Window.Styles>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#0d1527" />
+      <Setter Property="Foreground" Value="#f8fafc" />
+      <Setter Property="BorderBrush" Value="#1e293b" />
+      <Setter Property="BorderThickness" Value="1.5" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox:focus">
+      <Setter Property="BorderBrush" Value="#2563eb" />
+      <Setter Property="Background" Value="#0f1a32" />
+    </Style>
+    <Style Selector="Button.btn-primary">
+      <Setter Property="Background" Value="#2563eb" />
+      <Setter Property="Foreground" Value="#ffffff" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.btn-primary:pointerover">
+      <Setter Property="Background" Value="#3b82f6" />
+    </Style>
+    <Style Selector="Button.btn-primary:pressed">
+      <Setter Property="Background" Value="#1d4ed8" />
+    </Style>
+    <Style Selector="Button.btn-primary:disabled">
+      <Setter Property="Background" Value="#1e293b" />
+      <Setter Property="Foreground" Value="#64748b" />
+    </Style>
+  </Window.Styles>
+
+  <!-- Single StackPanel to prevent any overlaps -->
+  <StackPanel Margin="36" Spacing="16" VerticalAlignment="Center">
+    <!-- Header: Logo and Title -->
+    <StackPanel Spacing="8" HorizontalAlignment="Center" Margin="0,0,0,16">
+      <Image Source="avares://Analitico.Operator.App/Assets/sunorus-logo.png" Width="68" Height="84" Stretch="Uniform" HorizontalAlignment="Center" />
+      <TextBlock Text="SunOrus VMS" Foreground="#f8fafc" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+      <TextBlock Text="Painel do Operador" Foreground="#64748b" FontSize="13" HorizontalAlignment="Center" />
+    </StackPanel>
+
+    <!-- Server Input -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="Endereço do Servidor" Foreground="#94a3b8" FontSize="13" FontWeight="SemiBold" />
+      <TextBox Name="ServerUrlTextBox" Watermark="Ex: http://192.168.2.62:8000" />
+    </StackPanel>
+
+    <!-- Username Input -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="Usuário" Foreground="#94a3b8" FontSize="13" FontWeight="SemiBold" />
+      <TextBox Name="UsernameTextBox" Watermark="Digite seu usuário" />
+    </StackPanel>
+
+    <!-- Password Input -->
+    <StackPanel Spacing="6">
+      <TextBlock Text="Senha" Foreground="#94a3b8" FontSize="13" FontWeight="SemiBold" />
+      <TextBox Name="PasswordTextBox" PasswordChar="●" Watermark="Digite sua senha" />
+    </StackPanel>
+
+    <!-- Remember Me Checkbox -->
+    <CheckBox Name="RememberMeCheckBox" Content="Permanecer conectado" Foreground="#94a3b8" FontSize="12.5" Margin="0,4,0,0" />
+
+    <!-- Error Message Area -->
+    <Border Name="ErrorBorder" Background="#1c1012" BorderBrush="#7f1d1d" BorderThickness="1" CornerRadius="4" Padding="12,8" IsVisible="False" Margin="0,4,0,0">
+      <TextBlock Name="ErrorTextBlock" Foreground="#fca5a5" FontSize="12.5" TextWrapping="Wrap" HorizontalAlignment="Center" />
+    </Border>
+
+    <!-- Action Button and Progress Bar -->
+    <StackPanel Spacing="12" Margin="0,8,0,0">
+      <Button Name="LoginButton" Classes="btn-primary" Content="Conectar" Height="46" HorizontalAlignment="Stretch" Click="OnLoginClick" />
+      <ProgressBar Name="LoginProgressBar" IsIndeterminate="True" Height="4" Background="#1e293b" Foreground="#2563eb" IsVisible="False" />
+    </StackPanel>
+  </StackPanel>
+</Window>

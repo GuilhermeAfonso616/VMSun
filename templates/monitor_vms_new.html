@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block body_class %}vms-monitor-page{% endblock %}
+
+{% block content %}
+<div class="card vms-filter-card">
+    <form method="get" action="/monitor" id="monitorFilterForm">
+        <div class="grid monitor-filter-grid">
+            <div>
+                <label>Local</label>
+                <select name="site_name">
+                    <option value="">Todos</option>
+                    {% for value in site_options %}
+                    <option value="{{ value }}" {% if selected_site_name == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Grupo</label>
+                <select name="group_name">
+                    <option value="">Todos</option>
+                    {% for value in group_options %}
+                    <option value="{{ value }}" {% if selected_group_name == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Prioridade</label>
+                <select name="camera_priority">
+                    <option value="">Todas</option>
+                    {% for value in ['low','medium','high','critical'] %}
+                    <option value="{{ value }}" {% if selected_camera_priority == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Grid</label>
+                <select name="grid" id="gridSelect">
+                    {% for value in [1,2,4,6,8,9,12,16,25] %}
+                    <option value="{{ value }}" {% if selected_grid == value %}selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Somente rodando</label>
+                <select name="only_running">
+                    <option value="0" {% if not selected_only_running %}selected{% endif %}>Não</option>
+                    <option value="1" {% if selected_only_running %}selected{% endif %}>Sim</option>
+                </select>
+            </div>
+            <div>
+                <label>Somente com alarme</label>
+                <select name="only_alarm">
+                    <option value="0" {% if not selected_only_alarm %}selected{% endif %}>Não</option>
+                    <option value="1" {% if selected_only_alarm %}selected{% endif %}>Sim</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="vms-filter-actions">
+            <button class="btn btn-primary" type="submit">Aplicar filtros</button>
+            <a class="btn btn-secondary" href="/monitor">Limpar</a>
+        </div>
+    </form>
+</div>
+
+<div class="vms-layout">
+    <aside class="card vms-side-panel">
+        <div class="sunorus-panel-tabs" role="tablist" aria-label="Origem operacional">
+            <button type="button" class="active" data-left-panel="library">Biblioteca</button>
+            <button type="button" data-left-panel="map">Mapa</button>
+        </div>
+        <div id="sunorusLibraryPanel">
+        <div class="vms-panel-title">Biblioteca de câmeras</div>
+        <div class="vms-operator-mini-status">
+            <div>
+                <strong>Monitor 1</strong>
+                <span data-stat="displayed">{{ stats.displayed }}</span> cams
+            </div>
+            <div>
+                <strong>IA</strong>
+                <span data-stat="analysis_ok">{{ stats.analysis_ok }}</span> ok
+            </div>
+        </div>
+        <input id="cameraSearchInput" type="text" placeholder="Buscar por nome/local/grupo">
+        <div class="vms-library-filters" aria-label="Filtro da biblioteca">
+            <button type="button" class="active" data-library-filter="all">Todas</button>
+            <button type="button" data-library-filter="visible">Visiveis</button>
+            <button type="button" data-library-filter="alarm">Alarmes</button>
+        </div>
+        <div class="vms-tree-tabs" aria-label="Navegacao da biblioteca">
+            <button type="button" class="active">Objects</button>
+            <button type="button">Monitors</button>
+            <button type="button">Servers</button>
+        </div>
+        <div class="muted compact" style="margin-bottom:10px;">Arraste uma câmera para qualquer slot do mosaico.</div>
+        <div id="cameraLibraryList" class="camera-library-list"></div>
+        </div>
+        <div id="sunorusMapPanel" class="sunorus-map-panel" hidden>
+            <div class="vms-panel-title">Mapa sinotico</div>
+            <div class="sunorus-map-toolbar">
+                <span>Planta operacional</span>
+                <span id="sunorusMapCount">{{ stats.filtered_total if stats.filtered_total is defined else stats.displayed }} cams</span>
+            </div>
+            <div id="sunorusMapCanvas" class="sunorus-synoptic-map" aria-label="Mapa sinotico das cameras"></div>
+            <div class="muted compact">Clique em um pin para selecionar ou preencher o proximo slot livre.</div>
+        </div>
+    </aside>
+
+    <section class="vms-stage">
+        <div class="sunorus-stage-title">
+            <span>Palco Operacional</span>
+            <strong>Streams / HUD / Spotlight</strong>
+        </div>
+        <div class="vms-stage-top">
+            <div class="vms-console-group vms-layout-strip">
+                {% for value in [1,2,4,6,8,9,12,16,25] %}
+                <button
+                    type="button"
+                    class="btn btn-small {% if selected_grid == value %}btn-primary{% else %}btn-secondary{% endif %} vms-grid-btn"
+                    data-grid-preset="{{ value }}"
+                    title="Mosaico {{ value }}"
+                    aria-label="Mosaico {{ value }}"
+                >
+                    <span class="vms-grid-icon" data-grid-icon="{{ value }}" aria-hidden="true"></span>
+                </button>
+                {% endfor %}
+                <select id="layoutModeSelect" class="vms-control-select" title="Disposicao do mosaico">
+                    <option value="standard">Grade</option>
+                    <option value="featured5">Destaque + 5</option>
+                    <option value="featured7">Destaque + 7</option>
+                    <option value="sandbox">Sandbox (Livre)</option>
+                </select>
+                <div id="vmsSandboxControls" style="display:none; align-items:center; gap:4px; margin-left:4px;">
+                    <button type="button" class="btn btn-secondary btn-small" id="sandboxAddTileBtn" title="Adicionar novo bloco ao mosaico Sandbox">+ Bloco</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="sandboxRemoveTileBtn" title="Remover último bloco livre">- Bloco</button>
+                </div>
+                <button type="button" class="btn btn-secondary btn-small" id="operatorModeToggle">Modo operador</button>
+                <button type="button" class="btn btn-primary btn-small" id="centralPopupToggleBtn" title="Ativar ou desativar o Popup Grande em Tela Cheia no meio da tela em novos alarmes">Popup Central ligado</button>
+                <button type="button" class="btn btn-primary btn-small" id="globalMuteToggle" title="Ativar ou desativar aviso sonoro de alarmes">🔊 Aviso sonoro: Ativo</button>
+
+                <div style="display:inline-flex; align-items:center; gap:6px; border-left:1px solid var(--line-soft); padding-left:10px; margin-left:4px;">
+                    <select id="savedViewSelect" class="vms-control-select" title="Visões salvas">
+                        <option value="">Visões salvas</option>
+                    </select>
+                    <button type="button" class="btn btn-primary btn-small" id="saveViewBtn" title="Salvar mosaico atual">Salvar visão</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="deleteViewBtn" title="Excluir visão selecionada" style="border-color:var(--red); color:var(--red);">Excluir</button>
+                </div>
+                <div style="display:inline-flex; align-items:center; gap:6px; border-left:1px solid var(--line-soft); padding-left:10px; margin-left:4px;">
+                    <select id="temporalSequenceSelect" class="vms-control-select" title="Mosaicos Temporais" style="border: 1px solid rgba(139, 92, 246, 0.45); color: #c084fc; background: rgba(139, 92, 246, 0.05);">
+                        <option value="">Mosaicos Temporais</option>
+                    </select>
+                </div>
+
+                <details class="vms-more-options">
+                    <summary>Mais opções</summary>
+                    <div class="vms-console-tools">
+                        <button type="button" class="btn btn-secondary btn-small" id="tileDetailsToggle">Detalhes: Ocultos</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="tileHeadersToggle">Nomes: Ocultos (Hover)</button>
+
+                        {% if monitor_dev_mode %}
+                        <button type="button" class="btn btn-primary btn-small" id="webrtcPureToggle">WebRTC: Direto</button>
+                        {% endif %}
+                        <button type="button" class="btn btn-primary btn-small" id="overlayToggleBtn">Linhas IA: Visíveis</button>
+                        <button type="button" class="btn btn-primary btn-small" id="boxesToggleBtn">Boxes: Visíveis</button>
+                        <label class="vms-inline-number" title="Confianca minima para mostrar uma box no mosaico">
+                            <span>Box min %</span>
+                            <input id="boxConfidenceInput" type="number" min="0" max="100" step="5" value="40" inputmode="numeric">
+                        </label>
+                        {% if monitor_dev_mode %}
+                        <a class="btn btn-secondary btn-small" href="/monitor/webrtc?grid={{ selected_grid }}">Diagnóstico WebRTC</a>
+                        {% endif %}
+                        <button type="button" class="btn btn-secondary btn-small" id="autoFillBtn">Auto preencher</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="autoFillVisibleBtn">Auto visíveis</button>
+                        {% if monitor_dev_mode %}
+                        <button type="button" class="btn btn-secondary btn-small" id="autoFillAlarmBtn">Alarmes</button>
+                        <button type="button" class="btn btn-warning btn-small" id="testCentralPopupBtn">Testar popup</button>
+                        {% endif %}
+                        <button type="button" class="btn btn-secondary btn-small" id="sequenceToggle">Sequencial: Desligado</button>
+                        <button type="button" class="btn btn-primary btn-small" id="spotlightToggle">Spotlight: Ligado</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="layoutLockToggle">Mosaico: Destravado</button>
+                        <button type="button" class="btn btn-danger btn-small" id="clearLayoutBtn">Limpar mosaico</button>
+
+                    </div>
+                </details>
+            </div>
+        </div>
+        <div class="muted compact vms-shortcuts" style="margin-bottom:8px;">
+            Atalhos: <strong>Ctrl+1/2/4/6/8/9</strong> altera o grid, <strong>Ctrl+0</strong> abre 16, clique em uma camera da biblioteca para preencher o proximo slot vazio.
+        </div>
+        <div id="vmsTemporalSequenceBanner" class="vms-codec-fallback-notice" style="background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.4); color: #c084fc; display: none; align-items: center; justify-content: space-between; padding: 10px 16px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);" hidden>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="vms-status-dot" style="background: #a855f7; animation: pulse 1.5s infinite; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
+                <strong id="vmsTemporalSequenceInfo">Sequência Ativa: Ronda Noturna (Fazenda 1 - Próximo em 8s)</strong>
+            </div>
+            <button type="button" class="btn btn-danger btn-small" id="stopTemporalSequenceBtn" style="padding: 4px 10px; font-size: 12px; margin-left: 12px;">Pausar Sequência</button>
+        </div>
+
+        <div id="vmsCodecFallbackNotice" class="vms-codec-fallback-notice" hidden>
+            <div class="vms-codec-fallback-text">
+                <strong data-fallback-title>Mosaico em modo de compatibilidade.</strong>
+                <span data-fallback-message></span>
+                <span data-fallback-detail>Este navegador nao decodifica H.265/HEVC. O SunOrus Video Helper roda nesta estacao e devolve o video em tempo real das cameras H.265.</span>
+            </div>
+            <div class="vms-codec-fallback-actions">
+                <a class="btn btn-small btn-primary" data-helper-download href="/downloads/video-helper/setup" hidden>Baixar o Video Helper</a>
+                <a class="btn btn-small" data-hevc-install-link
+                   href="https://support.microsoft.com/pt-br/windows/hardware/display-graphics/what-is-hdr-in-windows"
+                   target="_blank" rel="noopener noreferrer">Instalar suporte HEVC no Windows</a>
+            </div>
+        </div>
+
+        <div class="vms-stats-grid" id="monitorStats">
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Exibidas</div>
+                <div class="vms-stat-value" data-stat="displayed">{{ stats.displayed }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Filtradas</div>
+                <div class="vms-stat-value" data-stat="filtered_total">{{ stats.filtered_total }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Rodando</div>
+                <div class="vms-stat-value" data-stat="running">{{ stats.running }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Imagem OK</div>
+                <div class="vms-stat-value" data-stat="image_ok">{{ stats.image_ok }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">IA OK</div>
+                <div class="vms-stat-value" data-stat="analysis_ok">{{ stats.analysis_ok }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Com alarme</div>
+                <div class="vms-stat-value" data-stat="with_alarm">{{ stats.with_alarm }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Alta/Crítica</div>
+                <div class="vms-stat-value" data-stat="critical_or_high">{{ stats.critical_or_high }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Novos alarmes</div>
+                <div class="vms-stat-value" data-stat="new_alarms">{{ stats.new_alarms }}</div>
+            </div>
+            <div class="vms-stat-box">
+                <div class="vms-stat-label">Gateway</div>
+                <div class="vms-stat-value" id="gatewayHealthValue">...</div>
+                <div class="vms-gateway-detail muted compact" id="gatewayHealthDetail"></div>
+            </div>
+        </div>
+
+        <div class="vms-wall-wrap">
+            <div id="vmsWall" class="vms-wall grid-{{ selected_grid }}"></div>
+        </div>
+    </section>
+
+    <aside class="card vms-side-panel">
+        <div class="vms-response-summary">
+            <div>
+                <div class="vms-brand-title">Operacao</div>
+                <div class="vms-brand-sub">Resumo do monitor em tempo real</div>
+            </div>
+            <div class="vms-system-strip">
+                <div><span>Cameras</span><strong data-stat="displayed">{{ stats.displayed }}</strong></div>
+                <div class="is-alarm"><span>Alarmes</span><strong data-stat="with_alarm">{{ stats.with_alarm }}</strong></div>
+                <div class="is-ai"><span>IA ativa</span><strong data-stat="analysis_ok">{{ stats.analysis_ok }}</strong></div>
+            </div>
+        </div>
+        {% if monitor_can_control_camera %}
+        <div class="vms-ptz-panel" id="monitorPtzPanel">
+            <div class="vms-ptz-panel-head">
+                <div class="vms-ptz-panel-title-wrap" id="monitorPtzToggleCollapse" style="cursor: pointer; user-select: none;" title="Minimizar / Expandir PTZ">
+                    <div class="vms-panel-title" style="display: flex; align-items: center; gap: 8px;">
+                        <span>Controle PTZ</span>
+                        <span class="vms-ptz-collapse-icon" id="monitorPtzCollapseIcon" style="font-size: 10px; display: inline-block; transition: transform 0.2s ease;">▼</span>
+                        <span id="monitorPtzInfoIcon" class="vms-ptz-info-icon" style="display: none; cursor: help; font-size: 13px;" title="">ℹ️</span>
+                    </div>
+                    <div class="vms-ptz-camera-name" id="monitorPtzCameraName">Selecione uma camera</div>
+                </div>
+                <div class="vms-ptz-panel-actions">
+                    <button type="button" class="btn btn-secondary btn-small" id="monitorPtzReinspect">Reavaliar</button>
+                    <a class="btn btn-secondary btn-small" id="monitorPtzOpenDetail" href="#">Detalhes</a>
+                </div>
+            </div>
+            <div class="vms-ptz-panel-body" id="monitorPtzPanelBody" style="transition: max-height 0.3s ease; overflow: hidden;">
+                <div class="vms-ptz-camera-meta" id="monitorPtzCameraMeta">Clique em um tile para controlar a camera selecionada.</div>
+                <details id="monitorPtzDiagnosticsWrap" style="display:none; margin:8px 0;">
+                    <summary style="cursor:pointer; font-size:12px; font-weight:700;">Diagnostico tecnico SDK</summary>
+                    <pre id="monitorPtzDiagnostics" style="max-height:240px; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:11px; margin:6px 0 0; padding:8px; border:1px solid var(--line-soft); border-radius:8px;"></pre>
+                </details>
+                <div class="vms-ptz-mode-tabs" role="tablist" aria-label="Modo de Controle PTZ">
+                    <button type="button" class="vms-ptz-tab-btn active" data-ptz-mode="pad" role="tab" aria-selected="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                        <span>Botões</span>
+                    </button>
+                    <button type="button" class="vms-ptz-tab-btn" data-ptz-mode="joystick" role="tab" aria-selected="false">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+                        <span>Joystick</span>
+                    </button>
+                </div>
+                <div class="vms-ptz-pad" id="monitorPtzPad" aria-label="Controle PTZ">
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="-1" data-tilt="1">↖</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="0" data-tilt="1">↑</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="1" data-tilt="1">↗</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="-1" data-tilt="0">←</button>
+                    <button type="button" class="vms-ptz-btn vms-ptz-stop" data-ptz-action="3d" aria-pressed="false" title="Ativar posicionamento 3D">◎</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="1" data-tilt="0">→</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="-1" data-tilt="-1">↙</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="0" data-tilt="-1">↓</button>
+                    <button type="button" class="vms-ptz-btn" data-ptz-action="move" data-pan="1" data-tilt="-1">↘</button>
+                </div>
+                <div class="vms-ptz-joystick-container" id="monitorPtzJoystickContainer" style="display: none;">
+                    <div class="vms-ptz-joystick-base" id="monitorPtzJoystickBase">
+                        <div class="vms-ptz-joystick-shaft" id="monitorPtzJoystickShaft"></div>
+                        <div class="vms-ptz-joystick-handle" id="monitorPtzJoystickHandle"></div>
+                        <span class="vms-joystick-label label-u">▲</span>
+                        <span class="vms-joystick-label label-d">▼</span>
+                        <span class="vms-joystick-label label-l">◀</span>
+                        <span class="vms-joystick-label label-r">▶</span>
+                    </div>
+                    <button type="button" class="vms-ptz-3d-toggle" id="monitorPtz3dJoystick" data-ptz-action="3d" aria-pressed="false" title="Ativar posicionamento 3D na imagem">Ativar 3D</button>
+                </div>
+                <div class="vms-ptz-zoom-row">
+                    <button type="button" class="vms-ptz-btn vms-ptz-zoom-btn" data-ptz-action="move" data-zoom="1">Zoom +</button>
+                    <button type="button" class="vms-ptz-btn vms-ptz-zoom-btn" data-ptz-action="move" data-zoom="-1">Zoom −</button>
+                </div>
+                <div class="vms-ptz-speed">
+                    <span>Velocidade</span>
+                    <input type="range" id="monitorPtzSpeed" min="0.1" max="1" step="0.1" value="0.5">
+                    <strong id="monitorPtzSpeedValue">0.5</strong>
+                </div>
+                <div class="vms-ptz-presets">
+                    <label for="monitorPtzPresetSelect">Preset</label>
+                    <div class="vms-ptz-preset-controls">
+                        <select id="monitorPtzPresetSelect" disabled>
+                            <option value="">Selecione uma câmera PTZ</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-small" id="monitorPtzPresetGo" disabled>Ir</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="monitorPtzPresetRefresh" disabled>Atualizar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <div id="sunorusSpotlight" class="sunorus-spotlight" hidden>
+            <div class="sunorus-spotlight-head">
+                <span>Spotlight de Alarme</span>
+                <button type="button" id="sunorusSpotlightClose" aria-label="Fechar spotlight">x</button>
+            </div>
+            <div class="sunorus-spotlight-title" id="sunorusSpotlightTitle">-</div>
+            <div class="sunorus-spotlight-meta" id="sunorusSpotlightMeta">-</div>
+            <div class="sunorus-spotlight-actions">
+                <button type="button" class="btn btn-secondary btn-small" id="sunorusSpotlightAck">Reconhecer</button>
+                <a class="btn btn-secondary btn-small" id="sunorusSpotlightOpen" href="#">Abrir evento</a>
+                <button type="button" class="btn btn-secondary btn-small" id="sunorusSpotlightPin">Fixar camera</button>
+                <button type="button" class="btn btn-secondary btn-small" id="sunorusSpotlightRemove">Remover spotlight</button>
+            </div>
+        </div>
+        <div class="vms-panel-title vms-sequence-title">Sequencia</div>
+        <div class="vms-sequence-box">
+            <button type="button" id="classicSeqPlay" title="Iniciar sequencia">▶</button>
+            <button type="button" id="classicSeqPause" title="Pausar sequencia">Ⅱ</button>
+            <button type="button" id="classicSeqNext" title="Proxima pagina">▶▶</button>
+        </div>
+        <div class="vms-panel-title vms-alarm-queue-title">
+            <span>Fila de alarmes</span>
+            <button
+                type="button"
+                id="clearLiveAlarmQueueBtn"
+                class="btn btn-secondary btn-small"
+                title="Descartar os pop-ups atuais sem fechar os alarmes no sistema"
+            >Limpar fila</button>
+        </div>
+        <div id="alarmSidebarList" class="alarm-sidebar-list"></div>
+    </aside>
+</div>
+
+<div id="sunorusShortcutModal" class="sunorus-modal-backdrop" hidden>
+    <div class="sunorus-shortcut-modal" role="dialog" aria-modal="true" aria-labelledby="sunorusShortcutTitle">
+        <div class="sunorus-modal-head">
+            <div>
+                <div class="sunorus-kicker">SunOrus</div>
+                <h2 id="sunorusShortcutTitle">Atalhos de teclado</h2>
+            </div>
+            <button type="button" id="sunorusShortcutClose" aria-label="Fechar">x</button>
+        </div>
+        <div class="sunorus-shortcut-grid">
+            <span>Ctrl + 1/4/6/9/0</span><strong>Trocar layout do mosaico</strong>
+            <span>Ctrl + 2/8/0</span><strong>Layouts 2, 8 e 16; demais pelo seletor</strong>
+            <span>Alt + 1-9</span><strong>Focar slot correspondente (Spotlight)</strong>
+            <span>Esc</span><strong>Fechar modal ou sair do foco</strong>
+            <span>S</span><strong>Silenciar/Ativar áudio de alarmes</strong>
+            <span>B</span><strong>Mostrar/ocultar boxes</strong>
+            <span>L</span><strong>Bloquear/desbloquear layout</strong>
+            <span>M</span><strong>Alternar Biblioteca/Mapa</strong>
+            <span>A</span><strong>Ir para a fila de alarmes</strong>
+            <span>Espaco</span><strong>Iniciar/pausar sequencia</strong>
+            <span>Delete</span><strong>Remover camera do slot sob foco</strong>
+        </div>
+    </div>
+</div>
+
+<div id="sunorusEvidenceModal" class="sunorus-modal-backdrop" hidden>
+    <div class="sunorus-evidence-modal" role="dialog" aria-modal="true" aria-labelledby="sunorusEvidenceTitle">
+        <div class="sunorus-modal-head">
+            <div>
+                <div class="sunorus-kicker" id="sunorusEvidenceKind">Evidencia</div>
+                <h2 id="sunorusEvidenceTitle">-</h2>
+                <p id="sunorusEvidenceMeta">-</p>
+            </div>
+            <button type="button" id="sunorusEvidenceClose" aria-label="Fechar">x</button>
+        </div>
+        <div class="sunorus-evidence-body" id="sunorusEvidenceBody"></div>
+        <div class="sunorus-evidence-actions">
+            <a class="btn btn-secondary btn-small" id="sunorusEvidenceOpen" href="#" target="_blank" rel="noopener">Abrir em nova aba</a>
+        </div>
+    </div>
+</div>
+
+<div id="sunorusLiveAlarmModal" class="sunorus-modal-backdrop sunorus-live-alarm-backdrop" hidden>
+    <div class="sunorus-live-alarm-modal" role="dialog" aria-modal="true" aria-labelledby="sunorusLiveAlarmTitle">
+        <div class="sunorus-live-alarm-head">
+            <div>
+                <div class="sunorus-kicker" id="sunorusLiveAlarmKicker">Alarme novo</div>
+                <h2 id="sunorusLiveAlarmTitle">-</h2>
+                <p id="sunorusLiveAlarmMeta">-</p>
+            </div>
+            <div class="sunorus-live-alarm-head-actions">
+                <span id="sunorusLiveAlarmSessionBadge" class="sunorus-session-badge" hidden>Sessão Ativa</span>
+                <span id="sunorusLiveAlarmQueue" class="sunorus-live-alarm-queue" hidden></span>
+                <button type="button" id="sunorusLiveAlarmMinimize" aria-label="Minimizar alerta">Minimizar</button>
+            </div>
+        </div>
+        <div class="sunorus-live-alarm-body">
+            <div class="sunorus-live-alarm-media-col">
+                <div class="sunorus-live-alarm-media-row">
+                    <div class="sunorus-live-alarm-video" id="sunorusLiveAlarmVideo"></div>
+                    <aside class="sunorus-live-alarm-evidence" id="sunorusLiveAlarmEvidence" hidden>
+                        <div class="sunorus-live-alarm-evidence-head">
+                            <div>
+                                <span id="sunorusLiveAlarmEvidenceKind">Evidencia</span>
+                                <strong id="sunorusLiveAlarmEvidenceTitle">-</strong>
+                            </div>
+                            <button type="button" id="sunorusLiveAlarmEvidenceClose" aria-label="Fechar evidencia">x</button>
+                        </div>
+                        <div class="sunorus-live-alarm-evidence-body" id="sunorusLiveAlarmEvidenceBody"></div>
+                    </aside>
+                </div>
+                <div class="sunorus-crop-box" id="sunorusLiveAlarmCropBox" style="margin-top:8px; display:none;">
+                    <span class="sunorus-crop-title" style="font-size:11px; opacity:0.8; display:block; margin-bottom:4px;">Crop de Recorte do Intruso (IA)</span>
+                    <canvas id="sunorusLiveAlarmCropCanvas" style="max-width:100%; border:1px solid #444; border-radius:4px; background:#000;"></canvas>
+                </div>
+            </div>
+            <div class="sunorus-live-alarm-side">
+                <div class="sunorus-live-alarm-card">
+                    <span>Evento</span>
+                    <strong id="sunorusLiveAlarmEventType">-</strong>
+                </div>
+                <div class="sunorus-live-alarm-card">
+                    <span>Severidade</span>
+                    <strong id="sunorusLiveAlarmSeverity">-</strong>
+                </div>
+                <div class="sunorus-live-alarm-card">
+                    <span>Status / SLA</span>
+                    <strong id="sunorusLiveAlarmStatus">-</strong>
+                    <div id="sunorusLiveAlarmSlaTimer" style="font-size:12px; color:#ff9800; margin-top:2px;"></div>
+                </div>
+                <div class="sunorus-live-alarm-actions" style="display:flex; flex-direction:column; gap:6px;">
+                    <button type="button" class="btn btn-danger" id="sunorusLiveAlarmAck" style="font-weight:bold;"><span class="btn-icon">🚨</span> Ameaça Detectada</button>
+                    <button type="button" class="btn btn-success" id="sunorusLiveAlarmAuthorize"><span class="btn-icon">🛡️</span> Atividade Autorizada</button>
+                    <button type="button" class="btn btn-warning" id="sunorusLiveAlarmCloseEvent"><span class="btn-icon">🔕</span> Falso Alarme</button>
+                    <div style="display:flex; gap:6px; margin-top:4px;">
+                        <button type="button" class="btn btn-secondary" id="sunorusLiveAlarmSnapshot" style="flex:1;">Snapshot</button>
+                        <button type="button" class="btn btn-secondary" id="sunorusLiveAlarmClip" style="flex:1;">Clipe</button>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:4px;">
+                        <a class="btn btn-secondary" id="sunorusLiveAlarmOpenEvent" href="#" style="flex:1; text-align:center;">Abrir Evento</a>
+                        <button type="button" class="btn btn-secondary" id="sunorusLiveAlarmPin" style="flex:1;">Ver Mosaico</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+  <link rel="stylesheet" href="/static/css/monitor_vms.css?v={{ range(1000, 9999) | random }}">
+
+<script id="monitorBootstrap" type="application/json">
+{{ {
+    "selectedGrid": selected_grid,
+    "stats": stats,
+    "gatewayHealth": gateway_health if gateway_health is defined else None,
+    "availableCameras": available_cameras_payload,
+    "visibleCameras": visible_cameras_payload,
+    "alarms": panel_alarms_payload,
+    "webrtcMonitorEnabled": webrtc_monitor_enabled if webrtc_monitor_enabled is defined else False,
+    "webrtcPublicBaseUrl": webrtc_public_base_url if webrtc_public_base_url is defined else "",
+    "monitorDevMode": monitor_dev_mode if monitor_dev_mode is defined else False,
+    "monitorCanControlCamera": monitor_can_control_camera if monitor_can_control_camera is defined else False,
+    "mosaicStorageUserId": mosaic_storage_user_id if mosaic_storage_user_id is defined else None,
+    "queueSessionKey": monitor_queue_session_key if monitor_queue_session_key is defined else "",
+    "queueSessionStartedAt": monitor_queue_session_started_at if monitor_queue_session_started_at is defined else "",
+    "webTrackTransportMode": web_track_transport_mode if web_track_transport_mode is defined else "polling",
+    "webTrackSseCameraIds": web_track_sse_camera_ids if web_track_sse_camera_ids is defined else "",
+    "visualTrackFreshMs": visual_track_fresh_ms if visual_track_fresh_ms is defined else 500,
+    "visualTrackRetentionMs": visual_track_retention_ms if visual_track_retention_ms is defined else 3000,
+    "alarmQueueSignature": alarm_queue_signature if alarm_queue_signature is defined else "",
+    "latestAlarmSignature": latest_alarm_signature,
+    "alarmShouldPlay": alarm_should_play,
+    "popupShouldShow": popup_should_show,
+    "latestPopupAlarm": latest_popup_alarm_payload
+} | tojson }}
+</script>
+
+  <script src="/static/js/monitor_vms.js?v={{ range(1000, 9999) | random }}"></script>
+
+{% endblock %}

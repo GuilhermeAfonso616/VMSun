@@ -1,0 +1,953 @@
+<Window
+    x:Class="Analitico.Operator.App.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:Analitico.Operator.App.Controls"
+    xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+    xmlns:vm="clr-namespace:Analitico.Operator.App.ViewModels"
+    Width="1640"
+    Height="940"
+    MinWidth="1320"
+    MinHeight="720"
+    Title="SunOrus"
+    TransparencyLevelHint="Mica,AcrylicBlur,Transparent"
+    Background="Transparent"
+    WindowState="Maximized">
+  <Window.Styles>
+    <Style Selector="Arc.spin">
+      <Style.Animations>
+        <Animation Duration="0:0:1.2" IterationCount="Infinite">
+          <KeyFrame Cue="0%">
+            <Setter Property="RotateTransform.Angle" Value="0"/>
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="RotateTransform.Angle" Value="360"/>
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+  </Window.Styles>
+  <Grid Background="{StaticResource SoBgBaseTranslucent}" RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,Auto">
+    <Border Classes="app-chrome" Grid.Row="0" Grid.ColumnSpan="2" IsVisible="{Binding IsChromeVisible}" BorderThickness="0,0,0,1">
+      <Grid RowDefinitions="Auto,Auto">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="10,8,10,5">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Image Source="avares://Analitico.Operator.App/Assets/sunorus-logo.png" Width="34" Height="42" Stretch="Uniform" VerticalAlignment="Center" />
+            <StackPanel Spacing="0" VerticalAlignment="Center">
+              <TextBlock Text="SunOrus" Foreground="{StaticResource SoText}" FontFamily="Verdana" FontSize="19" FontWeight="Bold" VerticalAlignment="Center" />
+              <TextBlock Text="VMS + Analytics" Classes="kicker" FontSize="9" />
+            </StackPanel>
+            <Border Classes="status-pill" VerticalAlignment="Center">
+              <TextBlock Text="{Binding OperatorHeadline}" Classes="kicker" FontSize="11" />
+            </Border>
+          </StackPanel>
+
+          <Border Classes="performance-meter" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="6">
+              <TextBlock Grid.Column="0" Text="PERF" Classes="kicker" VerticalAlignment="Center" FontSize="10" Margin="0,0,2,0" />
+              <Border Classes="perf-cell" Grid.Column="1">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="CPU" Classes="faint" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding PerformanceCpuText}" Foreground="{StaticResource SoText}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <Border Classes="perf-cell" Grid.Column="2">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="RAM" Classes="faint" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding PerformanceRamText}" Foreground="{StaticResource SoText}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+              <Border Classes="perf-cell" Grid.Column="3" ToolTip.Tip="FPS total informado pelos workers do servidor">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <TextBlock Text="FPS" Classes="faint" FontSize="10" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding PerformanceFpsText}" Foreground="{StaticResource SoCyan}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </Border>
+
+          <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Grid.Column="0" Spacing="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+              <TextBlock Text="{Binding LastRefreshText}" Classes="muted" HorizontalAlignment="Right" FontSize="11" />
+              <TextBlock Text="{Binding ResourceSummary}" Classes="faint" HorizontalAlignment="Right" FontSize="10" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button Classes="icon-button" Command="{Binding OpenSettingsCommand}" Width="32" Height="30" ToolTip.Tip="Configuracoes" AutomationProperties.Name="Configuracoes" IsVisible="{Binding IsAdminOrSupervisor}">
+                <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+              </Button>
+              <Button Classes="icon-button" Click="OnLogoutClick" Width="32" Height="30" ToolTip.Tip="Encerrar sessão (logout)" AutomationProperties.Name="Logout">
+                <TextBlock Text="&#xF3B1;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+              </Button>
+            </StackPanel>
+          </Grid>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="10,0,10,8">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="PALCO OPERACIONAL" Classes="kicker" FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="·" Classes="muted" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentViewName}" Foreground="{StaticResource SoTextSoft}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="Mosaico" Classes="muted" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <Button Classes="grid-button" Classes.active="{Binding Grid1Selected}" Command="{Binding SetGridCommand}" CommandParameter="1" ToolTip.Tip="Mosaico 1x1">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="1" Columns="1">
+                  <Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid2Selected}" Command="{Binding SetGridCommand}" CommandParameter="2" ToolTip.Tip="Mosaico 1x2">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="1" Columns="2">
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid4Selected}" Command="{Binding SetGridCommand}" CommandParameter="4" ToolTip.Tip="Mosaico 2x2">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="2" Columns="2">
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid6Selected}" Command="{Binding SetGridCommand}" CommandParameter="6" ToolTip.Tip="Mosaico 3x2">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="2" Columns="3">
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid8Selected}" Command="{Binding SetGridCommand}" CommandParameter="8" ToolTip.Tip="Mosaico 4x2">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="2" Columns="4">
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid9Selected}" Command="{Binding SetGridCommand}" CommandParameter="9" ToolTip.Tip="Mosaico 3x3">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="3" Columns="3">
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid12Selected}" Command="{Binding SetGridCommand}" CommandParameter="12" ToolTip.Tip="Mosaico 4x3">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="3" Columns="4">
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid16Selected}" Command="{Binding SetGridCommand}" CommandParameter="16" ToolTip.Tip="Mosaico 4x4">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="4" Columns="4">
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="grid-button" Classes.active="{Binding Grid25Selected}" Command="{Binding SetGridCommand}" CommandParameter="25" ToolTip.Tip="Mosaico 5x5">
+              <Border Classes="grid-preview-border" Width="24" Height="16">
+                <UniformGrid Rows="5" Columns="5">
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                  <Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" /><Border Classes="grid-cell" />
+                </UniformGrid>
+              </Border>
+            </Button>
+            <Button Classes="icon-button" Command="{Binding ToggleFocusCommand}" Width="32" Height="30" ToolTip.Tip="Foco" AutomationProperties.Name="Foco">
+              <TextBlock Text="&#xE722;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+            </Button>
+            <Button Classes="icon-button" Command="{Binding ToggleMosaicFullscreenCommand}" Width="32" Height="30" ToolTip.Tip="{Binding MosaicFullscreenText}" AutomationProperties.Name="Tela cheia do mosaico">
+              <TextBlock Text="&#xE740;" FontFamily="Segoe Fluent Icons" FontSize="17" />
+            </Button>
+            <Button Classes="toolbar-primary" Command="{Binding SaveViewCommand}" ToolTip.Tip="Salvar, selecionar e ativar mosaicos sincronizados com o web" AutomationProperties.Name="Gerenciar mosaicos">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="&#xE8A7;" FontFamily="Segoe Fluent Icons" FontSize="13" />
+                <TextBlock Text="Mosaicos" />
+              </StackPanel>
+            </Button>
+            <Button Classes="icon-button" Command="{Binding ToggleSidePanelCommand}" Width="30" Height="30" ToolTip.Tip="Mostrar ou ocultar painel lateral" AutomationProperties.Name="Alternar painel lateral">
+              <TextBlock Text="&#xE76C;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Grid>
+    </Border>
+
+
+
+    <Border Grid.Row="{Binding MosaicGridRow}" Grid.Column="{Binding MosaicGridColumn}" Grid.RowSpan="{Binding MosaicGridRowSpan}" Grid.ColumnSpan="{Binding MosaicGridColumnSpan}" Name="MosaicHost" Background="#000000" SizeChanged="OnMosaicHostSizeChanged" ClipToBounds="True">
+      <ItemsControl ItemsSource="{Binding MosaicSlots}" Margin="5">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="{Binding GridColumns}" Rows="{Binding GridRows}" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border
+                Width="{Binding TileWidth}"
+                Height="{Binding TileHeight}"
+                Margin="3"
+                Classes="mosaic-tile"
+                BorderBrush="{Binding BorderBrush}"
+                BorderThickness="{Binding BorderThickness}"
+                PointerPressed="OnSlotPointerPressed"
+                PointerMoved="OnSlotPointerMoved"
+                PointerReleased="OnSlotPointerReleased"
+                PointerCaptureLost="OnSlotPointerCaptureLost"
+                DragDrop.AllowDrop="True"
+                DragDrop.DragOver="OnSlotDragOver"
+                DragDrop.Drop="OnSlotDrop">
+              <Grid>
+                <Grid IsVisible="{Binding HasCamera}" Background="{StaticResource SoBgVideo}" ClipToBounds="True" RowDefinitions="22,*">
+                  <Border
+                      Classes="tile-header"
+                      Grid.Row="0"
+                      HorizontalAlignment="Stretch"
+                      PointerPressed="OnSlotPointerPressed"
+                      PointerMoved="OnSlotPointerMoved"
+                      PointerReleased="OnSlotPointerReleased"
+                      PointerCaptureLost="OnSlotPointerCaptureLost"
+                      ToolTip.Tip="Arraste esta faixa para mover ou trocar o slot; clique para selecionar para PTZ">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                      <Border Classes="slot-index" Grid.Column="0">
+                        <TextBlock Text="{Binding SlotBadgeText}" Foreground="{StaticResource SoTextSoft}" FontSize="10" FontWeight="Bold" />
+                      </Border>
+                      <TextBlock
+                          Grid.Column="1"
+                          Text="{Binding CameraName}"
+                          Foreground="{StaticResource SoText}"
+                          FontSize="11"
+                          FontWeight="Bold"
+                          VerticalAlignment="Center"
+                          TextTrimming="CharacterEllipsis" />
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                        <Border Classes="badge" Background="{Binding ImageBadgeBrush}" Padding="4,1">
+                          <TextBlock Text="{Binding ImageBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                        <Border Classes="badge" Background="{Binding IaBadgeBrush}" Padding="4,1">
+                          <TextBlock Text="{Binding IaBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                        <Border Classes="badge" Background="{Binding StatusBadgeBrush}" Padding="4,1">
+                          <TextBlock Text="{Binding StatusBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                        </Border>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+
+                  <Grid Grid.Row="1" Background="{StaticResource SoBgVideo}" ClipToBounds="True">
+                  <controls:NativeDragVideoView
+                      MediaPlayer="{Binding MediaPlayer}"
+                      IsVisible="{Binding UseNativePlayback}"
+                      IsHitTestVisible="False"
+                      Width="{Binding VideoOverlayWidth}"
+                      Height="{Binding VideoOverlayHeight}"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      PointerPressed="OnSlotPointerPressed"
+                      PointerMoved="OnSlotPointerMoved"
+                      PointerReleased="OnSlotPointerReleased"
+                      PointerCaptureLost="OnSlotPointerCaptureLost"
+                      NativeDragStarted="OnVideoNativeDragStarted"
+                      NativeDragCompleted="OnVideoNativeDragCompleted" />
+
+                  <controls:CallbackTrackVideoView
+                      SourceUrl="{Binding CallbackPlaybackUrl}"
+                      IsActive="{Binding UseCallbackPlayback}"
+                      FrameWidth="{Binding CallbackFrameWidth}"
+                      FrameHeight="{Binding CallbackFrameHeight}"
+                      Boxes="{Binding TrackBoxes}"
+                      Revision="{Binding TrackOverlayRevision}"
+                      Width="{Binding VideoOverlayWidth}"
+                      Height="{Binding VideoOverlayHeight}"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Stretch="{Binding StretchMode}"
+                      IsVisible="{Binding UseCallbackPlayback}" />
+
+                  <Border IsVisible="{Binding HasPlaybackMessage}" Background="#b0000000" Padding="9,6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding EmptyMessage}" Foreground="White" FontSize="12" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="280" />
+                  </Border>
+
+                  <Grid
+                      Background="#01000000"
+                      PointerPressed="OnSlotPointerPressed"
+                      PointerMoved="OnSlotPointerMoved"
+                      PointerReleased="OnSlotPointerReleased"
+                      PointerCaptureLost="OnSlotPointerCaptureLost"
+                      ToolTip.Tip="Arraste qualquer ponto da imagem para mover ou trocar este slot" />
+
+                  <Border Classes="tile-footer" HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                      <TextBlock Grid.Column="0" Text="{Binding TrackStatusText}" Foreground="{StaticResource SoCyan}" FontSize="10" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                      <TextBlock Grid.Column="1" Text="{Binding FooterText}" Classes="muted" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                        <Button Classes="icon-button" Command="{Binding FocusCommand}" Width="30" Height="26" ToolTip.Tip="Abrir esta camera em foco" AutomationProperties.Name="Abrir camera em foco">
+                          <TextBlock Text="&#xE722;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                        </Button>
+                        <Button Classes="icon-button" Command="{Binding ToggleStretchCommand}" Width="30" Height="26" ToolTip.Tip="Alternar enquadrar/preencher" AutomationProperties.Name="Alternar proporção do vídeo">
+                          <TextBlock Text="&#xE740;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                        </Button>
+                        <Button Classes="icon-button" Command="{Binding ClearCommand}" Width="30" Height="26" ToolTip.Tip="Limpar slot" AutomationProperties.Name="Limpar slot" IsVisible="{Binding $parent[Window].DataContext.IsNotViewer}">
+                          <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="12" />
+                        </Button>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  </Grid>
+                </Grid>
+
+                <Grid IsVisible="{Binding IsEmpty}" Background="Transparent" RowDefinitions="Auto,*">
+                  <Border Classes="tile-header" Grid.Row="0" Padding="7,4">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Left" Text="{Binding SlotTitle}" Foreground="{StaticResource SoTextMuted}" FontWeight="Bold" FontSize="11" />
+                      <TextBlock DockPanel.Dock="Right" Text="livre" Foreground="{StaticResource SoTextFaint}" FontSize="10" />
+                    </DockPanel>
+                  </Border>
+                  <Grid Grid.Row="1" Margin="6">
+                    <Rectangle Stroke="{StaticResource SoLineSoft}" StrokeThickness="1" StrokeDashArray="3,3" RadiusX="6" RadiusY="6" />
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
+                      <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons" FontSize="16" Foreground="{StaticResource SoTextFaint}" HorizontalAlignment="Center" />
+                      <TextBlock Text="Slot Livre" Foreground="{StaticResource SoTextMuted}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    </StackPanel>
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Border>
+
+    <Border Classes="side-panel" Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsChromeVisible}" Width="{Binding SidePanelWidth}" BorderThickness="1,0,0,0">
+      <Grid>
+        <StackPanel IsVisible="{Binding SidePanelCollapsed}" Margin="6" Spacing="8">
+          <Button Classes="icon-button" Command="{Binding ToggleSidePanelCommand}" Width="32" Height="32" ToolTip.Tip="Abrir painel lateral" AutomationProperties.Name="Abrir painel lateral">
+            <TextBlock Text="&#xE76B;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+          </Button>
+          <Button Classes="icon-button" Command="{Binding SetSidePanelCommand}" CommandParameter="library" Width="32" Height="32" ToolTip.Tip="Biblioteca" AutomationProperties.Name="Biblioteca">
+            <TextBlock Text="&#xE8F1;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+          </Button>
+          <Button Classes="icon-button" Command="{Binding SetSidePanelCommand}" CommandParameter="alarms" Width="32" Height="32" ToolTip.Tip="Alarmes" AutomationProperties.Name="Alarmes">
+            <TextBlock Text="&#xEA8F;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+          </Button>
+          <Button Classes="icon-button" Command="{Binding SetSidePanelCommand}" CommandParameter="diagnostics" Width="32" Height="32" ToolTip.Tip="Saude" AutomationProperties.Name="Saude">
+            <TextBlock Text="&#xE95E;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+          </Button>
+          <Button Classes="icon-button" Command="{Binding OpenSettingsCommand}" Width="32" Height="32" ToolTip.Tip="Configuracoes" AutomationProperties.Name="Configuracoes" IsVisible="{Binding IsAdminOrSupervisor}">
+            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="15" />
+          </Button>
+        </StackPanel>
+
+        <Grid IsVisible="{Binding SidePanelExpanded}" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8" Margin="9">
+          <DockPanel Grid.Row="0">
+            <Button Classes="icon-button" DockPanel.Dock="Right" Command="{Binding ToggleSidePanelCommand}" Width="30" Height="30" ToolTip.Tip="Recolher painel lateral" AutomationProperties.Name="Recolher painel lateral">
+              <TextBlock Text="&#xE76C;" FontFamily="Segoe Fluent Icons" FontSize="13" />
+            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Image Source="avares://Analitico.Operator.App/Assets/sunorus-logo.png" Width="34" Height="42" Stretch="Uniform" VerticalAlignment="Center" />
+              <StackPanel>
+                <TextBlock Text="SunOrus" Foreground="{StaticResource SoText}" FontFamily="Verdana" FontSize="19" FontWeight="Bold" />
+                <TextBlock Text="{Binding MonitorSummary}" Classes="muted" FontSize="11" />
+              </StackPanel>
+            </StackPanel>
+          </DockPanel>
+
+          <Border Classes="metric-strip" Grid.Row="1" Padding="9">
+            <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding TotalCameraCount}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="18" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="cameras" Classes="muted" FontSize="10" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DisplayedCameraCount}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="18" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="na tela" Classes="muted" FontSize="10" />
+              <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding OpenEventsCount}" Foreground="{StaticResource SoAmber}" FontWeight="Bold" FontSize="18" />
+              <TextBlock Grid.Row="1" Grid.Column="2" Text="alarmes" Classes="muted" FontSize="10" />
+            </Grid>
+          </Border>
+
+          <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="5">
+            <Button Classes="chip" Grid.Column="0" Content="Biblioteca" Command="{Binding SetSidePanelCommand}" CommandParameter="library" />
+            <Button Classes="chip" Grid.Column="1" Content="Alarmes" Command="{Binding SetSidePanelCommand}" CommandParameter="alarms" />
+            <Button Classes="chip" Grid.Column="2" Content="Saude" Command="{Binding SetSidePanelCommand}" CommandParameter="diagnostics" />
+          </Grid>
+
+          <Grid Grid.Row="3">
+            <StackPanel IsVisible="{Binding LibraryPanelSelected}" Spacing="8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <TextBlock Grid.Column="0" Text="Biblioteca de cameras" Classes="section-title" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Command="{Binding ToggleLibraryViewCommand}" Width="32" Height="32" ToolTip.Tip="Alternar visualização Árvore/Lista" VerticalAlignment="Center" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                  <TextBlock Text="{Binding LibraryViewIcon}" FontFamily="Segoe Fluent Icons" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+              </Grid>
+              <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Buscar por nome/local/grupo" />
+              <UniformGrid Columns="2" Rows="3">
+                <Button Classes="chip" Content="Todas" Command="{Binding SetLibraryFilterCommand}" CommandParameter="all" />
+                <Button Classes="chip" Content="Visiveis" Command="{Binding SetLibraryFilterCommand}" CommandParameter="visible" />
+                <Button Classes="chip" Content="IA ligada" Command="{Binding SetLibraryFilterCommand}" CommandParameter="running" />
+                <Button Classes="chip" Content="Offline" Command="{Binding SetLibraryFilterCommand}" CommandParameter="offline" />
+                <Button Classes="chip" Content="Alta/critica" Command="{Binding SetLibraryFilterCommand}" CommandParameter="alarm" />
+              </UniformGrid>
+
+              <Border Classes="surface-card" Padding="9">
+                <StackPanel Spacing="5">
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="Visoes salvas" Classes="section-title" FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding SelectedSlotText}" Foreground="{StaticResource SoCyan}" FontSize="11" VerticalAlignment="Center" />
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding SavedViews}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Classes="saved-view" Command="{Binding LoadCommand}" Margin="0,0,0,4" HorizontalAlignment="Stretch">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{StaticResource SoText}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="1" Text="{Binding Summary}" Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                          </Grid>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <Grid Height="350">
+                <!-- flat list view -->
+                <ScrollViewer IsVisible="{Binding !ShowLibraryAsTree}" VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding LibraryCameras}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border Classes="camera-card" BorderBrush="{Binding TileBorderBrush}" Margin="0,0,0,6" PointerPressed="OnCameraDragStart" ToolTip.Tip="Arrastar para o mosaico">
+                          <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+                            <DockPanel Grid.Row="0">
+                              <Border Classes="badge" DockPanel.Dock="Right" Background="{StaticResource SoBlueSoft}" VerticalAlignment="Center" Margin="6,0,0,0">
+                                <TextBlock Text="slot" Foreground="{StaticResource SoTextSoft}" FontSize="10" />
+                              </Border>
+                              <Button Classes="subtle" Command="{Binding SelectCommand}" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding LibraryLine}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="11" TextWrapping="Wrap" />
+                              </Button>
+                            </DockPanel>
+                            <TextBlock Grid.Row="1" Text="{Binding FooterText}" Classes="muted" FontSize="10" />
+                            <DockPanel Grid.Row="2">
+                              <Button Classes="primary" DockPanel.Dock="Right" Content="Slot" Command="{Binding PinCommand}" MinWidth="48" Height="24" Padding="8,2" FontSize="10" VerticalAlignment="Center" />
+                              <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Border Classes="badge" Background="{Binding ImageBadgeBrush}">
+                                  <TextBlock Text="{Binding ImageBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                                </Border>
+                                <Border Classes="badge" Background="{Binding IaBadgeBrush}">
+                                  <TextBlock Text="{Binding IaBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                                </Border>
+                                <Border Classes="badge" Background="{Binding StatusBadgeBrush}">
+                                  <TextBlock Text="{Binding StatusBadgeText}" Foreground="White" FontSize="9" FontWeight="Bold" />
+                                </Border>
+                              </StackPanel>
+                            </DockPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+
+                <!-- tree group view -->
+                <ScrollViewer IsVisible="{Binding ShowLibraryAsTree}" VerticalScrollBarVisibility="Auto">
+                  <TreeView ItemsSource="{Binding LibraryTreeNodes}" Background="Transparent" BorderThickness="0">
+                    <TreeView.DataTemplates>
+                      <TreeDataTemplate DataType="{x:Type vm:CameraGroupNode}" ItemsSource="{Binding SubNodes}">
+                        <Grid>
+                          <!-- Folder/Site/Group row layout -->
+                          <Grid IsVisible="{Binding !IsCamera}" ColumnDefinitions="Auto,*" ColumnSpacing="6" Height="28">
+                            <TextBlock Grid.Column="0" Text="{Binding Icon}" FontFamily="Segoe Fluent Icons" Foreground="{StaticResource SoCyan}" VerticalAlignment="Center" FontSize="14" />
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{StaticResource SoText}" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="12" />
+                          </Grid>
+
+                          <!-- Camera item layout -->
+                          <Border IsVisible="{Binding IsCamera}" DataContext="{Binding Camera}" Classes="camera-card" BorderBrush="{Binding TileBorderBrush}" PointerPressed="OnCameraDragStart" Margin="0,0,0,4" Padding="8,6" HorizontalAlignment="Stretch" ToolTip.Tip="Arraste para o mosaico">
+                            <Grid RowDefinitions="Auto,Auto" RowSpacing="3">
+                              <TextBlock Grid.Row="0" Text="{Binding LibraryLine}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="11" TextWrapping="Wrap" />
+                              <TextBlock Grid.Row="1" Text="{Binding FooterText}" Classes="muted" FontSize="10" />
+                            </Grid>
+                          </Border>
+                        </Grid>
+                      </TreeDataTemplate>
+                    </TreeView.DataTemplates>
+                  </TreeView>
+                </ScrollViewer>
+              </Grid>
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding AlarmsPanelSelected}" Spacing="8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBlock Grid.Column="0" Text="Fila de alarmes" Classes="section-title" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="subtle" Content="Limpar fila" Command="{Binding ClearAlarmPopupQueueCommand}" ToolTip.Tip="Descartar os pop-ups atuais sem fechar os alarmes no sistema" />
+              </Grid>
+              <ScrollViewer Height="300" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding OpenEvents}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="event-card" Margin="0,0,0,7">
+                        <StackPanel Spacing="4">
+                          <DockPanel>
+                            <TextBlock Text="{Binding CameraName}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="11" TextWrapping="Wrap" />
+                            <Border Classes="badge" DockPanel.Dock="Right" Background="{Binding SeverityBrush}">
+                              <TextBlock Text="{Binding SeverityLabel}" Foreground="White" FontSize="9" />
+                            </Border>
+                          </DockPanel>
+                          <TextBlock Text="{Binding EventLabel}" Classes="muted" FontSize="11" />
+                          <TextBlock Text="{Binding TimeLabel}" Classes="faint" FontSize="10" />
+                          <WrapPanel>
+                            <Button Classes="subtle" Content="Abrir" Command="{Binding OpenCommand}" Margin="0,0,5,5" />
+                            <Button Classes="warning" Content="Reconhecer" Command="{Binding AcknowledgeCommand}" Margin="0,0,5,5" />
+                            <Button Classes="danger" Content="Fechar" Command="{Binding CloseCommand}" Margin="0,0,5,5" />
+                          </WrapPanel>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+
+              <TextBlock Text="Ultimos eventos" Classes="section-title" />
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding RecentEvents}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="health-card" Margin="0,0,0,6">
+                        <StackPanel Spacing="2">
+                          <DockPanel>
+                            <TextBlock Text="{Binding CameraName}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="11" TextWrapping="Wrap" />
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding ConfidenceLabel}" Classes="muted" FontSize="10" />
+                          </DockPanel>
+                          <TextBlock Text="{Binding EventLabel}" Classes="muted" FontSize="10" />
+                          <TextBlock Text="{Binding TimeLabel}" Classes="faint" FontSize="10" />
+                          <Button Classes="subtle" Content="Abrir evidencia" Command="{Binding OpenCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding DiagnosticsPanelSelected}" Spacing="8">
+              <TextBlock Text="Saude operacional" Classes="section-title" />
+              <ItemsControl ItemsSource="{Binding StatusCards}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Classes="health-card" Width="138" Height="54" Margin="0,0,6,6" Padding="7,4">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding Label}" Classes="muted" FontSize="10" />
+                        <TextBlock Text="{Binding Value}" Foreground="{StaticResource SoText}" FontSize="15" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Detail}" Classes="faint" FontSize="9" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
+                <Button Classes="primary" Grid.Column="0" Content="Gerar diagnostico" Command="{Binding CollectDiagnosticsCommand}" HorizontalAlignment="Stretch" />
+                <Button Classes="subtle" Grid.Column="1" Content="Abrir logs" Command="{Binding OpenLogsFolderCommand}" HorizontalAlignment="Stretch" />
+              </Grid>
+              <Border Classes="health-card">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Drive diagnostico" Classes="section-title" FontSize="12" />
+                  <TextBox Text="{Binding DriveTokenInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" PasswordChar="*" Watermark="JSON do token ou refresh_token" />
+                  <Button Classes="primary" Content="Salvar token Drive" Command="{Binding SaveDriveTokenCommand}" HorizontalAlignment="Stretch" />
+                  <Button Classes="subtle" Content="Enviar avaliados pendentes" Command="{Binding UploadReviewedEventsToDriveCommand}" HorizontalAlignment="Stretch" />
+                  <TextBlock Text="{Binding DriveTokenStatusText}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding HealthItems}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="health-card" Margin="0,0,0,6">
+                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*" ColumnSpacing="8" RowSpacing="2">
+                          <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding IdText}" Classes="muted" FontSize="10" />
+                          <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CameraName}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="11" TextWrapping="Wrap" />
+                          <Border Classes="badge" Grid.Row="1" Grid.Column="0" Background="{Binding HealthBrush}">
+                            <TextBlock Text="{Binding HealthText}" Foreground="White" FontSize="9" />
+                          </Border>
+                          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding WorkerText}" Classes="muted" FontSize="10" />
+                          <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding MetricsAgeText}" Classes="faint" FontSize="10" />
+                          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ReasonText}" Classes="faint" FontSize="10" TextWrapping="Wrap" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </StackPanel>
+
+          </Grid>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Border Classes="app-chrome" Grid.Row="2" Grid.ColumnSpan="2" IsVisible="{Binding IsChromeVisible}" BorderThickness="0,1,0,0" Padding="8,4">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <TextBlock Grid.Column="0" Text="{Binding ShortcutFooterText}" Classes="faint" FontSize="10" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="1" Text="{Binding MonitorSummary}" Classes="muted" FontSize="11" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding HasAlarmPopup}" ZIndex="90">
+      <Border Background="#99060a12" />
+      <Border
+          Classes="modal-card"
+          Width="640"
+          MaxWidth="640"
+          CornerRadius="12"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="0">
+        <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="0">
+          <Border Grid.Row="0" CornerRadius="12,12,0,0" Padding="16,12" BorderThickness="0,0,0,1" BorderBrush="{StaticResource SoLineSoft}">
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0.0" Color="#4b0b11" />
+                <GradientStop Offset="1.0" Color="#280306" />
+              </LinearGradientBrush>
+            </Border.Background>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <StackPanel Grid.Column="0" Spacing="3">
+                <TextBlock Text="Novo Alarme de Invasão" Foreground="#ffffff" FontSize="18" FontWeight="ExtraBold" />
+                <TextBlock Text="{Binding AlarmPopupTitle}" Foreground="#fca5a5" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Classes="icon-button" Grid.Column="1" Command="{Binding CloseAlarmPopupCommand}" Width="32" Height="32" ToolTip.Tip="Fechar alerta" AutomationProperties.Name="Fechar alerta">
+                <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="18" Margin="18">
+            <Border Grid.Column="0" Width="72" Height="72" Background="#260b0e" BorderBrush="#991b1b" BorderThickness="1.5" CornerRadius="36" VerticalAlignment="Top">
+              <TextBlock Text="&#xEA8F;" FontFamily="Segoe Fluent Icons" Foreground="#ef4444" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="8">
+              <TextBlock Text="{Binding AlarmPopupSubtitle}" Foreground="#fca5a5" FontSize="13" FontWeight="Bold" TextWrapping="Wrap" />
+              <TextBlock Text="Um novo evento prioritário foi registrado pelo servidor. Verifique a câmera correspondente e tome as ações necessárias de mitigação." Foreground="#d7e0ee" FontSize="13" LineHeight="18" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="6" Margin="0,4,0,0">
+                <Border Classes="badge" Grid.Row="0" Grid.Column="0" Background="{Binding AlarmPopupEventSeverityBrush}" Padding="8,2">
+                  <TextBlock Text="{Binding AlarmPopupEventSeverityLabel}" Foreground="#ffffff" FontSize="9" FontWeight="ExtraBold" />
+                </Border>
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding AlarmPopupEventStatusLabel}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="EVENTO" Foreground="{StaticResource SoTextFaint}" FontSize="9" FontWeight="Bold" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding AlarmPopupEventId}" Foreground="{StaticResource SoCyan}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </Grid>
+
+          <Border Grid.Row="2" Background="#090d16" BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" CornerRadius="0,0,12,12" Padding="16,12">
+            <WrapPanel HorizontalAlignment="Right">
+              <Button Classes="subtle" Content="Limpar fila" Command="{Binding ClearAlarmPopupQueueCommand}" Margin="0,0,8,0" ToolTip.Tip="Descartar os pop-ups atuais sem fechar os alarmes no sistema" />
+              <Button Classes="primary" Content="Ver no mosaico" Command="{Binding PinAlarmPopupCameraCommand}" Margin="0,0,8,0" />
+              <Button Classes="subtle" Content="Abrir evidência" Command="{Binding AlarmPopupEventOpenCommand}" Margin="0,0,8,0" />
+              <Button Classes="subtle" Content="Clipe" Command="{Binding AlarmPopupEventClipCommand}" IsVisible="{Binding AlarmPopupEventHasClip}" Margin="0,0,8,0" />
+              <Button Classes="warning" Content="Reconhecer" Command="{Binding AlarmPopupEventAcknowledgeCommand}" Margin="0,0,8,0" />
+              <Button Classes="danger" Content="Fechar evento" Command="{Binding AlarmPopupEventCloseCommand}" />
+            </WrapPanel>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Evidence Modal Popup -->
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding IsEvidenceModalOpen}" ZIndex="95">
+      <Border Background="#cc060a12" />
+      <Border
+          Classes="modal-card"
+          Width="800"
+          Height="550"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="0">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <!-- Header -->
+          <Border Grid.Row="0" Background="{StaticResource SoBgPanelElevated}" Padding="16,12" BorderThickness="0,0,0,1" BorderBrush="{StaticResource SoLineSoft}">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding EvidenceModalTitle}" Foreground="{StaticResource SoText}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" />
+              <Button Classes="icon-button" Grid.Column="1" Command="{Binding CloseEvidenceModalCommand}" Width="30" Height="30" ToolTip.Tip="Fechar">
+                <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="12" />
+              </Button>
+            </Grid>
+          </Border>
+          
+          <!-- Content Panel -->
+          <Grid Grid.Row="1" Background="#020305">
+            <!-- Image View -->
+            <Image Source="{Binding EvidenceImage}" IsVisible="{Binding IsEvidenceImageVisible}" Stretch="Uniform" Margin="8" />
+            
+            <!-- Video View -->
+            <Grid IsVisible="{Binding IsEvidenceVideoVisible}">
+              <vlc:VideoView MediaPlayer="{Binding EvidenceMediaPlayer}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+              <Border IsVisible="{Binding IsEvidenceVideoLoading}" Background="#a0000000" Padding="12,8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="Carregando clipe..." Foreground="White" FontSize="12" FontWeight="Bold" />
+              </Border>
+            </Grid>
+          </Grid>
+          
+          <!-- Footer Actions -->
+          <Border Grid.Row="2" Background="{StaticResource SoBgPanelElevated}" Padding="16,12" BorderThickness="0,1,0,0" BorderBrush="{StaticResource SoLineSoft}">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0" Text="{Binding EvidenceModalSubtitle}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+              <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
+                <Button Classes="subtle" Content="Abrir no Navegador" Command="{Binding OpenEvidenceInBrowserCommand}" Margin="0,0,8,0" />
+                <Button Classes="primary" Content="Fechar" Command="{Binding CloseEvidenceModalCommand}" />
+              </WrapPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding IsViewManagerOpen}" ZIndex="100">
+      <Border Background="{StaticResource SoOverlay}" />
+      <Border
+          Classes="modal-card"
+          Width="760"
+          MaxHeight="650"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="16">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Gerenciar mosaicos" Foreground="{StaticResource SoText}" FontSize="18" FontWeight="Bold" />
+              <TextBlock Text="As visoes salvas aqui sao sincronizadas com o monitor web." Classes="muted" FontSize="11" />
+            </StackPanel>
+            <Button Classes="icon-button" Grid.Column="1" Command="{Binding CloseViewManagerCommand}" Width="30" Height="30" ToolTip.Tip="Fechar" AutomationProperties.Name="Fechar gerenciador de mosaicos">
+              <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+            </Button>
+          </Grid>
+
+          <Grid Grid.Row="1" ColumnDefinitions="250,*" ColumnSpacing="16">
+            <StackPanel Grid.Column="0" Spacing="9">
+              <TextBlock Text="Salvar visao atual" Classes="section-title" FontSize="14" />
+              <TextBlock Text="{Binding CurrentMosaicSummary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+              <TextBox Text="{Binding ViewPresetNameDraft, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="Nome da visao" />
+              <CheckBox Content="Visivel para a equipe" IsChecked="{Binding ShareViewPreset, Mode=TwoWay}" IsVisible="{Binding IsAdmin}" />
+              <TextBlock Text="Salvar com o mesmo nome atualiza a sua propria visao." Classes="faint" FontSize="10" TextWrapping="Wrap" />
+              <Button Classes="primary" Content="Salvar no web" Command="{Binding ConfirmSaveViewCommand}" IsEnabled="{Binding CanSaveViewPreset}" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Spacing="1">
+                  <TextBlock Text="Visoes disponiveis" Classes="section-title" FontSize="14" />
+                  <TextBlock Text="Escolha uma visao e confirme antes de substituir o mosaico atual." Classes="muted" FontSize="11" />
+                </StackPanel>
+                <Button Classes="icon-button" Grid.Column="1" Command="{Binding RefreshViewPresetsCommand}" Width="30" Height="30" ToolTip.Tip="Sincronizar com o web" AutomationProperties.Name="Sincronizar mosaicos">
+                  <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                </Button>
+              </Grid>
+
+              <Border Grid.Row="1" Background="{StaticResource SoBgPanelSoft}" BorderBrush="{StaticResource SoLineSoft}" BorderThickness="1" CornerRadius="6" Padding="4">
+                <ListBox ItemsSource="{Binding SavedViews}" SelectedItem="{Binding SelectedSavedView, Mode=TwoWay}" BorderThickness="0" Background="Transparent">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Border Padding="10,8" Margin="0,0,0,3" CornerRadius="4">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                          <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource SoText}" FontWeight="Bold" FontSize="12" />
+                            <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <Border Grid.Column="1" Classes="badge" Background="{StaticResource SoBlueSoft}" VerticalAlignment="Center" IsVisible="{Binding IsShared}">
+                            <TextBlock Text="equipe" Foreground="{StaticResource SoCyan}" FontSize="10" />
+                          </Border>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </Border>
+
+              <TextBlock Grid.Row="2" Text="{Binding SelectedSavedViewSummary}" Classes="faint" FontSize="11" TextWrapping="Wrap" />
+            </Grid>
+          </Grid>
+
+          <Border Grid.Row="2" BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <TextBlock Grid.Column="0" Text="O mosaico atual so sera trocado apos a sua confirmacao." Classes="faint" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Classes="subtle" Content="Fechar" Command="{Binding CloseViewManagerCommand}" />
+                <Button Classes="primary" Content="Ativar selecionada" Command="{Binding RequestActivateViewCommand}" IsEnabled="{Binding CanActivateSelectedView}" />
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding IsViewActivationConfirmationOpen}" ZIndex="101">
+      <Border Background="#b8000000" />
+      <Border
+          Classes="modal-card"
+          Width="430"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="18">
+        <StackPanel Spacing="12">
+          <TextBlock Text="Ativar mosaico?" Foreground="{StaticResource SoText}" FontSize="17" FontWeight="Bold" />
+          <TextBlock Text="{Binding PendingViewPreset.Name}" Foreground="{StaticResource SoCyan}" FontSize="14" FontWeight="Bold" />
+          <TextBlock Text="{Binding PendingViewPresetSummary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+          <TextBlock Text="A visao atual sera substituida e os players serao reorganizados." Classes="faint" FontSize="11" TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+            <Button Classes="subtle" Content="Cancelar" Command="{Binding CancelActivateViewCommand}" />
+            <Button Classes="primary" Content="Confirmar ativacao" Command="{Binding ConfirmActivateViewCommand}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding IsSettingsOpen}" ZIndex="100">
+      <Border Background="{StaticResource SoOverlay}" />
+      <Border
+          Classes="modal-card"
+          Width="560"
+          MaxHeight="780"
+          HorizontalAlignment="Center"
+          VerticalAlignment="Center"
+          Padding="16">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="2">
+              <TextBlock Text="Configuracoes" Foreground="{StaticResource SoText}" FontSize="18" FontWeight="Bold" />
+              <TextBlock Text="Preferencias locais do monitor operacional" Classes="muted" FontSize="11" />
+            </StackPanel>
+            <Button Classes="icon-button" Grid.Column="1" Command="{Binding CloseSettingsCommand}" Width="30" Height="30" ToolTip.Tip="Fechar" AutomationProperties.Name="Fechar configuracoes">
+              <TextBlock Text="&#xE711;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+            </Button>
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" Margin="0,0,8,0">
+              <StackPanel Spacing="7">
+                <TextBlock Text="Servidor" Classes="section-title" FontSize="13" />
+                <TextBox Text="{Binding ServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Watermark="http://192.168.2.62:8000" />
+                <WrapPanel>
+                  <Button Classes="primary" Content="Conectar / testar agora" Command="{Binding LoadCommand}" Margin="0,0,6,6" />
+                  <Button Classes="subtle" Content="Atualizar agora" Command="{Binding RefreshCommand}" Margin="0,0,6,6" />
+                </WrapPanel>
+              </StackPanel>
+
+              <Border BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" />
+
+              <StackPanel Spacing="7">
+                <TextBlock Text="Inicializacao" Classes="section-title" FontSize="13" />
+                <CheckBox Content="Conectar automaticamente ao abrir" IsChecked="{Binding AutoConnectOnStartup, Mode=TwoWay}" />
+                <CheckBox Content="Restaurar o ultimo mosaico" IsChecked="{Binding RestoreLastLayout, Mode=TwoWay}" />
+              </StackPanel>
+
+              <Border BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" IsVisible="{Binding IsAdminOrSupervisor}" />
+
+              <StackPanel Spacing="7" IsVisible="{Binding IsAdminOrSupervisor}">
+                <TextBlock Text="Backup do Servidor (Admin)" Classes="section-title" FontSize="13" />
+                <TextBox PasswordChar="*" Watermark="Senha para criptografar/descriptografar" Text="{Binding BackupPassword, Mode=TwoWay}" />
+                <WrapPanel>
+                  <Button Classes="primary" Content="Exportar Backup" Command="{Binding ExportBackupCommand}" Margin="0,0,6,6" />
+                  <Button Classes="subtle" Content="Importar / Restaurar" Command="{Binding ImportBackupCommand}" Margin="0,0,6,6" />
+                </WrapPanel>
+              </StackPanel>
+
+              <Border BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" />
+
+              <StackPanel Spacing="7">
+                <TextBlock Text="Monitor" Classes="section-title" FontSize="13" />
+                <WrapPanel>
+                  <Button Classes="subtle" Content="Gerenciar mosaicos" Command="{Binding SaveViewCommand}" Margin="0,0,6,6" />
+                  <Button Classes="primary" Content="Auto preencher" Command="{Binding AutoFillCommand}" Margin="0,0,6,6" />
+                  <Button Classes="danger" Content="Limpar mosaico" Command="{Binding ClearMosaicCommand}" Margin="0,0,6,6" />
+                  <Button Classes="subtle" Content="{Binding SequenceText}" Command="{Binding ToggleSequenceCommand}" Margin="0,0,6,6" />
+                </WrapPanel>
+                <CheckBox Content="Mostrar boxes de IA" IsChecked="{Binding SettingsBoxesEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Ocultar cameras offline" IsChecked="{Binding SettingsHideOfflineEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Ativar spotlight de alarmes" IsChecked="{Binding SettingsSpotlightEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Mostrar popup central em nova invasao" IsChecked="{Binding SettingsAlarmPopupEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Enviar logs de performance para Drive" IsChecked="{Binding SettingsPerformanceLogUploadEnabled, Mode=TwoWay}" />
+                <CheckBox Content="Alternar entre visões salvas na sequência (Ronda)" IsChecked="{Binding SequenceSavedViews, Mode=TwoWay}" />
+                <TextBlock Text="{Binding PerformanceUploadStatusText}" Foreground="{StaticResource SoCyan}" FontSize="11" FontWeight="Bold" TextWrapping="Wrap" />
+                <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
+                  <TextBlock Grid.Column="0" Text="Intervalo da sequencia (segundos)" Classes="muted" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" Minimum="3" Maximum="60" Increment="1" Value="{Binding SequenceIntervalSeconds, Mode=TwoWay}" />
+                </Grid>
+                <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
+                  <TextBlock Grid.Column="0" Text="Atualizacao das boxes (ms)" Classes="muted" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" Minimum="100" Maximum="2000" Increment="50" Value="{Binding BoxRefreshIntervalMs, Mode=TwoWay}" />
+                </Grid>
+                <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
+                  <TextBlock Grid.Column="0" Text="Confianca minima das boxes (%)" Classes="muted" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" Minimum="0" Maximum="100" Increment="5" Value="{Binding MinimumBoxConfidencePercent, Mode=TwoWay}" />
+                </Grid>
+              </StackPanel>
+
+              <Border BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" />
+
+              <StackPanel Spacing="7">
+                <TextBlock Text="Suporte" Classes="section-title" FontSize="13" />
+                <WrapPanel>
+                  <Button Classes="primary" Content="Gerar diagnostico" Command="{Binding CollectDiagnosticsCommand}" Margin="0,0,6,6" />
+                  <Button Classes="subtle" Content="Abrir logs" Command="{Binding OpenLogsFolderCommand}" Margin="0,0,6,6" />
+                  <Button Classes="subtle" Content="Restaurar preferencias" Command="{Binding ResetOperationalPreferencesCommand}" Margin="0,0,6,6" />
+                </WrapPanel>
+              </StackPanel>
+
+              <Border BorderBrush="{StaticResource SoLineSoft}" BorderThickness="0,1,0,0" />
+
+              <StackPanel Spacing="4">
+                <TextBlock Text="Versão do Sistema" Classes="section-title" FontSize="13" />
+                <TextBlock Text="{Binding VersionAlignmentText}" Foreground="{StaticResource SoCyan}" FontSize="11" FontWeight="Bold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding AppVersionText}" Classes="faint" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel>
+
+              <TextBlock Text="Os atalhos operacionais ficam desativados enquanto esta janela estiver aberta." Classes="faint" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Loading Overlay -->
+    <Grid Grid.RowSpan="3" Grid.ColumnSpan="2" IsVisible="{Binding IsBusy}" ZIndex="999">
+      <Border Background="#f2060a12" />
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24">
+        <!-- Logo Spinner Assembly -->
+        <Grid Width="110" Height="110">
+          <Ellipse Width="96" Height="96" Stroke="#15ffffff" StrokeThickness="3.5" />
+          <Arc Classes="spin" Width="96" Height="96" Stroke="{StaticResource SoCyan}" StrokeThickness="3.5" StartAngle="0" SweepAngle="280" RenderTransformOrigin="50%,50%">
+            <Arc.RenderTransform>
+              <RotateTransform />
+            </Arc.RenderTransform>
+          </Arc>
+          <Image Source="avares://Analitico.Operator.App/Assets/sunorus-logo.png" Width="44" Height="52" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Grid>
+        <TextBlock Text="{Binding StatusMessage}" Foreground="White" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+
+  </Grid>
+</Window>

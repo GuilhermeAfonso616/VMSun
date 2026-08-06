@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .av-page-head { text-align: center; max-width: 980px; margin: 8px auto 6px; }
+    .av-page-head h1 { margin-bottom: 4px; }
+    .av-page-head p { margin: 0; }
+    .av-toolbar {
+        display: flex; align-items: end; justify-content: center;
+        gap: 8px 12px; flex-wrap: wrap; margin: 0 auto 14px; max-width: 1120px;
+    }
+    .av-field { display: flex; flex-direction: column; gap: 5px; color: var(--text-secondary); font-size: 12px; font-weight: 800; }
+    .av-toolbar > .btn { height: 40px; align-self: end; }
+    .av-range-group {
+        display: flex; align-items: center; gap: 6px; height: 40px; box-sizing: border-box;
+        padding: 4px 6px; border: 1px solid var(--line-soft); border-radius: 10px; background: #f8fafc;
+    }
+    .av-range-btn {
+        border: 0; border-radius: 7px; height: 32px; padding: 0 14px; background: transparent;
+        color: var(--text-secondary); font-weight: 800; cursor: pointer;
+    }
+    .av-range-btn.active { background: #1d4ed8; color: #fff; box-shadow: 0 6px 16px rgba(29, 78, 216, 0.22); }
+    .av-summary { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0 auto 16px; max-width: 1120px; }
+    .av-kpi {
+        min-width: 150px; border: 1px solid var(--line-soft); border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 12px 16px;
+    }
+    .av-kpi .label { color: var(--text-secondary); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .av-kpi .value { font-size: 26px; line-height: 1.1; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; margin-top: 3px; }
+    .av-kpi .value.ok { color: #166534; }
+    .av-kpi .value.warn { color: #b45309; }
+    .av-kpi .value.bad { color: #b91c1c; }
+    .av-card {
+        border: 1px solid var(--line-soft); border-radius: 14px; background: #fff;
+        box-shadow: var(--shadow-card); overflow: hidden; max-width: 1120px; margin: 0 auto;
+    }
+    .av-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .av-table thead th {
+        text-align: left; padding: 12px 14px; background: #f8fafc; color: var(--text-secondary);
+        font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+        border-bottom: 1px solid var(--line-soft); white-space: nowrap;
+    }
+    .av-table thead th.num, .av-table tbody td.num { text-align: right; }
+    .av-table tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+    .av-table tbody tr:last-child td { border-bottom: 0; }
+    .av-table tbody tr:hover { background: #f8fafc; }
+    .av-rank { color: var(--text-secondary); font-weight: 800; width: 34px; }
+    .av-cam { font-weight: 700; color: #0f172a; }
+    .av-bar-wrap { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+    .av-bar { position: relative; flex: 1; height: 9px; border-radius: 999px; background: #e2e8f0; overflow: hidden; min-width: 90px; }
+    .av-bar > span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+    .av-bar > span.ok { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .av-bar > span.warn { background: linear-gradient(90deg, #fbbf24, #d97706); }
+    .av-bar > span.bad { background: linear-gradient(90deg, #f87171, #dc2626); }
+    .av-pct { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 52px; text-align: right; }
+    .av-pct.ok { color: #166534; }
+    .av-pct.warn { color: #b45309; }
+    .av-pct.bad { color: #b91c1c; }
+    .av-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+    .av-badge.ok { background: #dcfce7; color: #166534; }
+    .av-badge.warn { background: #fef3c7; color: #b45309; }
+    .av-badge.bad { background: #fee2e2; color: #b91c1c; }
+    .av-badge.none { background: #f1f5f9; color: #64748b; }
+    .av-muted { color: var(--text-secondary); font-size: 12px; }
+    .av-empty { padding: 40px; text-align: center; color: var(--text-secondary); }
+    @media (max-width: 720px) {
+        .av-table thead th.hide-sm, .av-table tbody td.hide-sm { display: none; }
+    }
+</style>
+
+<div class="av-page-head">
+    <h1>Disponibilidade das cameras</h1>
+    <p class="muted">Uptime por camera no periodo, calculado a partir do historico operacional. As mais instaveis aparecem primeiro.</p>
+</div>
+
+<div class="av-toolbar">
+    <div class="av-field">
+        <span>Periodo</span>
+        <div class="av-range-group" id="avRangeGroup" role="group" aria-label="Periodo do relatorio">
+            <button class="av-range-btn active" type="button" data-range="24">24h</button>
+            <button class="av-range-btn" type="button" data-range="48">48h</button>
+            <button class="av-range-btn" type="button" data-range="168">7d</button>
+            <button class="av-range-btn" type="button" data-range="720">30d</button>
+        </div>
+    </div>
+    <button class="btn btn-secondary btn-small" type="button" id="avRefresh">Atualizar</button>
+    <button class="btn btn-secondary btn-small" type="button" id="avExport">Baixar CSV</button>
+</div>
+
+<div class="av-summary" id="avSummary"></div>
+
+<div class="av-card">
+    <table class="av-table">
+        <thead>
+            <tr>
+                <th class="av-rank">#</th>
+                <th>Camera</th>
+                <th>Disponibilidade</th>
+                <th class="num">IA ativa</th>
+                <th class="num hide-sm">Online</th>
+                <th class="num hide-sm">Offline</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="avBody">
+            <tr><td colspan="7" class="av-empty">Carregando relatorio...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+(function () {
+    const endpoint = "/dashboard/operational-history";
+    const THRESHOLD = 95; // % de disponibilidade considerado saudavel
+    const state = { rows: [], summary: null, rangeLabel: "" };
+
+    // Estados que contam como "camera alcancavel/rodando" vs "fora".
+    const REACHABLE = ["ia", "online", "warming", "degraded", "reconnecting"];
+    const DOWN = ["offline", "stopped"];
+
+    function escapeHtml(v) {
+        return String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+    function sum(minutes, keys) { return keys.reduce((acc, k) => acc + (Number(minutes && minutes[k]) || 0), 0); }
+    function fmtMinutes(m) {
+        m = Math.round(m || 0);
+        if (m <= 0) return "0min";
+        const h = Math.floor(m / 60), mm = m % 60;
+        return h ? (mm ? `${h}h ${mm}min` : `${h}h`) : `${mm}min`;
+    }
+    function cls(pct) { return pct >= 99 ? "ok" : (pct >= THRESHOLD ? "warn" : "bad"); }
+    function badgeLabel(pct) { return pct >= 99 ? "Estavel" : (pct >= THRESHOLD ? "Instavel" : "Critica"); }
+
+    function bucketForRange(rangeHours) {
+        if (rangeHours <= 24) return 5;
+        if (rangeHours <= 48) return 15;
+        if (rangeHours <= 168) return 30;
+        return 60;
+    }
+
+    function getSelectedRange() {
+        const active = document.querySelector(".av-range-btn.active");
+        return Number(active && active.dataset.range) || 24;
+    }
+
+    function buildParams() {
+        const rangeHours = getSelectedRange();
+        const bucket = bucketForRange(rangeHours);
+        const params = new URLSearchParams({ bucket_minutes: String(bucket) });
+        // A janela relativa do endpoint vai ate 168h; acima disso usa intervalo
+        // absoluto (start/end em UTC), que o store aceita ate 31 dias.
+        if (rangeHours <= 168) {
+            params.set("hours", String(rangeHours));
+            state.rangeLabel = rangeHours >= 168 ? "7 dias" : `${rangeHours}h`;
+        } else {
+            const end = new Date();
+            const start = new Date(end.getTime() - rangeHours * 3600 * 1000);
+            params.set("start", start.toISOString());
+            params.set("end", end.toISOString());
+            state.rangeLabel = `${Math.round(rangeHours / 24)} dias`;
+        }
+        return params;
+    }
+
+    function computeRows(payload) {
+        const cameras = Array.isArray(payload && payload.cameras) ? payload.cameras : [];
+        return cameras.map((cam) => {
+            const minutes = cam.minutes || {};
+            const reachable = sum(minutes, REACHABLE);
+            const down = sum(minutes, DOWN);
+            const iaMin = Number(minutes.ia) || 0;
+            const observed = reachable + down;
+            const uptime = observed > 0 ? (reachable / observed) * 100 : null;
+            const iaPct = observed > 0 ? (iaMin / observed) * 100 : null;
+            return {
+                id: cam.id,
+                name: cam.name || `Camera ${cam.id}`,
+                uptime, iaPct, reachable, down, observed,
+            };
+        }).sort((a, b) => {
+            // Sem dados por ultimo; depois pior uptime primeiro.
+            if (a.uptime === null && b.uptime === null) return String(a.name).localeCompare(String(b.name));
+            if (a.uptime === null) return 1;
+            if (b.uptime === null) return -1;
+            return a.uptime - b.uptime;
+        });
+    }
+
+    function renderSummary(rows, payload) {
+        const withData = rows.filter((r) => r.uptime !== null);
+        const avg = withData.length ? withData.reduce((a, r) => a + r.uptime, 0) / withData.length : null;
+        const below = withData.filter((r) => r.uptime < THRESHOLD).length;
+        const totalDown = rows.reduce((a, r) => a + r.down, 0);
+        const info = (payload && payload.summary) || {};
+        const avgCls = avg === null ? "" : cls(avg);
+        const el = document.getElementById("avSummary");
+        el.innerHTML = `
+            <div class="av-kpi"><div class="label">Disponibilidade media</div><div class="value ${avgCls}">${avg === null ? "—" : avg.toFixed(1) + "%"}</div></div>
+            <div class="av-kpi"><div class="label">Abaixo de ${THRESHOLD}%</div><div class="value ${below ? "bad" : "ok"}">${below}</div></div>
+            <div class="av-kpi"><div class="label">Tempo total offline</div><div class="value">${fmtMinutes(totalDown)}</div></div>
+            <div class="av-kpi"><div class="label">Cameras</div><div class="value">${rows.length}</div></div>
+            <div class="av-kpi"><div class="label">Periodo</div><div class="value" style="font-size:20px;">${escapeHtml(state.rangeLabel)}</div></div>
+        `;
+    }
+
+    function renderTable(rows) {
+        const body = document.getElementById("avBody");
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="7" class="av-empty">Nenhuma camera com historico neste periodo. O relatorio usa as amostras coletadas pelo runtime.</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map((r, i) => {
+            if (r.uptime === null) {
+                return `<tr>
+                    <td class="av-rank">${i + 1}</td>
+                    <td class="av-cam">${escapeHtml(r.name)}</td>
+                    <td class="av-muted">Sem dados no periodo</td>
+                    <td class="num av-muted">—</td>
+                    <td class="num hide-sm av-muted">—</td>
+                    <td class="num hide-sm av-muted">—</td>
+                    <td><span class="av-badge none">Sem dados</span></td>
+                </tr>`;
+            }
+            const c = cls(r.uptime);
+            return `<tr>
+                <td class="av-rank">${i + 1}</td>
+                <td class="av-cam">${escapeHtml(r.name)}</td>
+                <td>
+                    <div class="av-bar-wrap">
+                        <span class="av-pct ${c}">${r.uptime.toFixed(1)}%</span>
+                        <div class="av-bar"><span class="${c}" style="width:${Math.max(2, r.uptime).toFixed(1)}%"></span></div>
+                    </div>
+                </td>
+                <td class="num">${r.iaPct === null ? "—" : r.iaPct.toFixed(0) + "%"}</td>
+                <td class="num hide-sm">${fmtMinutes(r.reachable)}</td>
+                <td class="num hide-sm">${fmtMinutes(r.down)}</td>
+                <td><span class="av-badge ${c}">${badgeLabel(r.uptime)}</span></td>
+            </tr>`;
+        }).join("");
+    }
+
+    function render(payload) {
+        state.rows = computeRows(payload);
+        state.summary = payload && payload.summary;
+        renderSummary(state.rows, payload);
+        renderTable(state.rows);
+    }
+
+    async function refresh() {
+        const body = document.getElementById("avBody");
+        try {
+            const response = await fetch(`${endpoint}?${buildParams().toString()}`, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            render(await response.json());
+        } catch (error) {
+            console.warn("Falha ao carregar relatorio de disponibilidade:", error);
+            if (body) body.innerHTML = '<tr><td colspan="7" class="av-empty">Nao foi possivel carregar o relatorio agora.</td></tr>';
+        }
+    }
+
+    function exportCsv() {
+        if (!state.rows.length) return;
+        const header = ["camera_id", "camera", "disponibilidade_pct", "ia_ativa_pct", "online_min", "offline_min"];
+        const lines = [header.join(",")].concat(state.rows.map((r) => [
+            r.id,
+            `"${String(r.name).replace(/"/g, '""')}"`,
+            r.uptime === null ? "" : r.uptime.toFixed(2),
+            r.iaPct === null ? "" : r.iaPct.toFixed(2),
+            Math.round(r.reachable),
+            Math.round(r.down),
+        ].join(",")));
+        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        link.href = URL.createObjectURL(blob);
+        link.download = `disponibilidade_cameras_${stamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+
+    document.querySelectorAll(".av-range-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.querySelectorAll(".av-range-btn").forEach((b) => b.classList.toggle("active", b === button));
+            refresh();
+        });
+    });
+    const avRefresh = document.getElementById("avRefresh");
+    const avExport = document.getElementById("avExport");
+    if (avRefresh) avRefresh.addEventListener("click", refresh);
+    if (avExport) avExport.addEventListener("click", exportCsv);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+    refresh();
+    setInterval(refresh, 60000);
+})();
+</script>
+{% endblock %}

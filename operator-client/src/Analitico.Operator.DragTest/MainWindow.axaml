@@ -1,0 +1,158 @@
+<Window
+    x:Class="Analitico.Operator.DragTest.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:Analitico.Operator.DragTest.Controls"
+    xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+    Width="1360"
+    Height="720"
+    MinWidth="760"
+    MinHeight="520"
+    Title="Analitico Drag Test">
+  <Grid Background="#111827" RowDefinitions="Auto,*,Auto" Margin="14">
+    <StackPanel Grid.Row="0" Spacing="4">
+      <DockPanel>
+        <TextBlock Text="Analitico Drag Test" Foreground="#f8fafc" FontSize="20" FontWeight="Bold" />
+        <TextBlock DockPanel.Dock="Right" Text="v0.2.8 | topmost drag ghost | log em %LOCALAPPDATA%\AnaliticoOperator\logs\operator-dragtest.log" Foreground="#60a5fa" FontWeight="Bold" />
+      </DockPanel>
+      <TextBlock Text="Teste isolado de drag/drop com e sem VLC: arraste textos, barras, slot fake e video real para qualquer alvo." Foreground="#93a4bc" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="260,*,300" ColumnSpacing="12" Margin="0,16">
+      <Border Grid.Column="0" Background="#0b1220" BorderBrush="#2563eb" BorderThickness="1" Padding="12">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Origem A - texto" Foreground="#dbeafe" FontWeight="Bold" />
+          <TextBlock
+              Text="Arraste este texto"
+              Foreground="#ffffff"
+              Background="#334155"
+              Padding="10"
+              PointerPressed="OnTextDragStart"
+              ToolTip.Tip="Drag iniciado direto por texto" />
+          <Border
+              Background="#1d4ed8"
+              Padding="10"
+              PointerPressed="OnPanelDragStart"
+              ToolTip.Tip="Drag iniciado por painel">
+            <TextBlock Text="Arraste este painel" Foreground="#ffffff" HorizontalAlignment="Center" />
+          </Border>
+          <Button Name="DragButton" Content="Clique e arraste este botao" />
+
+          <Border Background="#111827" BorderBrush="#334155" BorderThickness="1" Padding="8" Margin="0,12,0,0">
+            <StackPanel Spacing="7">
+              <TextBlock Text="Video real" Foreground="#dbeafe" FontWeight="Bold" />
+              <TextBox Name="RtspUrlBox" Text="rtsp://localhost:8554/cam_11" Watermark="rtsp://ip:8554/cam_10" />
+              <StackPanel Spacing="5">
+                <TextBlock Text="Teste A: video nativo LibVLC" Foreground="#93c5fd" FontSize="11" FontWeight="Bold" />
+                <WrapPanel>
+                  <Button Content="Iniciar video" Click="OnStartVideoClick" Margin="0,0,6,6" />
+                  <Button Content="Parar video" Click="OnStopVideoClick" Margin="0,0,6,6" />
+                  <Button Content="Overlay nativo" Click="OnToggleDiagnosticOverlayClick" Margin="0,0,6,6" />
+                  <Button Content="Aspect 1152:1920" Click="OnSetPortraitAspectClick" Margin="0,0,6,6" />
+                  <Button Content="Aspect reset" Click="OnResetAspectClick" Margin="0,0,6,6" />
+                </WrapPanel>
+                <TextBlock Text="Teste B: callback canvas (video + box no mesmo desenho)" Foreground="#93c5fd" FontSize="11" FontWeight="Bold" />
+                <WrapPanel>
+                  <Button Content="Iniciar CALLBACK" Click="OnStartCallbackCanvasClick" Margin="0,0,6,6" />
+                  <Button Content="Parar CALLBACK" Click="OnStopCallbackCanvasClick" Margin="0,0,6,6" />
+                </WrapPanel>
+              </StackPanel>
+              <TextBlock Text="Use o mesmo RTSP publicado pelo gateway/monitor." Foreground="#93a4bc" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Column="1" Background="#0b1220" BorderBrush="#2563eb" BorderThickness="1" Padding="12">
+        <Grid RowDefinitions="Auto,220,*,Auto" RowSpacing="10">
+          <TextBlock Text="Origem B - slot fake + video real" Foreground="#dbeafe" FontWeight="Bold" />
+          <Border
+              Grid.Row="1"
+              Background="#05070c"
+              BorderBrush="#60a5fa"
+              BorderThickness="1"
+              PointerPressed="OnSlotPointerPressed"
+              PointerMoved="OnSlotPointerMoved"
+              PointerReleased="OnSlotPointerReleased"
+              PointerCaptureLost="OnSlotPointerCaptureLost">
+            <Grid RowDefinitions="26,*">
+              <Border Grid.Row="0" Background="#0f172a" Padding="7,3">
+                <TextBlock Text="Slot fake 01 - arraste barra ou corpo" Foreground="#e5edff" FontWeight="Bold" />
+              </Border>
+              <Border Grid.Row="1" Background="#182033" Margin="10">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="AREA DO VIDEO SIMULADA" Foreground="#dbeafe" FontWeight="Bold" HorizontalAlignment="Center" />
+                  <TextBlock Text="sem VLC, deve arrastar normalmente" Foreground="#93c5fd" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Grid.Row="2" Background="#05070c" BorderBrush="#60a5fa" BorderThickness="1">
+            <Grid RowDefinitions="26,*">
+              <Border
+                  Grid.Row="0"
+                  Background="#0f172a"
+                  Padding="7,3"
+                  PointerPressed="OnVideoHeaderDragStart"
+                  ToolTip.Tip="Arraste esta barra do video real">
+                <DockPanel>
+                  <TextBlock Text="Video real LibVLC - arraste pela barra" Foreground="#e5edff" FontWeight="Bold" />
+                  <TextBlock DockPanel.Dock="Right" Text="igual monitor" Foreground="#93c5fd" />
+                </DockPanel>
+              </Border>
+              <Grid Grid.Row="1" Background="#000000">
+                <controls:NativeDragVideoView
+                    Name="VideoView"
+                    NativeDragStarted="OnVideoNativeDragStarted"
+                    NativeDragCompleted="OnVideoNativeDragCompleted" />
+                <controls:DiagnosticNativeOverlayView
+                    Name="DiagnosticOverlay"
+                    IsVisible="False" />
+                <controls:CallbackVideoOverlayView
+                    Name="CallbackCanvas"
+                    IsVisible="False" />
+                <Border
+                    Name="VideoDragOverlay"
+                    Background="#33071226"
+                    BorderBrush="#60a5fa"
+                    BorderThickness="1"
+                    Margin="10"
+                    PointerPressed="OnVideoOverlayDragStart"
+                    ToolTip.Tip="Camada XAML sobre o video; se o VLC cobrir, ela nao recebera clique">
+                  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="CAMADA DE DRAG SOBRE VIDEO" Foreground="#dbeafe" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock Text="se isto clicar, overlay funciona sobre VLC" Foreground="#93c5fd" HorizontalAlignment="Center" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Grid>
+          </Border>
+
+          <TextBlock Grid.Row="3" Text="No video real, teste: barra superior, camada azul e o proprio video. O log indica quem recebeu o clique." Foreground="#93a4bc" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+
+      <Border
+          Name="DropTarget"
+          Grid.Column="2"
+          Background="#07111f"
+          BorderBrush="#22c55e"
+          BorderThickness="2"
+          Padding="12"
+          DragDrop.AllowDrop="True"
+          DragDrop.DragOver="OnDropTargetDragOver"
+          DragDrop.Drop="OnDropTargetDrop">
+        <StackPanel VerticalAlignment="Center" Spacing="8">
+          <TextBlock Text="ALVO" Foreground="#bbf7d0" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" />
+          <TextBlock Name="DropResultText" Text="Solte qualquer item aqui" Foreground="#e5e7eb" TextAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Border Grid.Row="2" Background="#0b1220" BorderBrush="#334155" BorderThickness="1" Padding="8">
+      <TextBlock Name="LogText" Text="Log: pronto" Foreground="#bfdbfe" TextWrapping="Wrap" />
+    </Border>
+
+  </Grid>
+</Window>
