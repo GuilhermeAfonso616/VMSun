@@ -1,4 +1,0 @@
-tensorrt-cu12==10.8.0.43
-onnx
-onnxruntime-gpu
-onnxslim

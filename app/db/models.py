@@ -1,19 +1,108 @@
-"""Modelos SQLAlchemy do sistema.
+"""Modelos SQLAlchemy do VMSun.
 
-Camera guarda a configuracao operacional e analitica.
-Event registra o historico de eventos operacionais.
-LockdownDelivery acompanha tentativas de envio externo do Lockdown.
+Customer: Empresa / Cliente final
+Site: Instalação física
+Nvr: Gravador de Vídeo de Rede (Intelbras, Dahua, Hikvision, Genérico)
+Camera: Câmera individual ou Canal do NVR
+CameraGroup: Grupos operacionais (Perímetro, Acessos, etc.)
+User: Usuário e permissões
+AuditLog & ViewPreset: Logs e layouts operacionais
 """
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, UniqueConstraint, Table, text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.credential_crypto import EncryptedString
 from app.db.base import Base
 
 
+class Customer(Base):
+    """Cliente / Empresa atendida."""
+
+    __tablename__ = "customers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    code = Column(String(50), nullable=True, unique=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    sites = relationship("Site", back_populates="customer", cascade="all, delete-orphan")
+
+
+class Site(Base):
+    """Local / Instalação física do cliente (ex: Matriz, Filial, Depósito)."""
+
+    __tablename__ = "sites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    code = Column(String(50), nullable=True)
+    address = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    customer = relationship("Customer", back_populates="sites")
+    nvrs = relationship("Nvr", back_populates="site", cascade="all, delete-orphan")
+    cameras = relationship("Camera", back_populates="site")
+
+
+class Nvr(Base):
+    """Gravador de Vídeo em Rede (NVR / DVR)."""
+
+    __tablename__ = "nvrs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    host = Column(String, nullable=False)  # IP ou Hostname
+    port = Column(Integer, nullable=False, default=80)
+    rtsp_port = Column(Integer, nullable=False, default=554)
+    sdk_port = Column(Integer, nullable=True)
+    vendor = Column(String(50), nullable=False, default="generic")  # hikvision, dahua, intelbras, generic
+    model = Column(String(100), nullable=True)
+    username = Column(String, nullable=False)
+    password = Column(EncryptedString, nullable=False)
+    total_channels = Column(Integer, nullable=False, default=16)
+    status = Column(String(32), nullable=False, default="offline")
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    site = relationship("Site", back_populates="nvrs")
+    channels = relationship("Camera", back_populates="nvr")
+
+
+# Tabela de associação n:n entre Câmeras e Grupos Operacionais
+camera_group_members = Table(
+    "camera_group_members",
+    Base.metadata,
+    Column("group_id", Integer, ForeignKey("camera_groups.id", ondelete="CASCADE"), primary_key=True),
+    Column("camera_id", Integer, ForeignKey("cameras.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class CameraGroup(Base):
+    """Grupo lógico de câmeras (ex: Perímetro, Acessos, Câmeras Críticas)."""
+
+    __tablename__ = "camera_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    cameras = relationship("Camera", secondary=camera_group_members, back_populates="groups")
+
+
 class Camera(Base):
-    # Configuracao persistida da camera e dos analiticos associados.
+    """Câmera individual ou Canal lógico do NVR."""
+
     __tablename__ = "cameras"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -22,65 +111,44 @@ class Camera(Base):
     onvif_port = Column(Integer, default=80)
     username = Column(String, nullable=False)
     password = Column(EncryptedString, nullable=False)
-    manufacturer = Column(String(120), nullable=False, default="Nao informada", server_default="Nao informada")
+    manufacturer = Column(String(120), nullable=False, default="Nao informada")
     model = Column(String(120), nullable=True)
-    rtsp_url = Column(EncryptedString, nullable=True)
+
+    # Hierarquia física do VMSun
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id", ondelete="SET NULL"), nullable=True, index=True)
+    nvr_id = Column(Integer, ForeignKey("nvrs.id", ondelete="SET NULL"), nullable=True, index=True)
+    channel_number = Column(Integer, nullable=True)
+
+    # Perfis de Stream (Main Stream vs Substream)
+    rtsp_url = Column(EncryptedString, nullable=True)       # Main Stream URL
+    sub_rtsp_url = Column(EncryptedString, nullable=True)   # Substream URL
+
     status = Column(String, default="idle")
-    source_type = Column(String, nullable=True, default="camera")
+    source_type = Column(String, nullable=True, default="camera")  # "camera" ou "nvr_channel"
     source_parent_id = Column(Integer, nullable=True)
     source_channel = Column(Integer, nullable=True)
     source_stream_kind = Column(String, nullable=True)
     source_brand = Column(String, nullable=True)
     source_provider = Column(String, nullable=True)
 
-    roi_name = Column(String, nullable=True)
-    roi_polygon_json = Column(Text, nullable=True)
-    line_start_x = Column(Float, nullable=True)
-    line_start_y = Column(Float, nullable=True)
-    line_end_x = Column(Float, nullable=True)
-    line_end_y = Column(Float, nullable=True)
-    line_direction = Column(String, nullable=True)
-    analytics_coordinate_space = Column(String, nullable=True, default="display")
-    human_event_modes_json = Column(Text, nullable=True)
-    human_loitering_seconds = Column(Float, nullable=True)
-    human_detection_sensitivity = Column(String, nullable=True, default="medium")
-    analytics_profile_json = Column(Text, nullable=True)
-    learning_mode = Column(String, nullable=True, default="assisted_policy_tuning")
-    auto_tuning_enabled = Column(Boolean, nullable=True, default=False)
-    critical_lock = Column(Boolean, nullable=True, default=False)
-    max_daily_auto_changes = Column(Integer, nullable=True, default=1)
-    min_reviewed_events_for_suggestion = Column(Integer, nullable=True, default=12)
-    min_reviewed_events_for_auto_tuning = Column(Integer, nullable=True, default=24)
-    rollback_window_hours = Column(Integer, nullable=True, default=48)
-
     site_name = Column(String, nullable=True)
     group_name = Column(String, nullable=True)
     camera_priority = Column(String, nullable=True, default="medium")
     auto_start_enabled = Column(Boolean, nullable=True, default=False)
-    alarm_sound_enabled = Column(Boolean, nullable=True, default=True)
-    alarm_popup_enabled = Column(Boolean, nullable=True, default=True)
 
-    motion_idle_interval = Column(Float, nullable=True)
-    motion_active_interval = Column(Float, nullable=True)
-    motion_hold_seconds = Column(Float, nullable=True)
-    motion_detection_hold_seconds = Column(Float, nullable=True)
-    motion_min_motion_frames = Column(Integer, nullable=True)
-    motion_downscale_width = Column(Integer, nullable=True)
-    motion_min_contour_area = Column(Integer, nullable=True)
-    motion_ratio_threshold = Column(Float, nullable=True)
-    motion_global_change_ratio_limit = Column(Float, nullable=True)
-    motion_background_alpha = Column(Float, nullable=True)
-    motion_warmup_frames = Column(Integer, nullable=True)
-
-    # Soft delete fields
+    # Soft delete
     is_deleted = Column(Boolean, nullable=False, default=False, index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    site = relationship("Site", back_populates="cameras")
+    nvr = relationship("Nvr", back_populates="channels")
+    groups = relationship("CameraGroup", secondary=camera_group_members, back_populates="cameras")
 
 
 class CameraPtzProfile(Base):
-    """Diagnostico persistido do melhor caminho de controle PTZ da camera."""
+    """Perfil e capacidade PTZ da câmera."""
 
     __tablename__ = "camera_ptz_profiles"
 
@@ -109,158 +177,9 @@ class CameraPtzProfile(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
 
-class Event(Base):
-    # Evento operacional gerado pelo pipeline analitico.
-    __tablename__ = "events"
-
-    id = Column(Integer, primary_key=True, index=True)
-    camera_id = Column(Integer, ForeignKey("cameras.id"), nullable=False)
-    event_type = Column(String, nullable=False)
-    started_at = Column(DateTime(timezone=True), nullable=True)
-    ended_at = Column(DateTime(timezone=True), nullable=True)
-    track_id = Column(Integer, nullable=True)
-    detector_score = Column(Float, nullable=True)
-    confidence = Column(Float, nullable=True)
-    event_score = Column(Float, nullable=True)
-    details = Column(Text, nullable=True)
-    snapshot_path = Column(String, nullable=True)
-    clip_path = Column(String, nullable=True)
-    clip_remote_item_id = Column(String, nullable=True)
-    clip_remote_web_url = Column(String, nullable=True)
-    clip_remote_status = Column(String, nullable=True)
-    clip_remote_uploaded_at = Column(DateTime(timezone=True), nullable=True)
-    clip_local_deleted_at = Column(DateTime(timezone=True), nullable=True)
-    snapshot_remote_item_id = Column(String, nullable=True)
-    snapshot_remote_web_url = Column(String, nullable=True)
-    snapshot_remote_status = Column(String, nullable=True)
-    snapshot_remote_uploaded_at = Column(DateTime(timezone=True), nullable=True)
-    event_remote_item_id = Column(String, nullable=True)
-    event_remote_web_url = Column(String, nullable=True)
-    event_remote_status = Column(String, nullable=True)
-    event_remote_uploaded_at = Column(DateTime(timezone=True), nullable=True)
-    bbox_json = Column(Text, nullable=True)
-    active_profile_snapshot = Column(Text, nullable=True)
-    threshold_snapshot = Column(Text, nullable=True)
-    scene_profile = Column(String, nullable=True)
-    camera_family = Column(String, nullable=True)
-    nuisance_profile_snapshot = Column(Text, nullable=True)
-    roi_id = Column(String, nullable=True)
-    zone_id = Column(String, nullable=True)
-    rule_id = Column(String, nullable=True)
-    severity = Column(String, nullable=True, default="medium")
-    status = Column(String, nullable=True, default="new")
-    alarm_eligible = Column(Boolean, nullable=True, default=True)
-    lifecycle_action = Column(String, nullable=True, default="open")
-    alarm_category = Column(String, nullable=True)
-    correlation_key = Column(String, nullable=True)
-    related_event_id = Column(Integer, nullable=True)
-    resolved_by_event_id = Column(Integer, nullable=True)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-    is_alarm_active = Column(Boolean, nullable=True, default=True)
-    operator_note = Column(Text, nullable=True)
-    assigned_user_id = Column(Integer, nullable=True, index=True)
-    assigned_username = Column(String, nullable=True, index=True)
-    sla_due_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    escalated_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    resolution_code = Column(String, nullable=True)
-    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
-    closed_at = Column(DateTime(timezone=True), nullable=True)
-    incident_team = Column(String, nullable=True, index=True)
-    incident_priority = Column(String, nullable=True, index=True)
-    incident_checklist = Column(Text, nullable=True)
-    incident_origin = Column(String, nullable=True, default="automatic", index=True)
-    incident_parent_id = Column(Integer, nullable=True, index=True)
-    # Conclusao automatica por consenso IA2+IA3. Fica separada de EventFeedback de
-    # proposito: nao entra nas metricas de operador nem no auto-tuning de parametros.
-    ai_validation_label = Column(String, nullable=True, index=True)
-    ai_validation_reason = Column(String, nullable=True)
-    ai_validation_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-
-class EventFeedback(Base):
-    __tablename__ = "event_feedback"
-
-    id = Column(Integer, primary_key=True, index=True)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
-    camera_id = Column(Integer, ForeignKey("cameras.id"), nullable=False, index=True)
-    label = Column(String, nullable=False)
-    probable_cause = Column(String, nullable=True)
-    operator_note = Column(Text, nullable=True)
-    reviewed_by = Column(String, nullable=True)
-    reviewed_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-
-
-class IncidentTimeline(Base):
-    __tablename__ = "incident_timeline"
-
-    id = Column(Integer, primary_key=True, index=True)
-    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
-    actor_user_id = Column(Integer, nullable=True, index=True)
-    actor_username = Column(String, nullable=True)
-    action = Column(String, nullable=False, index=True)
-    from_status = Column(String, nullable=True)
-    to_status = Column(String, nullable=True)
-    comment = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
-
-
-class TuningSuggestion(Base):
-    __tablename__ = "tuning_suggestions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    camera_id = Column(Integer, ForeignKey("cameras.id"), nullable=False, index=True)
-    scope_type = Column(String, nullable=False)
-    scope_id = Column(String, nullable=False)
-    suggestion_type = Column(String, nullable=False)
-    parameter_name = Column(String, nullable=False)
-    old_value = Column(Text, nullable=True)
-    suggested_value = Column(Text, nullable=True)
-    reason_summary = Column(Text, nullable=True)
-    evidence_count = Column(Integer, nullable=False, default=0)
-    confidence_score = Column(Float, nullable=False, default=0.0)
-    status = Column(String, nullable=False, default="pending")
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    applied_at = Column(DateTime(timezone=True), nullable=True)
-
-
-class ConfigVersionHistory(Base):
-    __tablename__ = "config_version_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    camera_id = Column(Integer, ForeignKey("cameras.id"), nullable=False, index=True)
-    config_before = Column(Text, nullable=False)
-    config_after = Column(Text, nullable=False)
-    change_source = Column(String, nullable=False, default="manual")
-    reason = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    rollback_available = Column(Boolean, nullable=False, default=True)
-
-
-class LockdownDelivery(Base):
-    # Historico de envios HTTP para a integracao externa do Lockdown.
-    __tablename__ = "lockdown_deliveries"
-
-    id = Column(Integer, primary_key=True, index=True)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False, index=True)
-    camera_id = Column(Integer, nullable=False, index=True)
-    event_type = Column(String, nullable=False, index=True)
-    target_url = Column(String, nullable=False)
-    request_body = Column(Text, nullable=True)
-    request_timestamp = Column(Integer, nullable=True)
-    request_signature = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="pending")
-    attempt_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
-    http_status = Column(Integer, nullable=True)
-    response_body = Column(Text, nullable=True)
-    error_message = Column(Text, nullable=True)
-    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
-    sent_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
 class User(Base):
+    """Usuário do VMSun."""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -275,6 +194,24 @@ class User(Base):
     max_active_sessions = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class UserPermission(Base):
+    """Permissão granular de usuário por escopo (Cliente, Local, NVR, Câmera ou Grupo)."""
+
+    __tablename__ = "user_permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), nullable=True, index=True)
+    site_id = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=True, index=True)
+    nvr_id = Column(Integer, ForeignKey("nvrs.id", ondelete="CASCADE"), nullable=True, index=True)
+    camera_id = Column(Integer, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=True, index=True)
+    group_id = Column(Integer, ForeignKey("camera_groups.id", ondelete="CASCADE"), nullable=True, index=True)
+    can_view = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    can_control_ptz = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    can_manage = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class InstallationState(Base):
@@ -299,46 +236,6 @@ class UserSession(Base):
     user_agent = Column(String, nullable=True)
 
 
-class NotificationChannel(Base):
-    __tablename__ = "notification_channels"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    kind = Column(String, nullable=False, default="webhook", server_default="webhook")
-    enabled = Column(Boolean, nullable=False, default=True, server_default=text("true"))
-    target = Column(EncryptedString, nullable=False)
-    signing_secret = Column(EncryptedString, nullable=True)
-    min_severity = Column(String, nullable=False, default="medium", server_default="medium")
-    event_types_json = Column(Text, nullable=True)
-    timeout_seconds = Column(Float, nullable=False, default=5.0, server_default="5")
-    max_attempts = Column(Integer, nullable=False, default=5, server_default=text("5"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-
-
-class NotificationDelivery(Base):
-    __tablename__ = "notification_deliveries"
-    __table_args__ = (
-        UniqueConstraint("idempotency_key", name="uq_notification_delivery_idempotency"),
-    )
-
-    id = Column(Integer, primary_key=True, index=True)
-    event_id = Column(Integer, ForeignKey("events.id", ondelete="SET NULL"), nullable=True, index=True)
-    channel_id = Column(Integer, ForeignKey("notification_channels.id", ondelete="CASCADE"), nullable=False, index=True)
-    idempotency_key = Column(String, nullable=False, index=True)
-    status = Column(String, nullable=False, default="pending", server_default="pending", index=True)
-    attempt_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
-    payload_json = Column(Text, nullable=False)
-    next_attempt_at = Column(DateTime(timezone=True), nullable=True, index=True)
-    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
-    sent_at = Column(DateTime(timezone=True), nullable=True)
-    http_status = Column(Integer, nullable=True)
-    response_body = Column(Text, nullable=True)
-    error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-
-
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
@@ -354,13 +251,12 @@ class AuditLog(Base):
 class ViewPreset(Base):
     __tablename__ = "view_presets"
 
-    id = Column(String, primary_key=True, index=True)  # Ex: view_171234567890
+    id = Column(String, primary_key=True, index=True)
     owner_user_id = Column(Integer, nullable=False, index=True)
     name = Column(String, nullable=False)
     grid_size = Column(Integer, nullable=False, default=16)
-    camera_ids = Column(String, nullable=False)  # Armazenado como string JSON: '[1, 2, null, 4]'
+    camera_ids = Column(String, nullable=False)  # JSON string: '[1, 2, null, 4]'
     hide_offline = Column(Boolean, default=False)
-    boxes_enabled = Column(Boolean, default=True)
     view_config_json = Column(Text, nullable=True)
     is_shared = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -369,9 +265,9 @@ class ViewPreset(Base):
 class TemporalSequence(Base):
     __tablename__ = "temporal_sequences"
 
-    id = Column(String, primary_key=True, index=True)  # Ex: seq_171234567890
+    id = Column(String, primary_key=True, index=True)
     owner_user_id = Column(Integer, nullable=False, index=True)
     name = Column(String, nullable=False)
-    steps = Column(String, nullable=False)  # Armazenado como string JSON: '[{"viewId": "view_123", "duration": 8}]'
+    steps = Column(String, nullable=False)  # JSON string: '[{"viewId": "view_123", "duration": 8}]'
     is_shared = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

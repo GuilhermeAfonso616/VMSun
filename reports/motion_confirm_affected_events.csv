@@ -1,1 +1,0 @@
-event_id,camera_id,camera_name,event_type,created_at,status,is_alarm_active_now,motion_passed,motion_blobs_median,motion_area_pct_median,ia2_person_score,ia3_person_score,strong_person_evidence,would_be_blocked_in_production

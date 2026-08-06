@@ -20,18 +20,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 COPY requirements.txt /app/requirements.txt
 
-ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
-ARG TORCH_VERSION=2.6.0
-ARG TORCHVISION_VERSION=0.21.0
-
-RUN --mount=type=cache,id=analitico-pip-cache,target=/root/.cache/pip,sharing=locked \
+RUN --mount=type=cache,id=vmsun-pip-cache,target=/root/.cache/pip,sharing=locked \
     pip install --upgrade pip && \
-    pip install \
-        torch==${TORCH_VERSION} \
-        torchvision==${TORCHVISION_VERSION} \
-        --index-url ${PYTORCH_INDEX_URL} && \
-    pip install -r /app/requirements.txt && \
-    python -c "import torch, torchvision; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'torchvision', torchvision.__version__)"
+    pip install -r /app/requirements.txt
 
 COPY . /app
 

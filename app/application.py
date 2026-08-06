@@ -1,8 +1,7 @@
-"""Fabrica da aplicacao FastAPI e composicao das rotas."""
+"""Fabrica da aplicacao FastAPI e composicao das rotas do VMSun."""
 
 from __future__ import annotations
 
-import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -26,16 +25,8 @@ def resolve_static_dir() -> Path | None:
     return next((candidate for candidate in candidates if candidate.exists()), None)
 
 
-from app.services.event_broadcaster import event_broadcaster
-
-
 @asynccontextmanager
 async def _application_lifespan(_application: FastAPI):
-    try:
-        loop = asyncio.get_running_loop()
-        event_broadcaster.set_loop(loop)
-    except Exception:
-        pass
     bootstrap.startup_application()
     try:
         yield
@@ -44,10 +35,7 @@ async def _application_lifespan(_application: FastAPI):
 
 
 def create_app(*, enable_lifecycle: bool = True) -> FastAPI:
-    """Constroi a aplicacao sem iniciar banco, threads ou servicos imediatamente."""
-    if os.getenv("SERVER_ANALITICO_WORKER_CHILD") == "1":
-        return FastAPI(title=settings.app_name)
-
+    """Constroi a aplicacao FastAPI do VMSun."""
     application = FastAPI(
         title=settings.app_name,
         lifespan=_application_lifespan if enable_lifecycle else None,
@@ -58,12 +46,12 @@ def create_app(*, enable_lifecycle: bool = True) -> FastAPI:
     if static_dir is not None:
         application.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    if bootstrap.runtime_role_enabled() or bootstrap.web_role_enabled():
+    if bootstrap.control_role_enabled() or bootstrap.web_role_enabled():
         application.include_router(api_router)
-    if bootstrap.runtime_role_enabled():
+    if bootstrap.control_role_enabled():
         application.include_router(internal_router)
     if bootstrap.web_role_enabled():
         application.include_router(web_router)
 
-    get_logger("app.startup").debug("Aplicacao FastAPI construida sem iniciar recursos de processo")
+    get_logger("app.startup").debug("Aplicacao FastAPI do VMSun construida com sucesso")
     return application
