@@ -1,7 +1,7 @@
 services:
-  vms-postgres:
+  vmsun-postgres:
     image: postgres:16-alpine
-    container_name: vms-postgres
+    container_name: vmsun-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: "${POSTGRES_DB:-vmsun}"
@@ -14,19 +14,19 @@ services:
       retries: 5
       start_period: 10s
     ports:
-      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:${POSTGRES_PORT:-5435}:5432"
     volumes:
-      - vms_postgres_data:/var/lib/postgresql/data
+      - vmsun_postgres_data:/var/lib/postgresql/data
 
-  vms-web:
+  vmsun-web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vms-web
+    container_name: vmsun-web
     restart: unless-stopped
     command: ["python3", "main.py"]
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8100}:8000"
     env_file:
       - .env.docker
     extra_hosts:
@@ -42,19 +42,19 @@ services:
       DAHUA_SDK_ENABLED: "${DAHUA_SDK_ENABLED:-true}"
       DAHUA_SDK_LIB_DIR: /opt/dahua/lib
       CAMERA_GATEWAY_ENABLED: "true"
-      CAMERA_GATEWAY_BASE_URL: "http://vms-camera-gateway:8090"
+      CAMERA_GATEWAY_BASE_URL: "http://vmsun-camera-gateway:8090"
       WEBRTC_GATEWAY_ENABLED: "true"
-      WEBRTC_GATEWAY_API_BASE_URL: "http://vms-mediamtx:9997"
-      WEBRTC_GATEWAY_RTSP_BASE_URL: "rtsp://vms-mediamtx:8554"
+      WEBRTC_GATEWAY_API_BASE_URL: "http://vmsun-mediamtx:9997"
+      WEBRTC_GATEWAY_RTSP_BASE_URL: "rtsp://vmsun-mediamtx:8554"
       MEDIA_BACKBONE_RECONCILE_ENABLED: "true"
     depends_on:
-      vms-postgres:
+      vmsun-postgres:
         condition: service_healthy
-      vms-control:
+      vmsun-control:
         condition: service_healthy
-      vms-camera-gateway:
+      vmsun-camera-gateway:
         condition: service_healthy
-      vms-mediamtx:
+      vmsun-mediamtx:
         condition: service_started
     volumes:
       - ./data:/data
@@ -65,17 +65,17 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
-        labels: "service=vms-web"
+        labels: "service=vmsun-web"
 
-  vms-control:
+  vmsun-control:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: vms-control
+    container_name: vmsun-control
     restart: unless-stopped
     command: ["python3", "main.py"]
     ports:
-      - "127.0.0.1:${RUNTIME_INTERNAL_PORT:-8001}:8001"
+      - "127.0.0.1:${RUNTIME_INTERNAL_PORT:-8101}:8001"
     healthcheck:
       test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/internal/health/ready', timeout=3)\" >/dev/null 2>&1 || exit 1"]
       interval: 10s
@@ -93,17 +93,17 @@ services:
       PRODUCT_MODE: "vms"
       ONVIF_WSDL_DIR: /app/wsdl
       CAMERA_GATEWAY_ENABLED: "true"
-      CAMERA_GATEWAY_BASE_URL: "http://vms-camera-gateway:8090"
+      CAMERA_GATEWAY_BASE_URL: "http://vmsun-camera-gateway:8090"
       WEBRTC_GATEWAY_ENABLED: "true"
-      WEBRTC_GATEWAY_API_BASE_URL: "http://vms-mediamtx:9997"
-      WEBRTC_GATEWAY_RTSP_BASE_URL: "rtsp://vms-mediamtx:8554"
+      WEBRTC_GATEWAY_API_BASE_URL: "http://vmsun-mediamtx:9997"
+      WEBRTC_GATEWAY_RTSP_BASE_URL: "rtsp://vmsun-mediamtx:8554"
       MEDIA_BACKBONE_RECONCILE_ENABLED: "true"
     depends_on:
-      vms-postgres:
+      vmsun-postgres:
         condition: service_healthy
-      vms-camera-gateway:
+      vmsun-camera-gateway:
         condition: service_healthy
-      vms-mediamtx:
+      vmsun-mediamtx:
         condition: service_started
     volumes:
       - ./data:/data
@@ -114,16 +114,16 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
-        labels: "service=vms-control"
+        labels: "service=vmsun-control"
 
-  vms-camera-gateway:
+  vmsun-camera-gateway:
     build:
       context: ./gateway
       dockerfile: Dockerfile
-    container_name: vms-camera-gateway
+    container_name: vmsun-camera-gateway
     restart: unless-stopped
     ports:
-      - "8090:8090"
+      - "${CAMERA_GATEWAY_PORT:-8190}:8090"
     entrypoint: ["/bin/sh", "-c", "/app/gateway >> /logs/gateway.log 2>&1"]
     env_file:
       - .env.docker
@@ -151,20 +151,20 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
-        labels: "service=vms-camera-gateway"
+        labels: "service=vmsun-camera-gateway"
 
-  vms-mediamtx:
+  vmsun-mediamtx:
     image: bluenviron/mediamtx:1
-    container_name: vms-mediamtx
+    container_name: vmsun-mediamtx
     restart: unless-stopped
     command: ["/mediamtx.yml"]
     env_file:
       - .env.docker
     ports:
-      - "${WEBRTC_GATEWAY_RTSP_BIND_ADDRESS:-0.0.0.0}:8554:8554/tcp"
-      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8889:8889"
-      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8189:8189/udp"
-      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8189:8189/tcp"
+      - "${WEBRTC_GATEWAY_RTSP_BIND_ADDRESS:-0.0.0.0}:8654:8554/tcp"
+      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8989:8889"
+      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8289:8189/udp"
+      - "${WEBRTC_GATEWAY_BIND_ADDRESS:-0.0.0.0}:8289:8189/tcp"
     volumes:
       - ./webrtc-gateway/mediamtx.yml:/mediamtx.yml:ro
       - ./data/logs:/logs
@@ -176,7 +176,7 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
-        labels: "service=vms-mediamtx"
+        labels: "service=vmsun-mediamtx"
 
 volumes:
-  vms_postgres_data:
+  vmsun_postgres_data:
