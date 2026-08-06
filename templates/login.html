@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SunOrus VMS - Login</title>
-    <link rel="icon" href="/static/branding/sunorus-logo.png" type="image/png">
+    <title>VMSun - Login</title>
     
     <!-- Tipografia premium -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,13 +13,13 @@
     <style>
         :root {
             --font-primary: 'Plus Jakarta Sans', sans-serif;
-            --bg-base: #070d19;
-            --bg-surface: rgba(11, 18, 32, 0.6);
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-base: #090d16;
+            --bg-surface: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(148, 163, 184, 0.18);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
-            --accent-color: #2563eb;
-            --accent-hover: #3b82f6;
+            --accent-color: #475569;
+            --accent-hover: #334155;
         }
 
         body {
@@ -36,14 +35,14 @@
             overflow: hidden;
         }
 
-        /* Fundo com efeito de luz sutil */
+        /* Fundo com efeito de luz sutil em tom grafite */
         .ambient-glow {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.12) 0%, rgba(0,0,0,0) 70%);
+            width: 550px;
+            height: 550px;
+            background: radial-gradient(circle, rgba(71, 85, 105, 0.18) 0%, rgba(0,0,0,0) 70%);
             transform: translate(-50%, -50%);
             z-index: 1;
             pointer-events: none;
@@ -60,24 +59,43 @@
             border-radius: 16px;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
+            box-shadow: 0 16px 45px 0 rgba(0, 0, 0, 0.6);
             box-sizing: border-box;
         }
 
         .login-header {
             text-align: center;
             margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .login-header img {
-            width: 64px;
-            height: 78px;
-            margin-bottom: 12px;
+        .vmsun-login-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-primary);
+            font-weight: 800;
+            font-size: 26px;
+            letter-spacing: 0.08em;
+            color: #f8fafc;
+            background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 8px 24px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        .vmsun-login-badge span {
+            color: #94a3b8;
+            font-weight: 400;
         }
 
         .login-header h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             letter-spacing: -0.5px;
         }
@@ -102,7 +120,7 @@
         }
 
         .form-control {
-            background: #0d1527;
+            background: #0f172a;
             border: 1.5px solid var(--border-color);
             border-radius: 8px;
             padding: 12px 14px;
@@ -115,8 +133,8 @@
         }
 
         .form-control:focus {
-            border-color: var(--accent-color);
-            background-color: #0f1a32;
+            border-color: #64748b;
+            background-color: #1e293b;
             outline: none;
         }
 
@@ -133,9 +151,9 @@
         }
 
         .btn-submit {
-            background: var(--accent-color);
+            background: linear-gradient(135deg, #475569 0%, #334155 100%);
+            border: 1px solid rgba(148, 163, 184, 0.3);
             color: #ffffff;
-            border: none;
             border-radius: 8px;
             padding: 14px;
             font-size: 15px;
@@ -143,16 +161,19 @@
             width: 100%;
             cursor: pointer;
             font-family: var(--font-primary);
-            transition: background-color 0.2s ease;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
         }
 
         .btn-submit:hover {
-            background-color: var(--accent-hover);
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            border-color: rgba(148, 163, 184, 0.5);
         }
 
         .btn-submit:disabled {
-            background-color: #1e293b;
+            background: #1e293b;
             color: #64748b;
+            border-color: transparent;
             cursor: not-allowed;
         }
     </style>
@@ -162,9 +183,9 @@
     
     <div class="login-container">
         <div class="login-header">
-            <img src="/static/branding/sunorus-logo.png" alt="SunOrus Logo">
-            <h1>SunOrus VMS</h1>
-            <p>Painel de Controle Operacional</p>
+            <div class="vmsun-login-badge">VMS<span>un</span></div>
+            <h1>Video Management System</h1>
+            <p>Painel de Gestão Operacional</p>
         </div>
 
         <div id="errorAlert" class="error-message"></div>
@@ -218,7 +239,6 @@
                     window.alert(data.concurrent_session_notice);
                 }
 
-                // O servidor grava um cookie HttpOnly; o JavaScript nunca acessa o token.
                 window.location.href = data.must_change_password
                     ? "/perfil?password_change=required"
                     : "/monitor";

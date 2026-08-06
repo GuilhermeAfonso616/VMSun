@@ -3,19 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title if title else "SunOrus VMS" }}</title>
+    <title>{{ title if title else "VMSun - Video Management System" }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         (function () {
             try {
-                const stored = localStorage.getItem("sunorus-theme");
-                const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-                const theme = stored === "dark" || stored === "light" ? stored : (systemDark ? "dark" : "light");
+                const stored = localStorage.getItem("vmsun-theme") || localStorage.getItem("sunorus-theme");
+                const theme = stored === "dark" || stored === "light" ? stored : "dark";
                 document.documentElement.setAttribute("data-theme", theme);
             } catch (error) {
-                document.documentElement.setAttribute("data-theme", "light");
+                document.documentElement.setAttribute("data-theme", "dark");
             }
         })();
         
@@ -32,38 +31,38 @@
     <style>
         :root {
             color-scheme: light;
-            --monitor-logo-height: clamp(72px, 5.64vw, 86.4px);
+            --monitor-logo-height: clamp(54px, 4vw, 68px);
             --monitor-logo-reserve: calc(var(--monitor-logo-height) + 8px);
-            --bg-base:#f4f7fb;
-            --bg-black:#020617;
+            --bg-base:#f1f5f9;
+            --bg-black:#0f172a;
             --bg-panel:#ffffff;
             --bg-panel-light:#f8fafc;
             --bg-header:#ffffff;
-            --bg-page:#edf3f8;
+            --bg-page:#e2e8f0;
             --bg-surface:#ffffff;
-            --bg-soft:#f7f9fc;
+            --bg-soft:#f8fafc;
             --bg-elevated:#ffffff;
-            --bg-nav-start:#07111f;
-            --bg-nav-end:#0d1b2f;
-            --bg-table-head:#eef4fb;
-            --bg-row-alt:#f9fbfe;
-            --bg-row-hover:#edf6ff;
+            --bg-nav-start:#0f172a;
+            --bg-nav-end:#1e293b;
+            --bg-table-head:#f1f5f9;
+            --bg-row-alt:#f8fafc;
+            --bg-row-hover:#e2e8f0;
             --field-bg:#ffffff;
-            --field-text:#111827;
-            --line-soft:#dbe5ef;
-            --line-strong:#bfccda;
-            --line-highlight:#8fb4db;
-            --text-primary:#102033;
-            --text-secondary:#526173;
-            --text-main:#526173;
-            --text-bright:#0f172a;
-            --text-muted:#718096;
-            --heading-color:#0b1b2e;
-            --metric-color:#07111f;
-            --blue-primary:#3b82f6;
-            --blue-glow:rgba(59,130,246,0.15);
-            --blue-glow-strong:rgba(59,130,246,0.3);
-            --blue-light:#7dd3fc;
+            --field-text:#0f172a;
+            --line-soft:#cbd5e1;
+            --line-strong:#94a3b8;
+            --line-highlight:#64748b;
+            --text-primary:#0f172a;
+            --text-secondary:#475569;
+            --text-main:#475569;
+            --text-bright:#020617;
+            --text-muted:#64748b;
+            --heading-color:#0f172a;
+            --metric-color:#0f172a;
+            --blue-primary:#475569;
+            --blue-glow:rgba(71, 85, 105, 0.15);
+            --blue-glow-strong:rgba(71, 85, 105, 0.3);
+            --blue-light:#94a3b8;
             --red:#ef4444;
             --red-critical:#ef4444;
             --red-glow:rgba(239,68,68,0.2);
@@ -73,8 +72,8 @@
             --transition: all .25s cubic-bezier(.2,.8,.2,1);
             --shadow-card:0 12px 28px rgba(15, 23, 42, 0.08);
             --shadow-popover:0 18px 45px rgba(15, 23, 42, 0.18);
-            --brand-600:#2563eb;
-            --brand-700:#1d4ed8;
+            --brand-600:#475569;
+            --brand-700:#334155;
             --warning-600:#b45309;
             --danger-600:#b91c1c;
             --success-600:#15803d;
@@ -83,64 +82,85 @@
             --code-bg:#0f172a;
             --code-text:#e5e7eb;
             --media-border:#cbd5e1;
-            --body-glow-primary:rgba(37, 99, 235, 0.10);
-            --body-glow-secondary:rgba(13, 27, 47, 0.08);
+            --body-glow-primary:rgba(71, 85, 105, 0.10);
+            --body-glow-secondary:rgba(15, 23, 42, 0.08);
             --scroll-track:rgba(15, 23, 42, 0.10);
-            --scroll-thumb:rgba(82, 97, 115, 0.35);
-            --scroll-thumb-hover:rgba(82, 97, 115, 0.55);
+            --scroll-thumb:rgba(71, 85, 105, 0.35);
+            --scroll-thumb-hover:rgba(71, 85, 105, 0.55);
             --loading-card-bg:rgba(255, 255, 255, 0.96);
         }
 
         :root[data-theme="dark"] {
             color-scheme: dark;
-            --bg-base:#05070d;
-            --bg-black:#000000;
-            --bg-panel:#0b111c;
-            --bg-panel-light:#111827;
-            --bg-header:#070b12;
-            --bg-page:#07101b;
-            --bg-surface:#0e1623;
-            --bg-soft:#111c2b;
-            --bg-elevated:#141f2e;
-            --bg-nav-start:#020611;
-            --bg-nav-end:#081322;
-            --bg-table-head:#101a2a;
-            --bg-row-alt:#0b1421;
-            --bg-row-hover:#12243a;
-            --field-bg:#0a1320;
-            --field-text:#e5edf7;
-            --line-soft:rgba(148, 163, 184, 0.18);
-            --line-strong:rgba(148, 163, 184, 0.30);
-            --line-highlight:rgba(125, 211, 252, 0.38);
-            --text-primary:#e6edf7;
-            --text-secondary:#a4b3c7;
-            --text-main:#a4b3c7;
-            --text-bright:#f8fafc;
-            --text-muted:#7d8da3;
+            --bg-base:#090d16;
+            --bg-black:#020408;
+            --bg-panel:#0f172a;
+            --bg-panel-light:#1e293b;
+            --bg-header:#0b1120;
+            --bg-page:#090e17;
+            --bg-surface:#0f172a;
+            --bg-soft:#1e293b;
+            --bg-elevated:#334155;
+            --bg-nav-start:#090d16;
+            --bg-nav-end:#0f172a;
+            --bg-table-head:#1e293b;
+            --bg-row-alt:#0d1527;
+            --bg-row-hover:#1e293b;
+            --field-bg:#0f172a;
+            --field-text:#f8fafc;
+            --line-soft:rgba(148, 163, 184, 0.16);
+            --line-strong:rgba(148, 163, 184, 0.28);
+            --line-highlight:rgba(148, 163, 184, 0.45);
+            --text-primary:#f8fafc;
+            --text-secondary:#94a3b8;
+            --text-main:#94a3b8;
+            --text-bright:#ffffff;
+            --text-muted:#64748b;
             --heading-color:#f8fafc;
             --metric-color:#f8fafc;
-            --blue-primary:#60a5fa;
-            --blue-glow:rgba(96, 165, 250, 0.15);
-            --blue-glow-strong:rgba(96, 165, 250, 0.28);
-            --blue-light:#93c5fd;
-            --shadow-card:0 14px 30px rgba(0, 0, 0, 0.32);
-            --shadow-popover:0 22px 55px rgba(0, 0, 0, 0.42);
-            --brand-600:#3b82f6;
-            --brand-700:#2563eb;
+            --blue-primary:#94a3b8;
+            --blue-glow:rgba(148, 163, 184, 0.15);
+            --blue-glow-strong:rgba(148, 163, 184, 0.28);
+            --blue-light:#cbd5e1;
+            --shadow-card:0 14px 30px rgba(0, 0, 0, 0.45);
+            --shadow-popover:0 22px 55px rgba(0, 0, 0, 0.55);
+            --brand-600:#475569;
+            --brand-700:#334155;
             --warning-600:#d97706;
             --danger-600:#dc2626;
             --success-600:#16a34a;
-            --btn-secondary-bg:#1f2b3d;
-            --btn-secondary-text:#e5edf7;
-            --code-bg:#050816;
-            --code-text:#dbeafe;
+            --btn-secondary-bg:#334155;
+            --btn-secondary-text:#f8fafc;
+            --code-bg:#020617;
+            --code-text:#e2e8f0;
             --media-border:#334155;
-            --body-glow-primary:rgba(59, 130, 246, 0.12);
-            --body-glow-secondary:rgba(125, 211, 252, 0.06);
+            --body-glow-primary:rgba(71, 85, 105, 0.12);
+            --body-glow-secondary:rgba(148, 163, 184, 0.06);
             --scroll-track:rgba(2, 6, 23, 0.65);
             --scroll-thumb:rgba(148, 163, 184, 0.30);
             --scroll-thumb-hover:rgba(148, 163, 184, 0.52);
-            --loading-card-bg:rgba(14, 22, 35, 0.96);
+            --loading-card-bg:rgba(15, 23, 42, 0.96);
+        }
+
+        .vmsun-brand-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 800;
+            font-size: 19px;
+            letter-spacing: 0.08em;
+            color: #f8fafc;
+            background: linear-gradient(135deg, #334155 0%, #0f172a 100%);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 4px 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            text-transform: uppercase;
+        }
+        .vmsun-brand-badge span {
+            color: #94a3b8;
+            font-weight: 400;
         }
 
         /* Custom scrollbar styled for premium dark theme */
@@ -949,19 +969,15 @@
 
     <button id="navDrawerToggle" class="nav-drawer-toggle" type="button" aria-label="Abrir menu" aria-controls="mainNavigation" aria-expanded="false">&#9776;</button>
     {% if request.url.path == '/monitor' %}
-    <a class="monitor-top-brand" href="/monitor" title="SunOrus VMS + Analiticos Inteligentes">
-        <img src="/static/branding/sunorus-logo.png" alt="SunOrus">
-        <span>SunOrus</span>
+    <a class="monitor-top-brand" href="/monitor" title="VMSun - Video Management System">
+        <span class="vmsun-brand-badge">VMS<span>un</span></span>
     </a>
     {% endif %}
     <nav class="sunorus-main-nav" id="mainNavigation">
         <div class="sunorus-nav-scroll">
-        <!-- Navegacao principal do sistema: dashboard, monitoramento, cameras e eventos. -->
-        <a class="sunorus-nav-brand" href="/monitor" title="SunOrus VMS + Analiticos Inteligentes">
-            {% if request.url.path != '/monitor' %}
-            <img class="sunorus-nav-logo" src="/static/branding/sunorus-logo.png" alt="SunOrus">
-            {% endif %}
-            <span>SunOrus</span>
+        <!-- Navegacao principal do VMSun -->
+        <a class="sunorus-nav-brand" href="/monitor" title="VMSun - Video Management System" style="padding: 10px 0;">
+            <span class="vmsun-brand-badge">VMS<span>un</span></span>
         </a>
 
         {% set cur_role = request.state.effective_role if request.state.effective_role is defined else (request.state.user.role if request.state.user is defined and request.state.user else "operator") %}
